@@ -1,0 +1,121 @@
+package com.bkbank.ledger.service;
+
+import com.bkbank.ledger.entity.Client;
+import com.bkbank.ledger.entity.SavingsAccount;
+import com.bkbank.ledger.entity.Transaction;
+import com.bkbank.ledger.repository.ClientRepository;
+import com.bkbank.ledger.repository.SavingsAccountRepository;
+import com.bkbank.ledger.repository.TransactionRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class SavingsAccountService {
+
+    private final SavingsAccountRepository savingsAccountRepository;
+    private final ClientRepository clientRepository;
+    private final TransactionRepository transactionRepository;
+
+    /**
+     * Get account by account number
+     */
+    public SavingsAccount getAccount(String accountNumber) {
+        return savingsAccountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new RuntimeException("Savings account not found: " + accountNumber));
+    }
+
+    /**
+     * Get account balance
+     */
+    public Double getBalance(String accountNumber) {
+        SavingsAccount account = getAccount(accountNumber);
+        log.info("Account {} balance: {}", accountNumber, account.getBalance());
+        return account.getBalance();
+    }
+
+    /**
+     * Withdraw from account (for debit card transactions)
+     */
+    @Transactional
+    public SavingsAccount withdraw(String accountNumber, Double amount) {
+        log.info("Withdrawing {} from account {}", amount, accountNumber);
+        
+        SavingsAccount account = getAccount(accountNumber);
+        
+        if (!account.isActive()) {
+            throw new RuntimeException("Account is not active");
+        }
+        
+        if (!account.hasSufficientBalance(amount)) {
+            throw new RuntimeException("Insufficient balance");
+        }
+        
+        account.withdraw(amount);
+        SavingsAccount savedAccount = savingsAccountRepository.save(account);
+        
+        // Log transaction
+        Transaction tx = Transaction.createWithdrawal(accountNumber, amount, savedAccount.getBalance());
+        transactionRepository.save(tx);
+        
+        log.info("Withdrawal successful. New balance: {}", savedAccount.getBalance());
+        return savedAccount;
+    }
+
+    /**
+     * Deposit to account
+     */
+    @Transactional
+    public SavingsAccount deposit(String accountNumber, Double amount) {
+        log.info("Depositing {} to account {}", amount, accountNumber);
+        
+        SavingsAccount account = getAccount(accountNumber);
+        account.deposit(amount);
+        SavingsAccount savedAccount = savingsAccountRepository.save(account);
+        
+        // Log transaction
+        Transaction tx = Transaction.createDeposit(accountNumber, amount, savedAccount.getBalance());
+        transactionRepository.save(tx);
+        
+        log.info("Deposit successful. New balance: {}", savedAccount.getBalance());
+        return savedAccount;
+    }
+
+    /**
+     * Create new savings account
+     */
+    @Transactional
+    public SavingsAccount createAccount(String accountNumber, Double initialBalance, String clientId) {
+        if (savingsAccountRepository.existsByAccountNumber(accountNumber)) {
+            throw new RuntimeException("Account number already exists: " + accountNumber);
+        }
+        
+        // Lookup client
+        Client client = clientRepository.findByClientId(clientId)
+                .orElseThrow(() -> new RuntimeException("Client not found: " + clientId));
+        
+        SavingsAccount account = new SavingsAccount();
+        account.setAccountNumber(accountNumber);
+        account.setBalance(initialBalance != null ? initialBalance : 0.0);
+        account.setClient(client);  // Set client reference
+        account.setCurrency("USD");
+        account.setStatus("ACTIVE");
+        
+        SavingsAccount savedAccount = savingsAccountRepository.save(account);
+        log.info("Created savings account: {} for client: {}", accountNumber, client.getFullName());
+        
+        return savedAccount;
+    }
+
+    /**
+     * Get transaction history
+     */
+    public List<Transaction> getTransactionHistory(String accountNumber) {
+        return transactionRepository.findByAccountNumberOrderByTransactionDateDesc(accountNumber);
+    }
+}

@@ -1,0 +1,50 @@
+[versions]
+jdom = "2.0.6.1"
+sleepycatje = "18.3.12"
+commonscli = "1.11.0"
+commonslang3 = "3.20.0"
+jline = "3.30.6"
+jna = '5.18.1'
+jansi = '2.4.1'
+beanshell = "2.0b6"
+javatuples = "1.2"
+mockito = "5.21.0"
+mockitojupiter = "5.21.0"
+xmlunit = "1.6"
+junit = "6.0.1"
+bouncycastle = "1.83"
+hamcrest = "3.0"
+hdrhistogram = "2.2.2"
+yaml = "2.5"
+micrometercore = "1.16.1"
+micrometerprometheus = "1.16.1"
+jackson = '2.20.1'
+jdbm = '1.0'
+
+[libraries]
+jdom = { module = "org.jdom:jdom2", version.ref = "jdom" }
+jdbm = { module = "jdbm:jdbm", version.ref='jdbm' }
+sleepycatje = { module = "com.sleepycat:je", version.ref = "sleepycatje" }
+commonscli = { module = "commons-cli:commons-cli", version.ref = "commonscli" }
+commonslang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commonslang3" }
+jline = { module = "org.jline:jline", version.ref = "jline" }
+jna = { module = 'net.java.dev.jna:jna', version.ref = 'jna' }
+jansi = { module = 'org.fusesource.jansi:jansi', version.ref = 'jansi' }
+beanshell = { module = "org.apache-extras.beanshell:bsh", version.ref = "beanshell" }
+javatuples = { module = "org.javatuples:javatuples", version.ref = "javatuples" }
+mockito = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+mockitojupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockitojupiter" }
+xmlunit = { module = "xmlunit:xmlunit", version.ref = "xmlunit" }
+junit = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
+bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+bcpg = { module = "org.bouncycastle:bcpg-jdk18on", version.ref = "bouncycastle" }
+hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
+hdrhistogram = { module = "org.hdrhistogram:HdrHistogram", version.ref = "hdrhistogram" }
+yaml = { module = "org.yaml:snakeyaml", version.ref = "yaml" }
+micrometercore = { module = "io.micrometer:micrometer-core", version.ref = "micrometercore" }
+micrometerprometheus = { module = "io.micrometer:micrometer-registry-prometheus", version.ref = "micrometerprometheus" }
+jacksonCore = { module = 'com.fasterxml.jackson.core:jackson-core', version.ref = 'jackson' }
+jacksonDataBind = { module = 'com.fasterxml.jackson.core:jackson-databind', version.ref = 'jackson' }
+jacksonDataTypeJSR310 = { module = 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310', version.ref = 'jackson' }
+jacksonDataFormatXML = { module = 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml', version.ref = 'jackson' }
+

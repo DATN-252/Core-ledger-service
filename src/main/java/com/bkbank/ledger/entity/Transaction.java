@@ -1,0 +1,87 @@
+package com.bkbank.ledger.entity;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "transactions")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@EntityListeners(AuditingEntityListener.class)
+public class Transaction {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String accountNumber;
+
+    @Column(nullable = false)
+    private String accountType; // SAVINGS or LOAN
+
+    @Column(nullable = false)
+    private String transactionType; // WITHDRAWAL, DEPOSIT, CHARGE, PAYMENT
+
+    @Column(nullable = false)
+    private Double amount;
+
+    @CreatedDate
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime transactionDate;
+
+    private String description;
+
+    private Double balanceAfter; // Snapshot of balance/outstanding after transaction
+
+    public static Transaction createWithdrawal(String accountNumber, Double amount, Double balanceAfter) {
+        Transaction tx = new Transaction();
+        tx.accountNumber = accountNumber;
+        tx.accountType = "SAVINGS";
+        tx.transactionType = "WITHDRAWAL";
+        tx.amount = amount;
+        tx.balanceAfter = balanceAfter;
+        tx.description = "Card withdrawal";
+        return tx;
+    }
+
+    public static Transaction createDeposit(String accountNumber, Double amount, Double balanceAfter) {
+        Transaction tx = new Transaction();
+        tx.accountNumber = accountNumber;
+        tx.accountType = "SAVINGS";
+        tx.transactionType = "DEPOSIT";
+        tx.amount = amount;
+        tx.balanceAfter = balanceAfter;
+        tx.description = "Deposit";
+        return tx;
+    }
+
+    public static Transaction createCharge(String accountNumber, Double amount, Double outstandingAfter) {
+        Transaction tx = new Transaction();
+        tx.accountNumber = accountNumber;
+        tx.accountType = "LOAN";
+        tx.transactionType = "CHARGE";
+        tx.amount = amount;
+        tx.balanceAfter = outstandingAfter;
+        tx.description = "Credit card charge";
+        return tx;
+    }
+
+    public static Transaction createPayment(String accountNumber, Double amount, Double outstandingAfter) {
+        Transaction tx = new Transaction();
+        tx.accountNumber = accountNumber;
+        tx.accountType = "LOAN";
+        tx.transactionType = "PAYMENT";
+        tx.amount = amount;
+        tx.balanceAfter = outstandingAfter;
+        tx.description = "Loan payment";
+        return tx;
+    }
+}
