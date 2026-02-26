@@ -1,5 +1,6 @@
 package com.bkbank.ledger.entity;
 
+import com.bkbank.ledger.entity.enums.AccountStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -31,8 +32,15 @@ public class SavingsAccount {
     @Column(nullable = false)
     private String currency = "USD";
 
-    @Column(nullable = false)
-    private String status = "ACTIVE"; // ACTIVE, LOCKED, CLOSED
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private AccountStatus status = AccountStatus.PENDING;
+
+    @Column(name = "lock_reason")
+    private String lockReason;
+
+    @Column(name = "closed_date")
+    private LocalDateTime closedDate;
 
     // Client relationship (replaces clientName)
     @ManyToOne(fetch = FetchType.LAZY)
@@ -53,10 +61,16 @@ public class SavingsAccount {
         return this.balance >= amount;
     }
 
+    // ==================== Transaction Methods ====================
+
     /**
      * Withdraw money from account
      */
     public void withdraw(Double amount) {
+        if (!canTransact()) {
+            throw new IllegalStateException("Account cannot transact. Status: " + status +
+                (lockReason != null ? ". Reason: " + lockReason : ""));
+        }
         if (!hasSufficientBalance(amount)) {
             throw new IllegalArgumentException("Insufficient balance");
         }
@@ -67,14 +81,95 @@ public class SavingsAccount {
      * Deposit money to account
      */
     public void deposit(Double amount) {
+        if (!canTransact()) {
+            throw new IllegalStateException("Account cannot transact. Status: " + status +
+                (lockReason != null ? ". Reason: " + lockReason : ""));
+        }
         this.balance += amount;
     }
+
+    // ==================== State Machine Methods ====================
+
+    /**
+     * Activate account (PENDING → ACTIVE)
+     */
+    public void activate() {
+        if (status != AccountStatus.PENDING) {
+            throw new IllegalStateException("Can only activate PENDING accounts. Current status: " + status);
+        }
+        this.status = AccountStatus.ACTIVE;
+    }
+
+    /**
+     * Lock account (ACTIVE → LOCKED)
+     */
+    public void lock(String reason) {
+        if (status != AccountStatus.ACTIVE) {
+            throw new IllegalStateException("Can only lock ACTIVE accounts. Current status: " + status);
+        }
+        this.status = AccountStatus.LOCKED;
+        this.lockReason = reason;
+    }
+
+    /**
+     * Unlock account (LOCKED → ACTIVE)
+     */
+    public void unlock() {
+        if (status != AccountStatus.LOCKED) {
+            throw new IllegalStateException("Can only unlock LOCKED accounts. Current status: " + status);
+        }
+        this.status = AccountStatus.ACTIVE;
+        this.lockReason = null;
+    }
+
+    /**
+     * Close account (ACTIVE/LOCKED → CLOSED)
+     * Validates that balance is zero before closing
+     */
+    public void close() {
+        if (status == AccountStatus.CLOSED) {
+            throw new IllegalStateException("Account is already closed");
+        }
+        if (status == AccountStatus.PENDING) {
+            throw new IllegalStateException("Cannot close PENDING account. Activate or delete instead.");
+        }
+        if (balance > 0) {
+            throw new IllegalStateException(
+                String.format("Cannot close account with balance. Current balance: %.2f. Withdraw all funds first.", balance)
+            );
+        }
+        this.status = AccountStatus.CLOSED;
+        this.closedDate = LocalDateTime.now();
+    }
+
+    // ==================== Status Checks ====================
 
     /**
      * Check if account is active
      */
     public boolean isActive() {
-        return "ACTIVE".equals(this.status);
+        return status == AccountStatus.ACTIVE;
+    }
+
+    /**
+     * Check if account can perform transactions
+     */
+    public boolean canTransact() {
+        return status == AccountStatus.ACTIVE;
+    }
+
+    /**
+     * Check if account is locked
+     */
+    public boolean isLocked() {
+        return status == AccountStatus.LOCKED;
+    }
+
+    /**
+     * Check if account is closed
+     */
+    public boolean isClosed() {
+        return status == AccountStatus.CLOSED;
     }
 
     /**

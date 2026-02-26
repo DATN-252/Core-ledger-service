@@ -1,5 +1,6 @@
 package com.bkbank.ledger.entity;
 
+import com.bkbank.ledger.entity.enums.AccountStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -28,14 +29,21 @@ public class LoanAccount {
     @Column(nullable = false)
     private Double principal; // Credit limit
 
-    @Column(nullable = false)
+    @Column(name = "principal_outstanding")
     private Double principalOutstanding = 0.0; // Current debt
 
-    @Column(nullable = false)
+    @Column(name = "currency", nullable = false)
     private String currency = "USD";
 
-    @Column(nullable = false)
-    private String status = "ACTIVE"; // ACTIVE, CLOSED
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private AccountStatus status = AccountStatus.PENDING;
+
+    @Column(name = "lock_reason")
+    private String lockReason;
+
+    @Column(name = "closed_date")
+    private LocalDateTime closedDate;
 
     // Client relationship (replaces clientName)
     @ManyToOne(fetch = FetchType.LAZY)
@@ -48,6 +56,100 @@ public class LoanAccount {
 
     @LastModifiedDate
     private LocalDateTime updatedAt;
+
+    // ==================== State Machine Methods ====================
+
+    /**
+     * Activate account (PENDING → ACTIVE)
+     */
+    public void activate() {
+        if (status != AccountStatus.PENDING) {
+            throw new IllegalStateException("Can only activate PENDING accounts. Current status: " + status);
+        }
+        this.status = AccountStatus.ACTIVE;
+    }
+
+    /**
+     * Lock account (ACTIVE → LOCKED)
+     */
+    public void lock(String reason) {
+        if (status != AccountStatus.ACTIVE) {
+            throw new IllegalStateException("Can only lock ACTIVE accounts. Current status: " + status);
+        }
+        this.status = AccountStatus.LOCKED;
+        this.lockReason = reason;
+    }
+
+    /**
+     * Unlock account (LOCKED → ACTIVE)
+     */
+    public void unlock() {
+        if (status != AccountStatus.LOCKED) {
+            throw new IllegalStateException("Can only unlock LOCKED accounts. Current status: " + status);
+        }
+        this.status = AccountStatus.ACTIVE;
+        this.lockReason = null;
+    }
+
+    /**
+     * Close account (ACTIVE/LOCKED → CLOSED)
+     * Validates that outstanding balance is zero before closing
+     */
+    public void close() {
+        if (status == AccountStatus.CLOSED) {
+            throw new IllegalStateException("Account is already closed");
+        }
+        if (status == AccountStatus.PENDING) {
+            throw new IllegalStateException("Cannot close PENDING account. Activate or delete instead.");
+        }
+        if (principalOutstanding > 0) {
+            throw new IllegalStateException(
+                String.format("Cannot close account with outstanding debt. Current outstanding: %.2f. Pay off debt first.", principalOutstanding)
+            );
+        }
+        this.status = AccountStatus.CLOSED;
+        this.closedDate = LocalDateTime.now();
+    }
+
+    // ==================== Status Checks ====================
+
+    /**
+     * Check if account is active
+     */
+    public boolean isActive() {
+        return status == AccountStatus.ACTIVE;
+    }
+
+    /**
+     * Check if account can add charges
+     */
+    public boolean canAddCharge() {
+        return status == AccountStatus.ACTIVE;
+    }
+
+    /**
+     * Check if account can make payments
+     * Note: LOCKED accounts can still receive payments
+     */
+    public boolean canMakePayment() {
+        return status == AccountStatus.ACTIVE || status == AccountStatus.LOCKED;
+    }
+
+    /**
+     * Check if account is locked
+     */
+    public boolean isLocked() {
+        return status == AccountStatus.LOCKED;
+    }
+
+    /**
+     * Check if account is closed
+     */
+    public boolean isClosed() {
+        return status == AccountStatus.CLOSED;
+    }
+
+    // ==================== Business Methods ====================
 
     /**
      * Get available credit (limit - outstanding)
@@ -67,6 +169,10 @@ public class LoanAccount {
      * Add charge to loan (increase outstanding)
      */
     public void addCharge(Double amount) {
+        if (!canAddCharge()) {
+            throw new IllegalStateException("Account cannot add charges. Status: " + status +
+                (lockReason != null ? ". Reason: " + lockReason : ""));
+        }
         if (!hasSufficientCredit(amount)) {
             throw new IllegalArgumentException("Credit limit exceeded");
         }
@@ -77,17 +183,13 @@ public class LoanAccount {
      * Make payment (reduce outstanding)
      */
     public void makePayment(Double amount) {
+        if (!canMakePayment()) {
+            throw new IllegalStateException("Account cannot make payments. Status: " + status);
+        }
         if (amount > this.principalOutstanding) {
             throw new IllegalArgumentException("Payment exceeds outstanding balance");
         }
         this.principalOutstanding -= amount;
-    }
-
-    /**
-     * Check if account is active
-     */
-    public boolean isActive() {
-        return "ACTIVE".equals(this.status);
     }
 
     /**

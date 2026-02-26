@@ -105,9 +105,9 @@ public class LoanAccountService {
         account.setAccountNumber(accountNumber);
         account.setPrincipal(principal);
         account.setPrincipalOutstanding(0.0);
-        account.setClient(client);  // Set client reference
+        account.setClient(client);
         account.setCurrency("USD");
-        account.setStatus("ACTIVE");
+        account.setStatus(com.bkbank.ledger.entity.enums.AccountStatus.PENDING);
         
         LoanAccount savedAccount = loanAccountRepository.save(account);
         log.info("Created loan account: {} with principal {} for client: {}", 
@@ -121,5 +121,49 @@ public class LoanAccountService {
      */
     public List<Transaction> getTransactionHistory(String accountNumber) {
         return transactionRepository.findByAccountNumberOrderByTransactionDateDesc(accountNumber);
+    }
+
+    /**
+     * Activate account (PENDING → ACTIVE)
+     */
+    @Transactional
+    public LoanAccount activateAccount(String accountNumber) {
+        log.info("Activating loan account: {}", accountNumber);
+        LoanAccount account = getAccount(accountNumber);
+        account.activate();
+        return loanAccountRepository.save(account);
+    }
+
+    /**
+     * Lock account (ACTIVE → LOCKED)
+     */
+    @Transactional
+    public LoanAccount lockAccount(String accountNumber, String reason) {
+        log.info("Locking loan account: {} - Reason: {}", accountNumber, reason);
+        LoanAccount account = getAccount(accountNumber);
+        account.lock(reason);
+        return loanAccountRepository.save(account);
+    }
+
+    /**
+     * Unlock account (LOCKED → ACTIVE)
+     */
+    @Transactional
+    public LoanAccount unlockAccount(String accountNumber) {
+        log.info("Unlocking loan account: {}", accountNumber);
+        LoanAccount account = getAccount(accountNumber);
+        account.unlock();
+        return loanAccountRepository.save(account);
+    }
+
+    /**
+     * Close account (ACTIVE/LOCKED → CLOSED)
+     */
+    @Transactional
+    public LoanAccount closeAccount(String accountNumber) {
+        log.info("Closing loan account: {}", accountNumber);
+        LoanAccount account = getAccount(accountNumber);
+        account.close();
+        return loanAccountRepository.save(account);
     }
 }

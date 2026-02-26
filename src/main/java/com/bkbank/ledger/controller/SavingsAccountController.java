@@ -40,7 +40,7 @@ public class SavingsAccountController {
             response.put("accountNumber", account.getAccountNumber()); // Alternative field
             response.put("accountBalance", account.getBalance());
             response.put("currency", Map.of("code", account.getCurrency()));
-            response.put("status", Map.of("value", account.getStatus()));
+            response.put("status", Map.of("value", account.getStatus().name()));
             response.put("clientName", account.getClientName());
             
             return ResponseEntity.ok(response);
@@ -85,6 +85,62 @@ public class SavingsAccountController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Transaction failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Manage account status (activate, lock, unlock, close)
+     * POST /savingsaccounts/{accountId}?command=<action>
+     */
+    @PostMapping("/savingsaccounts/{accountId}")
+    public ResponseEntity<Map<String, Object>> manageStatus(
+            @PathVariable String accountId,
+            @RequestParam String command,
+            @RequestBody(required = false) Map<String, Object> request) {
+        
+        log.info("POST /savingsaccounts/{}?command={}", accountId, command);
+        
+        try {
+            SavingsAccount account;
+            
+            switch (command.toLowerCase()) {
+                case "activate":
+                    account = savingsAccountService.activateAccount(accountId);
+                    break;
+                    
+                case "lock":
+                    String reason = request != null ? (String) request.get("reason") : "No reason provided";
+                    account = savingsAccountService.lockAccount(accountId, reason);
+                    break;
+                    
+                case "unlock":
+                    account = savingsAccountService.unlockAccount(accountId);
+                    break;
+                    
+                case "close":
+                    account = savingsAccountService.closeAccount(accountId);
+                    break;
+                    
+                default:
+                    return ResponseEntity.badRequest().body(
+                        Map.of("error", "Invalid command: " + command + ". Valid commands: activate, lock, unlock, close")
+                    );
+            }
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("resourceId", account.getId());
+            response.put("accountNumber", account.getAccountNumber());
+            response.put("status", account.getStatus());
+            response.put("message", "Account " + command + "d successfully");
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalStateException e) {
+            log.error("Status management failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Unexpected error: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }

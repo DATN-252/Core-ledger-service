@@ -41,7 +41,7 @@ public class LoanAccountController {
             response.put("principal", account.getPrincipal());
             response.put("principalOutstanding", account.getPrincipalOutstanding());
             response.put("currency", Map.of("code", account.getCurrency()));
-            response.put("status", Map.of("value", account.getStatus()));
+            response.put("status", Map.of("value", account.getStatus().name()));
             response.put("clientName", account.getClientName());
             
             return ResponseEntity.ok(response);
@@ -138,6 +138,62 @@ public class LoanAccountController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Payment failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Manage account status (activate, lock, unlock, close)
+     * POST /loans/{loanId}?command=<action>
+     */
+    @PostMapping("/loans/{loanId}")
+    public ResponseEntity<Map<String, Object>> manageStatus(
+            @PathVariable String loanId,
+            @RequestParam String command,
+            @RequestBody(required = false) Map<String, Object> request) {
+        
+        log.info("POST /loans/{}?command={}", loanId, command);
+        
+        try {
+            LoanAccount account;
+            
+            switch (command.toLowerCase()) {
+                case "activate":
+                    account = loanAccountService.activateAccount(loanId);
+                    break;
+                    
+                case "lock":
+                    String reason = request != null ? (String) request.get("reason") : "No reason provided";
+                    account = loanAccountService.lockAccount(loanId, reason);
+                    break;
+                    
+                case "unlock":
+                    account = loanAccountService.unlockAccount(loanId);
+                    break;
+                    
+                case "close":
+                    account = loanAccountService.closeAccount(loanId);
+                    break;
+                    
+                default:
+                    return ResponseEntity.badRequest().body(
+                        Map.of("error", "Invalid command: " + command + ". Valid commands: activate, lock, unlock, close")
+                    );
+            }
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("resourceId", account.getId());
+            response.put("accountNumber", account.getAccountNumber());
+            response.put("status", account.getStatus());
+            response.put("message", "Account " + command + "d successfully");
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalStateException e) {
+            log.error("Status management failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Unexpected error: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }

@@ -102,9 +102,8 @@ public class SavingsAccountService {
         SavingsAccount account = new SavingsAccount();
         account.setAccountNumber(accountNumber);
         account.setBalance(initialBalance != null ? initialBalance : 0.0);
-        account.setClient(client);  // Set client reference
+        account.setClient(client);
         account.setCurrency("USD");
-        account.setStatus("ACTIVE");
         
         SavingsAccount savedAccount = savingsAccountRepository.save(account);
         log.info("Created savings account: {} for client: {}", accountNumber, client.getFullName());
@@ -117,5 +116,49 @@ public class SavingsAccountService {
      */
     public List<Transaction> getTransactionHistory(String accountNumber) {
         return transactionRepository.findByAccountNumberOrderByTransactionDateDesc(accountNumber);
+    }
+
+    /**
+     * Activate account (PENDING → ACTIVE)
+     */
+    @Transactional
+    public SavingsAccount activateAccount(String accountNumber) {
+        log.info("Activating savings account: {}", accountNumber);
+        SavingsAccount account = getAccount(accountNumber);
+        account.activate();
+        return savingsAccountRepository.save(account);
+    }
+
+    /**
+     * Lock account (ACTIVE → LOCKED)
+     */
+    @Transactional
+    public SavingsAccount lockAccount(String accountNumber, String reason) {
+        log.info("Locking savings account: {} - Reason: {}", accountNumber, reason);
+        SavingsAccount account = getAccount(accountNumber);
+        account.lock(reason);
+        return savingsAccountRepository.save(account);
+    }
+
+    /**
+     * Unlock account (LOCKED → ACTIVE)
+     */
+    @Transactional
+    public SavingsAccount unlockAccount(String accountNumber) {
+        log.info("Unlocking savings account: {}", accountNumber);
+        SavingsAccount account = getAccount(accountNumber);
+        account.unlock();
+        return savingsAccountRepository.save(account);
+    }
+
+    /**
+     * Close account (ACTIVE/LOCKED → CLOSED)
+     */
+    @Transactional
+    public SavingsAccount closeAccount(String accountNumber) {
+        log.info("Closing savings account: {}", accountNumber);
+        SavingsAccount account = getAccount(accountNumber);
+        account.close();
+        return savingsAccountRepository.save(account);
     }
 }
