@@ -68,7 +68,9 @@ public class SavingsAccountController {
             SavingsAccount account;
             
             if ("withdrawal".equalsIgnoreCase(command)) {
-                account = savingsAccountService.withdraw(accountId, request.getTransactionAmount());
+                String merchantId = request.getMerchantId();
+                String merchantName = request.getMerchantName();
+                account = savingsAccountService.withdraw(accountId, request.getTransactionAmount(), merchantId, merchantName);
             } else if ("deposit".equalsIgnoreCase(command)) {
                 account = savingsAccountService.deposit(accountId, request.getTransactionAmount());
             } else {

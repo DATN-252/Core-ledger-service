@@ -41,7 +41,13 @@ public class Transaction {
 
     private Double balanceAfter; // Snapshot of balance/outstanding after transaction
 
-    public static Transaction createWithdrawal(String accountNumber, Double amount, Double balanceAfter) {
+    @Column(name = "merchant_id")
+    private String merchantId;
+
+    @Column(name = "merchant_name")
+    private String merchantName;
+
+    public static Transaction createWithdrawal(String accountNumber, Double amount, Double balanceAfter, String merchantId, String merchantName) {
         Transaction tx = new Transaction();
         tx.accountNumber = accountNumber;
         tx.accountType = "SAVINGS";
@@ -49,6 +55,8 @@ public class Transaction {
         tx.amount = amount;
         tx.balanceAfter = balanceAfter;
         tx.description = "Card withdrawal";
+        tx.merchantId = merchantId;
+        tx.merchantName = merchantName;
         return tx;
     }
 
@@ -63,7 +71,7 @@ public class Transaction {
         return tx;
     }
 
-    public static Transaction createCharge(String accountNumber, Double amount, Double outstandingAfter) {
+    public static Transaction createCharge(String accountNumber, Double amount, Double outstandingAfter, String merchantId, String merchantName) {
         Transaction tx = new Transaction();
         tx.accountNumber = accountNumber;
         tx.accountType = "LOAN";
@@ -71,6 +79,8 @@ public class Transaction {
         tx.amount = amount;
         tx.balanceAfter = outstandingAfter;
         tx.description = "Credit card charge";
+        tx.merchantId = merchantId;
+        tx.merchantName = merchantName;
         return tx;
     }
 

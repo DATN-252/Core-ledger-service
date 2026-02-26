@@ -13,4 +13,8 @@ public class ChargeRequest {
     private String dueDate;
     private String locale = "en";
     private String dateFormat = "dd MMMM yyyy";
+    
+    // Merchant Information
+    private String merchantId;
+    private String merchantName;
 }

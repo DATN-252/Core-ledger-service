@@ -12,4 +12,8 @@ public class WithdrawalRequest {
     private String dateFormat = "dd MMMM yyyy";
     private String transactionDate;
     private Double transactionAmount;
+    
+    // Merchant Information
+    private String merchantId;
+    private String merchantName;
 }
