@@ -45,8 +45,8 @@ public class LoanAccountService {
      * Add charge to loan (for credit card transactions)
      */
     @Transactional
-    public LoanAccount addCharge(String accountNumber, Double amount) {
-        log.info("Adding charge of {} to loan account {}", amount, accountNumber);
+    public LoanAccount addCharge(String accountNumber, Double amount, String merchantId, String merchantName) {
+        log.info("Adding charge of {} to loan account {} at merchant {}", amount, accountNumber, merchantName);
         
         LoanAccount account = getAccount(accountNumber);
         
@@ -62,7 +62,7 @@ public class LoanAccountService {
         LoanAccount savedAccount = loanAccountRepository.save(account);
         
         // Log transaction
-        Transaction tx = Transaction.createCharge(accountNumber, amount, savedAccount.getPrincipalOutstanding());
+        Transaction tx = Transaction.createCharge(accountNumber, amount, savedAccount.getPrincipalOutstanding(), merchantId, merchantName);
         transactionRepository.save(tx);
         
         log.info("Charge added successfully. New outstanding: {}", savedAccount.getPrincipalOutstanding());

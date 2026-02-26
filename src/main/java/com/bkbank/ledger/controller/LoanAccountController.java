@@ -64,7 +64,9 @@ public class LoanAccountController {
         log.info("POST /loans/{}/charges - Amount: {}", loanId, request.getAmount());
         
         try {
-            LoanAccount account = loanAccountService.addCharge(loanId, request.getAmount());
+            String merchantId = request.getMerchantId();
+            String merchantName = request.getMerchantName();
+            LoanAccount account = loanAccountService.addCharge(loanId, request.getAmount(), merchantId, merchantName);
             
             // Fineract-style response
             Map<String, Object> response = new HashMap<>();

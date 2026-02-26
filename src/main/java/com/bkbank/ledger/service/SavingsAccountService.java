@@ -43,8 +43,8 @@ public class SavingsAccountService {
      * Withdraw from account (for debit card transactions)
      */
     @Transactional
-    public SavingsAccount withdraw(String accountNumber, Double amount) {
-        log.info("Withdrawing {} from account {}", amount, accountNumber);
+    public SavingsAccount withdraw(String accountNumber, Double amount, String merchantId, String merchantName) {
+        log.info("Withdrawing {} from account {} at merchant {}", amount, accountNumber, merchantName);
         
         SavingsAccount account = getAccount(accountNumber);
         
@@ -60,7 +60,7 @@ public class SavingsAccountService {
         SavingsAccount savedAccount = savingsAccountRepository.save(account);
         
         // Log transaction
-        Transaction tx = Transaction.createWithdrawal(accountNumber, amount, savedAccount.getBalance());
+        Transaction tx = Transaction.createWithdrawal(accountNumber, amount, savedAccount.getBalance(), merchantId, merchantName);
         transactionRepository.save(tx);
         
         log.info("Withdrawal successful. New balance: {}", savedAccount.getBalance());
