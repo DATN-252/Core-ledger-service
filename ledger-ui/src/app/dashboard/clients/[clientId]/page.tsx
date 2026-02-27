@@ -158,6 +158,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                                     <th>Mã GD</th>
                                     <th>Ngày giờ</th>
                                     <th>Tài khoản</th>
+                                    <th>Thương hiệu</th>
                                     <th>Loại</th>
                                     <th>Số tiền</th>
                                     <th>Trạng thái</th>
@@ -169,6 +170,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                                         <td style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>#{tx.id}</td>
                                         <td>{new Date(tx.transactionDate).toLocaleString('vi-VN')}</td>
                                         <td style={{ fontWeight: 600 }}>{tx.accountNumber}</td>
+                                        <td style={{ color: 'var(--text-secondary)' }}>{tx.merchantName || '—'}</td>
                                         <td>
                                             <span className={`badge ${tx.transactionType === 'DEPOSIT' || tx.transactionType === 'PAYMENT' ? 'badge-active' : 'badge-pending'}`}>
                                                 {tx.transactionType}
