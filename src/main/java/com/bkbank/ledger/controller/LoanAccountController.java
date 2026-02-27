@@ -2,6 +2,7 @@ package com.bkbank.ledger.controller;
 
 import com.bkbank.ledger.dto.ChargeRequest;
 import com.bkbank.ledger.entity.LoanAccount;
+import com.bkbank.ledger.repository.LoanAccountRepository;
 import com.bkbank.ledger.service.LoanAccountService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,7 +11,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Controller for Loan Accounts (Credit Cards)
@@ -22,6 +25,29 @@ import java.util.Map;
 public class LoanAccountController {
 
     private final LoanAccountService loanAccountService;
+    private final LoanAccountRepository loanAccountRepository;
+
+    /**
+     * List all loan accounts
+     * GET /loans
+     */
+    @GetMapping("/loans")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<List<Map<String, Object>>> listAccounts() {
+        List<LoanAccount> accounts = loanAccountRepository.findAll();
+        List<Map<String, Object>> result = accounts.stream().map(account -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", account.getAccountNumber());
+            m.put("accountNo", account.getAccountNumber());
+            m.put("principal", account.getPrincipal());
+            m.put("principalOutstanding", account.getPrincipalOutstanding());
+            m.put("currency", Map.of("code", account.getCurrency()));
+            m.put("status", Map.of("value", account.getStatus().name()));
+            m.put("clientName", account.getClientName());
+            return m;
+        }).collect(Collectors.toList());
+        return ResponseEntity.ok(result);
+    }
 
     /**
      * Get loan account details

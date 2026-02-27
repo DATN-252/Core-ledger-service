@@ -2,14 +2,18 @@ package com.bkbank.ledger.controller;
 
 import com.bkbank.ledger.dto.WithdrawalRequest;
 import com.bkbank.ledger.entity.SavingsAccount;
+import com.bkbank.ledger.repository.SavingsAccountRepository;
 import com.bkbank.ledger.service.SavingsAccountService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Controller for Savings Accounts (Debit Cards)
@@ -21,6 +25,27 @@ import java.util.Map;
 public class SavingsAccountController {
 
     private final SavingsAccountService savingsAccountService;
+    private final SavingsAccountRepository savingsAccountRepository;
+
+    /**
+     * List all savings accounts
+     * GET /savingsaccounts
+     */
+    @GetMapping("/savingsaccounts")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<List<Map<String, Object>>> listAccounts() {
+        List<SavingsAccount> accounts = savingsAccountRepository.findAll();
+        List<Map<String, Object>> result = accounts.stream().map(account -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", account.getAccountNumber());
+            m.put("balance", account.getBalance());
+            m.put("currency", account.getCurrency());
+            m.put("status", account.getStatus().name());
+            m.put("clientName", account.getClientName());
+            return m;
+        }).collect(Collectors.toList());
+        return ResponseEntity.ok(result);
+    }
 
     /**
      * Get savings account details
