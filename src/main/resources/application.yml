@@ -29,3 +29,12 @@ logging:
     com.bkbank.ledger: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# JWT Configuration
+jwt:
+  secret: "BkBankLedgerSecretKey2024VeryLongSecretKey12345678" # Min 32 chars
+  expiration: 86400000 # 24 hours in milliseconds
+
+# System API Key (used by CMS service)
+system:
+  api-key: "bkbank-internal-system-api-key-2024"
