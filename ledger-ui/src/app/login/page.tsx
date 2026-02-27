@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { login } from '@/lib/api';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBuildingColumns, faExclamationTriangle, faSpinner, faLock, faCrown, faBriefcase } from '@fortawesome/free-solid-svg-icons';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -51,7 +53,10 @@ export default function LoginPage() {
                         margin: '0 auto 1rem',
                         boxShadow: '0 8px 32px rgba(99,102,241,0.4)',
                         fontSize: '1.5rem',
-                    }}>🏦</div>
+                        color: 'white',
+                    }}>
+                        <FontAwesomeIcon icon={faBuildingColumns} />
+                    </div>
                     <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
                         BkBank Ledger
                     </h1>
@@ -70,7 +75,8 @@ export default function LoginPage() {
                             borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1rem',
                             color: 'var(--danger)', fontSize: '0.875rem',
                         }}>
-                            ⚠️ {error}
+                            <FontAwesomeIcon icon={faExclamationTriangle} style={{ marginRight: '0.5rem' }} />
+                            {error}
                         </div>
                     )}
 
@@ -103,15 +109,23 @@ export default function LoginPage() {
                             />
                         </div>
 
-                        <button className="btn-primary" type="submit" disabled={loading} style={{ width: '100%', justifyContent: 'center' }}>
-                            {loading ? '⏳ Đang đăng nhập...' : '🔐 Đăng nhập'}
+                        <button className="btn-primary" type="submit" disabled={loading} style={{ width: '100%', justifyContent: 'center', gap: '0.5rem' }}>
+                            {loading ? (
+                                <><FontAwesomeIcon icon={faSpinner} spin /> Đang đăng nhập...</>
+                            ) : (
+                                <><FontAwesomeIcon icon={faLock} /> Đăng nhập</>
+                            )}
                         </button>
                     </form>
 
                     <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--bg-secondary)', borderRadius: '8px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                         <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Tài khoản mặc định:</div>
-                        <div>👑 admin / admin123 (ADMIN)</div>
-                        <div>💼 teller01 / teller123 (TELLER)</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                            <FontAwesomeIcon icon={faCrown} style={{ color: 'var(--warning)' }} /> admin / admin123 (ADMIN)
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <FontAwesomeIcon icon={faBriefcase} style={{ color: 'var(--accent)' }} /> teller01 / teller123 (TELLER)
+                        </div>
                     </div>
                 </div>
             </div>

@@ -49,6 +49,7 @@ public class LoanAccountController {
         return ResponseEntity.ok(result);
     }
 
+
     /**
      * Get loan account details
      * GET /loans/{loanId}
@@ -235,6 +236,7 @@ public class LoanAccountController {
      * Request body: { "accountNumber": "...", "principal": 10000.0, "clientId": "CLI_001" }
      */
     @PostMapping("/loans")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
     public ResponseEntity<Map<String, Object>> createLoan(@RequestBody Map<String, Object> request) {
         log.info("POST /loans - Create loan account");
         

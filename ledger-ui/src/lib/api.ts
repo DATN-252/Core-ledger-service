@@ -107,3 +107,21 @@ export async function getTransactions(accountId?: string) {
   const path = accountId ? `/transactions?accountId=${accountId}` : '/transactions';
   return request<any[]>(path);
 }
+
+// ─── Clients ──────────────────────────────────────────────────────────────────
+export async function getAllClients() {
+  const res = await request<any>('/clients');
+  return res.clients || [];
+}
+
+export async function getClient(clientId: string) {
+  return request<any>(`/clients/${clientId}`);
+}
+
+export async function getClientAccounts(clientId: string) {
+  return request<any>(`/clients/${clientId}/accounts`);
+}
+
+export async function createClient(data: any) {
+  return request<any>('/clients', { method: 'POST', body: JSON.stringify(data) });
+}

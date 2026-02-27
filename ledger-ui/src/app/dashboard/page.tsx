@@ -1,8 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { getAllLoans, getAllSavingsAccounts, getTransactions } from '@/lib/api';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCreditCard, faCheckCircle, faPiggyBank, faListUl } from '@fortawesome/free-solid-svg-icons';
 
-interface StatCard { label: string; value: string | number; icon: string; color: string; }
+interface StatCard { label: string; value: string | number; icon: any; color: string; }
 
 function StatCard({ label, value, icon, color }: StatCard) {
     return (
@@ -56,16 +58,19 @@ export default function DashboardPage() {
                 <>
                     {/* Stats Grid */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-                        <StatCard label="Credit Accounts" value={loans.length} icon="💳" color="rgba(99,102,241,0.2)" />
-                        <StatCard label="Đang hoạt động" value={activeLoans} icon="✅" color="rgba(16,185,129,0.2)" />
-                        <StatCard label="Savings Accounts" value={savings.length} icon="🏦" color="rgba(245,158,11,0.2)" />
-                        <StatCard label="Giao dịch gần nhất" value={txns.length} icon="📋" color="rgba(139,92,246,0.2)" />
+                        <StatCard label="Credit Accounts" value={loans.length} icon={<FontAwesomeIcon icon={faCreditCard} />} color="rgba(99,102,241,0.2)" />
+                        <StatCard label="Đang hoạt động" value={activeLoans} icon={<FontAwesomeIcon icon={faCheckCircle} />} color="rgba(16,185,129,0.2)" />
+                        <StatCard label="Savings Accounts" value={savings.length} icon={<FontAwesomeIcon icon={faPiggyBank} />} color="rgba(245,158,11,0.2)" />
+                        <StatCard label="Giao dịch gần nhất" value={txns.length} icon={<FontAwesomeIcon icon={faListUl} />} color="rgba(139,92,246,0.2)" />
                     </div>
 
                     {/* Recent Transactions */}
                     <div className="card">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                            <h2 style={{ fontSize: '1rem', fontWeight: 600 }}>📋 Giao dịch gần đây</h2>
+                            <h2 style={{ fontSize: '1rem', fontWeight: 600 }}>
+                                <FontAwesomeIcon icon={faListUl} style={{ marginRight: '0.5rem' }} />
+                                Giao dịch gần đây
+                            </h2>
                             <a href="/dashboard/transactions" style={{ fontSize: '0.8125rem', color: 'var(--accent-hover)', textDecoration: 'none' }}>Xem tất cả →</a>
                         </div>
                         {todayTxns.length === 0 ? (

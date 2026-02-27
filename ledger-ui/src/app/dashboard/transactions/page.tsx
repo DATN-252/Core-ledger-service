@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { getTransactions } from '@/lib/api';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faListUl } from '@fortawesome/free-solid-svg-icons';
 
 export default function TransactionsPage() {
     const [txns, setTxns] = useState<any[]>([]);
@@ -24,7 +26,10 @@ export default function TransactionsPage() {
     return (
         <div className="animate-fade-in">
             <div style={{ marginBottom: '2rem' }}>
-                <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>📋 Lịch sử giao dịch</h1>
+                <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+                    <FontAwesomeIcon icon={faListUl} style={{ marginRight: '0.5rem' }} />
+                    Lịch sử giao dịch
+                </h1>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
                     {txns.length} giao dịch tổng cộng
                 </p>
@@ -34,7 +39,7 @@ export default function TransactionsPage() {
                 <div style={{ marginBottom: '1rem' }}>
                     <input
                         className="input"
-                        placeholder="🔍 Tìm theo merchant, ID giao dịch..."
+                        placeholder="Tìm theo merchant, ID giao dịch..."
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                         style={{ maxWidth: '360px' }}

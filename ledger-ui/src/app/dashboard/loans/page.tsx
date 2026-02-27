@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { getAllLoans, loanCommand } from '@/lib/api';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCreditCard, faCheck, faLock, faLockOpen } from '@fortawesome/free-solid-svg-icons';
 
 const STATUS_BADGE: Record<string, string> = {
     ACTIVE: 'badge-active',
@@ -39,7 +41,10 @@ export default function LoansPage() {
         <div className="animate-fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
                 <div>
-                    <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>💳 Credit Accounts</h1>
+                    <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+                        <FontAwesomeIcon icon={faCreditCard} style={{ marginRight: '0.5rem' }} />
+                        Credit Accounts
+                    </h1>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Quản lý tài khoản tín dụng</p>
                 </div>
             </div>
@@ -48,7 +53,7 @@ export default function LoansPage() {
                 <div style={{ marginBottom: '1rem' }}>
                     <input
                         className="input"
-                        placeholder="🔍 Tìm kiếm theo ID hoặc tên khách hàng..."
+                        placeholder="Tìm kiếm theo ID hoặc tên khách hàng..."
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                         style={{ maxWidth: '360px' }}
@@ -107,7 +112,7 @@ export default function LoansPage() {
                                                             disabled={!!actionLoading}
                                                             onClick={() => handleCommand(loan.id || loan.accountNo, 'activate')}
                                                         >
-                                                            {actionLoading === (loan.id || loan.accountNo) + 'activate' ? '⏳' : '✅ Kích hoạt'}
+                                                            {actionLoading === (loan.id || loan.accountNo) + 'activate' ? '⏳' : <><FontAwesomeIcon icon={faCheck} /> Kích hoạt</>}
                                                         </button>
                                                     )}
                                                     {status === 'ACTIVE' && (
@@ -116,7 +121,7 @@ export default function LoansPage() {
                                                             disabled={!!actionLoading}
                                                             onClick={() => handleCommand(loan.id || loan.accountNo, 'lock')}
                                                         >
-                                                            {actionLoading === (loan.id || loan.accountNo) + 'lock' ? '⏳' : '🔒 Khóa'}
+                                                            {actionLoading === (loan.id || loan.accountNo) + 'lock' ? '⏳' : <><FontAwesomeIcon icon={faLock} /> Khóa</>}
                                                         </button>
                                                     )}
                                                     {status === 'LOCKED' && (
@@ -125,7 +130,7 @@ export default function LoansPage() {
                                                             disabled={!!actionLoading}
                                                             onClick={() => handleCommand(loan.id || loan.accountNo, 'unlock')}
                                                         >
-                                                            {actionLoading === (loan.id || loan.accountNo) + 'unlock' ? '⏳' : '🔓 Mở khóa'}
+                                                            {actionLoading === (loan.id || loan.accountNo) + 'unlock' ? '⏳' : <><FontAwesomeIcon icon={faLockOpen} /> Mở khóa</>}
                                                         </button>
                                                     )}
                                                 </div>

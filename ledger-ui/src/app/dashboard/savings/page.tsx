@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { getAllSavingsAccounts, savingsCommand } from '@/lib/api';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPiggyBank, faCheck, faLock } from '@fortawesome/free-solid-svg-icons';
 
 const STATUS_BADGE: Record<string, string> = {
     ACTIVE: 'badge-active',
@@ -38,7 +40,10 @@ export default function SavingsPage() {
     return (
         <div className="animate-fade-in">
             <div style={{ marginBottom: '2rem' }}>
-                <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>🏦 Savings Accounts</h1>
+                <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+                    <FontAwesomeIcon icon={faPiggyBank} style={{ marginRight: '0.5rem' }} />
+                    Savings Accounts
+                </h1>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Quản lý tài khoản tiền gửi</p>
             </div>
 
@@ -46,7 +51,7 @@ export default function SavingsPage() {
                 <div style={{ marginBottom: '1rem' }}>
                     <input
                         className="input"
-                        placeholder="🔍 Tìm kiếm theo ID hoặc tên khách hàng..."
+                        placeholder="Tìm kiếm theo ID hoặc tên khách hàng..."
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                         style={{ maxWidth: '360px' }}
@@ -94,12 +99,12 @@ export default function SavingsPage() {
                                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                                     {status === 'PENDING' && (
                                                         <button className="btn-success" disabled={!!actionLoading} onClick={() => handleCommand(acc.id, 'activate')}>
-                                                            {actionLoading === acc.id + 'activate' ? '⏳' : '✅ Kích hoạt'}
+                                                            {actionLoading === acc.id + 'activate' ? '⏳' : <><FontAwesomeIcon icon={faCheck} /> Kích hoạt</>}
                                                         </button>
                                                     )}
                                                     {status === 'ACTIVE' && (
                                                         <button className="btn-danger" disabled={!!actionLoading} onClick={() => handleCommand(acc.id, 'lock')}>
-                                                            {actionLoading === acc.id + 'lock' ? '⏳' : '🔒 Khóa'}
+                                                            {actionLoading === acc.id + 'lock' ? '⏳' : <><FontAwesomeIcon icon={faLock} /> Khóa</>}
                                                         </button>
                                                     )}
                                                 </div>

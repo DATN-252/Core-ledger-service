@@ -4,11 +4,19 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { isLoggedIn, getUser, logout } from '@/lib/api';
 
+import '@fortawesome/fontawesome-svg-core/styles.css';
+import { config } from '@fortawesome/fontawesome-svg-core';
+config.autoAddCss = false;
+
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faChartLine, faCreditCard, faPiggyBank, faListUl, faUsers, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
+
 const navItems = [
-    { href: '/dashboard', icon: '📊', label: 'Dashboard' },
-    { href: '/dashboard/loans', icon: '💳', label: 'Credit Accounts' },
-    { href: '/dashboard/savings', icon: '🏦', label: 'Savings Accounts' },
-    { href: '/dashboard/transactions', icon: '📋', label: 'Transactions' },
+    { href: '/dashboard', icon: faChartLine, label: 'Dashboard' },
+    { href: '/dashboard/clients', icon: faUsers, label: 'Khách hàng' },
+    { href: '/dashboard/loans', icon: faCreditCard, label: 'Tài khoản tín dụng' },
+    { href: '/dashboard/savings', icon: faPiggyBank, label: 'Tài khoản ghi nợ' },
+    { href: '/dashboard/transactions', icon: faListUl, label: 'Giao dịch' },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -44,8 +52,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             width: '36px', height: '36px', borderRadius: '10px',
                             background: 'linear-gradient(135deg, #6366f1, #818cf8)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '1rem', flexShrink: 0,
-                        }}>🏦</div>
+                            fontSize: '1rem', flexShrink: 0, color: 'white'
+                        }}>
+                            <FontAwesomeIcon icon={faPiggyBank} />
+                        </div>
                         <div>
                             <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>BkBank Ledger</div>
                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>Admin Portal</div>
@@ -68,7 +78,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 fontSize: '0.875rem',
                                 borderLeft: active ? '2px solid var(--accent)' : '2px solid transparent',
                             }}>
-                                <span>{item.icon}</span>
+                                <span style={{ width: '24px', textAlign: 'center' }}>
+                                    <FontAwesomeIcon icon={item.icon} />
+                                </span>
                                 <span>{item.label}</span>
                             </Link>
                         );
@@ -99,8 +111,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             </div>
                         </div>
                     </div>
-                    <button className="btn-secondary" onClick={logout} style={{ width: '100%', justifyContent: 'center', fontSize: '0.8125rem' }}>
-                        🚪 Đăng xuất
+                    <button className="btn-secondary" onClick={logout} style={{ width: '100%', justifyContent: 'center', fontSize: '0.8125rem', gap: '0.5rem' }}>
+                        <FontAwesomeIcon icon={faSignOutAlt} /> Đăng xuất
                     </button>
                 </div>
             </aside>
