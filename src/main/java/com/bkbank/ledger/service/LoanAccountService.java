@@ -21,6 +21,7 @@ public class LoanAccountService {
     private final LoanAccountRepository loanAccountRepository;
     private final ClientRepository clientRepository;
     private final TransactionRepository transactionRepository;
+    private final TransactionLoggingService transactionLoggingService;
 
     /**
      * Get loan account by account number
@@ -51,10 +52,14 @@ public class LoanAccountService {
         LoanAccount account = getAccount(accountNumber);
         
         if (!account.isActive()) {
+            Transaction failedTx = Transaction.createFailedCharge(accountNumber, amount, account.getPrincipalOutstanding(), merchantId, merchantName, "Account inactive");
+            transactionLoggingService.logTransaction(failedTx);
             throw new RuntimeException("Loan account is not active");
         }
         
         if (!account.hasSufficientCredit(amount)) {
+            Transaction failedTx = Transaction.createFailedCharge(accountNumber, amount, account.getPrincipalOutstanding(), merchantId, merchantName, "Credit limit exceeded");
+            transactionLoggingService.logTransaction(failedTx);
             throw new RuntimeException("Credit limit exceeded");
         }
         

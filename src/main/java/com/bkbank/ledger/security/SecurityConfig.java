@@ -46,6 +46,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Public — Auth endpoints
                 .requestMatchers("/auth/**").permitAll()
+                // System internal endpoint — authenticated via X-System-Api-Key header
+                .requestMatchers(HttpMethod.POST, "/transactions/log-failed").permitAll()
                 // All other requests must be authenticated
                 // Role-based checks are done via @PreAuthorize on controller methods
                 .anyRequest().authenticated()

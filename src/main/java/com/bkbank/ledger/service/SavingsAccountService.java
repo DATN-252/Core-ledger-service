@@ -21,6 +21,7 @@ public class SavingsAccountService {
     private final SavingsAccountRepository savingsAccountRepository;
     private final ClientRepository clientRepository;
     private final TransactionRepository transactionRepository;
+    private final TransactionLoggingService transactionLoggingService;
 
     /**
      * Get account by account number
@@ -49,10 +50,14 @@ public class SavingsAccountService {
         SavingsAccount account = getAccount(accountNumber);
         
         if (!account.isActive()) {
+            Transaction failedTx = Transaction.createFailedWithdrawal(accountNumber, amount, account.getBalance(), merchantId, merchantName, "Account inactive");
+            transactionLoggingService.logTransaction(failedTx);
             throw new RuntimeException("Account is not active");
         }
         
         if (!account.hasSufficientBalance(amount)) {
+            Transaction failedTx = Transaction.createFailedWithdrawal(accountNumber, amount, account.getBalance(), merchantId, merchantName, "Insufficient balance");
+            transactionLoggingService.logTransaction(failedTx);
             throw new RuntimeException("Insufficient balance");
         }
         

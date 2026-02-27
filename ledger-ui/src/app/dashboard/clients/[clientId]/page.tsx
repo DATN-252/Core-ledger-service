@@ -184,7 +184,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                                             {tx.amount?.toLocaleString('en-US')} {tx.currency}
                                         </td>
                                         <td>
-                                            <span className="badge badge-active">THÀNH CÔNG</span>
+                                            {tx.status === 'FAILED' ? (
+                                                <span className="badge" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)' }}>THẤT BẠI</span>
+                                            ) : (
+                                                <span className="badge badge-active">THÀNH CÔNG</span>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

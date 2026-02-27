@@ -47,6 +47,9 @@ public class Transaction {
     @Column(name = "merchant_name")
     private String merchantName;
 
+    @Column(nullable = false, columnDefinition = "varchar(255) default 'SUCCESS'")
+    private String status = "SUCCESS"; // SUCCESS or FAILED
+
     public static Transaction createWithdrawal(String accountNumber, Double amount, Double balanceAfter, String merchantId, String merchantName) {
         Transaction tx = new Transaction();
         tx.accountNumber = accountNumber;
@@ -57,6 +60,21 @@ public class Transaction {
         tx.description = "Card withdrawal";
         tx.merchantId = merchantId;
         tx.merchantName = merchantName;
+        tx.status = "SUCCESS";
+        return tx;
+    }
+
+    public static Transaction createFailedWithdrawal(String accountNumber, Double amount, Double currentBalance, String merchantId, String merchantName, String failureReason) {
+        Transaction tx = new Transaction();
+        tx.accountNumber = accountNumber;
+        tx.accountType = "SAVINGS";
+        tx.transactionType = "WITHDRAWAL";
+        tx.amount = amount;
+        tx.balanceAfter = currentBalance; // Balance hasn't changed
+        tx.description = "Failed withdrawal: " + failureReason;
+        tx.merchantId = merchantId;
+        tx.merchantName = merchantName;
+        tx.status = "FAILED";
         return tx;
     }
 
@@ -68,6 +86,7 @@ public class Transaction {
         tx.amount = amount;
         tx.balanceAfter = balanceAfter;
         tx.description = "Deposit";
+        tx.status = "SUCCESS";
         return tx;
     }
 
@@ -81,6 +100,21 @@ public class Transaction {
         tx.description = "Credit card charge";
         tx.merchantId = merchantId;
         tx.merchantName = merchantName;
+        tx.status = "SUCCESS";
+        return tx;
+    }
+
+    public static Transaction createFailedCharge(String accountNumber, Double amount, Double currentOutstanding, String merchantId, String merchantName, String failureReason) {
+        Transaction tx = new Transaction();
+        tx.accountNumber = accountNumber;
+        tx.accountType = "LOAN";
+        tx.transactionType = "CHARGE";
+        tx.amount = amount;
+        tx.balanceAfter = currentOutstanding; // Outstanding hasn't changed
+        tx.description = "Failed charge: " + failureReason;
+        tx.merchantId = merchantId;
+        tx.merchantName = merchantName;
+        tx.status = "FAILED";
         return tx;
     }
 
@@ -92,6 +126,7 @@ public class Transaction {
         tx.amount = amount;
         tx.balanceAfter = outstandingAfter;
         tx.description = "Loan payment";
+        tx.status = "SUCCESS";
         return tx;
     }
 }

@@ -2,13 +2,16 @@ package com.bkbank.ledger.controller;
 
 import com.bkbank.ledger.entity.Transaction;
 import com.bkbank.ledger.repository.TransactionRepository;
+import com.bkbank.ledger.service.TransactionLoggingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/transactions")
@@ -17,6 +20,10 @@ import java.util.List;
 public class TransactionController {
 
     private final TransactionRepository transactionRepository;
+    private final TransactionLoggingService transactionLoggingService;
+
+    @Value("${system.api-key}")
+    private String systemApiKey;
 
     /**
      * Get all transactions (for UI dashboard)
@@ -43,5 +50,39 @@ public class TransactionController {
         return ResponseEntity.ok(
                 transactionRepository.findByAccountNumberOrderByTransactionDateDesc(accountId)
         );
+    }
+
+    /**
+     * Log a failed (declined) transaction — called by CMS service
+     * POST /transactions/log-failed
+     * Authenticated by X-System-Api-Key header
+     */
+    @PostMapping("/log-failed")
+    public ResponseEntity<?> logFailed(
+            @RequestHeader("X-System-Api-Key") String apiKey,
+            @RequestBody Map<String, Object> body) {
+
+        if (!systemApiKey.equals(apiKey)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Forbidden"));
+        }
+
+        String accountNumber = (String) body.get("accountNumber");
+        String accountType = (String) body.getOrDefault("accountType", "LOAN");
+        Double amount = body.get("amount") instanceof Number ? ((Number) body.get("amount")).doubleValue() : 0.0;
+        Double currentBalance = body.get("currentBalance") instanceof Number ? ((Number) body.get("currentBalance")).doubleValue() : 0.0;
+        String merchantId = (String) body.getOrDefault("merchantId", "");
+        String merchantName = (String) body.getOrDefault("merchantName", "");
+        String failureReason = (String) body.getOrDefault("failureReason", "Declined");
+
+        Transaction tx;
+        if ("SAVINGS".equalsIgnoreCase(accountType)) {
+            tx = Transaction.createFailedWithdrawal(accountNumber, amount, currentBalance, merchantId, merchantName, failureReason);
+        } else {
+            tx = Transaction.createFailedCharge(accountNumber, amount, currentBalance, merchantId, merchantName, failureReason);
+        }
+
+        transactionLoggingService.logTransaction(tx);
+        log.info("Logged failed transaction for account {} - reason: {}", accountNumber, failureReason);
+        return ResponseEntity.ok(Map.of("status", "logged"));
     }
 }
