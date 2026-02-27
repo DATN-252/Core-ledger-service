@@ -87,12 +87,12 @@ export default function LoansPage() {
                                                 {loan.id || loan.accountNo}
                                             </td>
                                             <td style={{ fontWeight: 500 }}>{loan.clientName || '—'}</td>
-                                            <td>{limit.toLocaleString('vi-VN')} ₫</td>
+                                            <td>{limit.toLocaleString('en-US')} {loan.currency?.code || 'USD'}</td>
                                             <td style={{ color: used > 0 ? 'var(--warning)' : 'var(--text-secondary)' }}>
-                                                {used.toLocaleString('vi-VN')} ₫
+                                                {used.toLocaleString('en-US')} {loan.currency?.code || 'USD'}
                                             </td>
                                             <td style={{ color: available > 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
-                                                {available.toLocaleString('vi-VN')} ₫
+                                                {available.toLocaleString('en-US')} {loan.currency?.code || 'USD'}
                                             </td>
                                             <td>
                                                 <span className={`badge ${STATUS_BADGE[status] || 'badge-pending'}`}>

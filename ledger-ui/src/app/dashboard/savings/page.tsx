@@ -82,7 +82,7 @@ export default function SavingsPage() {
                                             <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem', color: 'var(--accent-hover)' }}>{acc.id}</td>
                                             <td style={{ fontWeight: 500 }}>{acc.clientName || '—'}</td>
                                             <td style={{ fontWeight: 600 }}>
-                                                {Number(acc.balance || 0).toLocaleString('vi-VN')} ₫
+                                                {Number(acc.balance || 0).toLocaleString('en-US')} {acc.currency || 'USD'}
                                             </td>
                                             <td style={{ color: 'var(--text-secondary)' }}>{acc.currency || 'VND'}</td>
                                             <td>

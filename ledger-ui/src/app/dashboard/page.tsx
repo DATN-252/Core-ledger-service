@@ -90,7 +90,7 @@ export default function DashboardPage() {
                                                 <td style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>#{txn.id}</td>
                                                 <td style={{ fontWeight: 600 }}>
                                                     {txn.transactionType === 'CREDIT' ? '+' : '-'}
-                                                    {Number(txn.amount).toLocaleString('vi-VN')} ₫
+                                                    {Number(txn.amount).toLocaleString('en-US')} {txn.currency || 'USD'}
                                                 </td>
                                                 <td>
                                                     <span className={`badge ${txn.transactionType === 'CREDIT' ? 'badge-active' : 'badge-pending'}`}>
