@@ -1,5 +1,6 @@
 package com.bkbank.ledger.security;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,6 +9,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -25,6 +27,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -38,28 +41,47 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            // Disable anonymous auth so unauthenticated requests → 401 via authenticationEntryPoint
+            .anonymous(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
                 // Public — Auth endpoints
                 .requestMatchers("/auth/**").permitAll()
-
-                // SYSTEM only — Internal service-to-service (CMS calls these)
-                .requestMatchers(HttpMethod.POST, "/loans/*/charges").hasRole("SYSTEM")
-                .requestMatchers(HttpMethod.POST, "/savingsaccounts/*/transactions").hasRole("SYSTEM")
-
-                // ADMIN only
-                .requestMatchers("/admin/**").hasRole("ADMIN")
-
-                // ADMIN + TELLER — UI operations
-                .requestMatchers(HttpMethod.GET, "/loans/**", "/savingsaccounts/**", "/transactions/**").hasAnyRole("ADMIN", "TELLER")
-                .requestMatchers(HttpMethod.POST, "/loans", "/savingsaccounts").hasAnyRole("ADMIN", "TELLER")
-                .requestMatchers(HttpMethod.POST, "/loans/**", "/savingsaccounts/**").hasAnyRole("ADMIN", "TELLER")
-
-                // All other requests require authentication
+                // All other requests must be authenticated
+                // Role-based checks are done via @PreAuthorize on controller methods
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            .exceptionHandling(ex -> ex
+                // 401 Unauthorized: No credentials / invalid token
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setContentType("application/json");
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.getWriter().write(
+                        "{\"error\":\"Unauthorized\",\"message\":\"Authentication required. Please provide a valid Bearer token.\",\"status\":401}"
+                    );
+                })
+                // 403 Forbidden: check if truly authenticated (wrong role) or anonymous (return 401)
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    // If no token headers present → 401 (not authenticated at all)
+                    boolean hasToken = request.getHeader("Authorization") != null
+                            || request.getHeader("X-API-KEY") != null;
+                    if (!hasToken) {
+                        response.setContentType("application/json");
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.getWriter().write(
+                            "{\"error\":\"Unauthorized\",\"message\":\"Authentication required. Please provide a valid Bearer token.\",\"status\":401}"
+                        );
+                    } else {
+                        response.setContentType("application/json");
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.getWriter().write(
+                            "{\"error\":\"Forbidden\",\"message\":\"You do not have permission to access this resource.\",\"status\":403}"
+                        );
+                    }
+                })
+            );
 
         return http.build();
     }

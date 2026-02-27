@@ -6,6 +6,7 @@ import com.bkbank.ledger.service.LoanAccountService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -28,6 +29,7 @@ public class LoanAccountController {
      * Fineract compatible
      */
     @GetMapping("/loans/{loanId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER', 'SYSTEM')")
     public ResponseEntity<Map<String, Object>> getAccount(@PathVariable String loanId) {
         log.info("GET /loans/{}", loanId);
         
@@ -57,6 +59,7 @@ public class LoanAccountController {
      * Fineract compatible
      */
     @PostMapping("/loans/{loanId}/charges")
+    @PreAuthorize("hasRole('SYSTEM') or hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> addCharge(
             @PathVariable String loanId,
             @RequestBody ChargeRequest request) {
