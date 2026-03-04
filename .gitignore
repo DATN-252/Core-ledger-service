@@ -44,3 +44,6 @@ data/
 # Logs
 logs/
 *.log
+
+src/main/resources/application.properties
+src/main/resources/application.yml
