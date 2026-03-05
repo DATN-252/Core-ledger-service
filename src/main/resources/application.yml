@@ -35,6 +35,11 @@ jwt:
   secret: "BkBankLedgerSecretKey2025VeryLongSecretKey12345678" # Min 32 chars
   expiration: 86400000 # 24 hours in milliseconds
 
-# System API Key (used by CMS service)
+# System API Key (used by CMS service to call ledger)
 system:
   api-key: "bkbank-internal-system-api-key-2025"
+
+# CMS Service Configuration (used by ledger to call CMS)
+cms:
+  url: "http://localhost:8084"
+  internal-api-key: "ledger-internal-api-key-2025"

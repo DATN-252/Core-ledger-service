@@ -1,5 +1,6 @@
 package com.bkbank.ledger.controller;
 
+import com.bkbank.ledger.client.CmsClient;
 import com.bkbank.ledger.dto.ApiResponse;
 import com.bkbank.ledger.entity.Client;
 import com.bkbank.ledger.entity.LoanAccount;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +31,7 @@ public class CustomerController {
 
     private final UserRepository userRepository;
     private final ClientService clientService;
+    private final CmsClient cmsClient;
 
     private Client getAuthenticatedClient(Authentication authentication) {
         if (authentication == null) {
@@ -133,6 +136,33 @@ public class CustomerController {
             return ResponseEntity.ok(ApiResponse.success(result));
         } catch (Exception e) {
             log.error("Error getting loan accounts: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    /**
+     * Lấy danh sách thẻ của KH (từ CMS service)
+     * GET /customer/me/cards
+     */
+    @GetMapping("/me/cards")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMyCards(Authentication authentication) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+
+            // 1. Lấy tất cả account của Client (cả Savings(ghi nợ) và Loan(tín dụng))
+            List<String> accountIds = new ArrayList<>();
+            clientService.getClientSavingsAccounts(client.getClientId())
+                    .forEach(acc -> accountIds.add(acc.getAccountNumber()));
+            clientService.getClientLoanAccounts(client.getClientId())
+                    .forEach(acc -> accountIds.add(acc.getAccountNumber()));
+
+            // 2. Gọi sang CMS service lấy mảng thẻ
+            List<Map<String, Object>> cards = cmsClient.getCardsByAccountIds(accountIds);
+
+            return ResponseEntity.ok(ApiResponse.success(cards));
+        } catch (Exception e) {
+            log.error("Error getting cards: {}", e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
     }
