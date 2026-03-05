@@ -19,7 +19,7 @@ export default function NewClientPage() {
         city: '',
         country: 'Vietnam',
         idNumber: '',
-        idType: 'CITIZEN_ID',
+        idType: 'NATIONAL_ID',
         idIssueDate: '',
         idExpiryDate: '',
         occupation: '',
@@ -35,8 +35,12 @@ export default function NewClientPage() {
         e.preventDefault();
         setLoading(true);
         try {
+            // Generate a random client ID like CLI_9482
+            const generatedClientId = `CLI_${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+
             await createClient({
                 ...formData,
+                clientId: generatedClientId,
                 monthlyIncome: Number(formData.monthlyIncome) || 0
             });
             alert('Tạo khách hàng thành công!');
@@ -109,7 +113,7 @@ export default function NewClientPage() {
                     <div>
                         <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Loại giấy tờ</label>
                         <select required name="idType" value={formData.idType} onChange={handleChange} className="input">
-                            <option value="CITIZEN_ID">CCCD</option>
+                            <option value="NATIONAL_ID">CCCD</option>
                             <option value="PASSPORT">Hộ chiếu</option>
                             <option value="DRIVERS_LICENSE">GPLX</option>
                         </select>

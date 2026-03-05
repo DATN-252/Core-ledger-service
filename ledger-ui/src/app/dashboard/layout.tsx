@@ -4,12 +4,8 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { isLoggedIn, getUser, logout } from '@/lib/api';
 
-import '@fortawesome/fontawesome-svg-core/styles.css';
-import { config } from '@fortawesome/fontawesome-svg-core';
-config.autoAddCss = false;
-
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChartLine, faCreditCard, faPiggyBank, faListUl, faUsers, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
+import { faChartLine, faCreditCard, faPiggyBank, faListUl, faUsers, faSignOutAlt, faIdCard } from '@fortawesome/free-solid-svg-icons';
 
 const navItems = [
     { href: '/dashboard', icon: faChartLine, label: 'Dashboard' },
@@ -17,6 +13,7 @@ const navItems = [
     { href: '/dashboard/loans', icon: faCreditCard, label: 'Tài khoản tín dụng' },
     { href: '/dashboard/savings', icon: faPiggyBank, label: 'Tài khoản ghi nợ' },
     { href: '/dashboard/transactions', icon: faListUl, label: 'Giao dịch' },
+    { href: '/dashboard/cards', icon: faIdCard, label: 'Thẻ tín dụng (CMS)' },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

@@ -1,4 +1,5 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8083';
+const CMS_API_URL = process.env.NEXT_PUBLIC_CMS_API_URL || 'http://localhost:8082/api';
 
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -30,6 +31,29 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   };
 
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+
+  if (res.status === 401) {
+    logout();
+    throw new Error('Session expired');
+  }
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message || `HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+async function cmsRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = getToken();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
+
+  const res = await fetch(`${CMS_API_URL}${path}`, { ...options, headers });
 
   if (res.status === 401) {
     logout();
@@ -124,4 +148,24 @@ export async function getClientAccounts(clientId: string) {
 
 export async function createClient(data: any) {
   return request<any>('/clients', { method: 'POST', body: JSON.stringify(data) });
+}
+
+// ─── Cards (CMS) ──────────────────────────────────────────────────────────────
+export async function getCreditCards(clientId?: string) {
+  const path = clientId ? `/cards/client/${clientId}` : `/cards`;
+  return cmsRequest<any[]>(path);
+}
+
+export async function issueDebitCard(data: { pan: string, cvv: string, expirationDate: string, accountId: string, cardholderName: string }) {
+  const params = new URLSearchParams(data as any);
+  return cmsRequest<any>(`/cards/issue?${params.toString()}`, { method: 'POST' });
+}
+
+export async function issueCreditCard(data: { pan: string, cvv: string, expirationDate: string, creditLimit: number, loanAccountId: string, cardholderName: string }) {
+  const params = new URLSearchParams(data as any);
+  return cmsRequest<any>(`/cards/issue/credit?${params.toString()}`, { method: 'POST' });
+}
+
+export async function changeCardStatus(cardNumber: string, status: string) {
+  return cmsRequest<any>(`/cards/${cardNumber}/status?status=${status}`, { method: 'PUT' });
 }

@@ -46,6 +46,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Public — Auth endpoints
                 .requestMatchers("/auth/**").permitAll()
+                // Allow /error so validation exceptions don't trigger 401 Unauthorized
+                .requestMatchers("/error").permitAll()
                 // System internal endpoint — authenticated via X-System-Api-Key header
                 .requestMatchers(HttpMethod.POST, "/transactions/log-failed").permitAll()
                 // All other requests must be authenticated
