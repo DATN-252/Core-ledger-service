@@ -1,5 +1,6 @@
 package com.bkbank.ledger.controller;
 
+import com.bkbank.ledger.dto.ApiResponse;
 import com.bkbank.ledger.dto.LoginRequest;
 import com.bkbank.ledger.dto.LoginResponse;
 import com.bkbank.ledger.entity.Client;
@@ -33,14 +34,14 @@ public class AuthController {
      * Body: { "username": "0912345678", "password": "..." }
      */
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginRequest request) {
         try {
             LoginResponse response = authService.login(request);
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(ApiResponse.success("Đăng nhập thành công", response));
         } catch (Exception e) {
-            log.warn("Login failed for '{}': {}", request.getUsername(), e.getMessage());
+            log.warn("Login failed for '{}': {}", request.getEffectiveUsername(), e.getMessage());
             return ResponseEntity.status(401)
-                    .body(Map.of("error", "Tên đăng nhập hoặc mật khẩu không đúng"));
+                    .body(ApiResponse.error(401, "Tên đăng nhập hoặc mật khẩu không đúng"));
         }
     }
 
@@ -50,20 +51,20 @@ public class AuthController {
      * Body: { "clientId": "CLI_001", "password": "abc12345" }
      */
     @PostMapping("/register-customer")
-    public ResponseEntity<?> registerCustomer(@RequestBody Map<String, String> body) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> registerCustomer(@RequestBody Map<String, String> body) {
         try {
             String clientId = body.get("clientId");
             String password = body.get("password");
 
             if (clientId == null || password == null) {
-                return ResponseEntity.badRequest().body(Map.of("error", "clientId và password là bắt buộc"));
+                return ResponseEntity.badRequest().body(ApiResponse.error(400, "clientId và password là bắt buộc"));
             }
 
             Client client = clientRepository.findByClientId(clientId)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy khách hàng: " + clientId));
 
             if (userRepository.findByClientClientId(clientId).isPresent()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Khách hàng đã có tài khoản đăng nhập"));
+                return ResponseEntity.badRequest().body(ApiResponse.error(400, "Khách hàng đã có tài khoản đăng nhập"));
             }
 
             User user = User.builder()
@@ -77,14 +78,13 @@ public class AuthController {
             userRepository.save(user);
             log.info("Created customer account for clientId='{}', phone='{}'", clientId, client.getPhoneNumber());
 
-            return ResponseEntity.ok(Map.of(
-                    "message", "Tạo tài khoản thành công",
+            return ResponseEntity.ok(ApiResponse.success("Tạo tài khoản thành công", Map.of(
                     "username", client.getPhoneNumber(),
                     "clientId", clientId
-            ));
+            )));
         } catch (Exception e) {
             log.error("Failed to register customer: {}", e.getMessage());
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error(500, e.getMessage()));
         }
     }
 
@@ -93,13 +93,13 @@ public class AuthController {
      * GET /auth/me
      */
     @GetMapping("/me")
-    public ResponseEntity<?> me(org.springframework.security.core.Authentication auth) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> me(org.springframework.security.core.Authentication auth) {
         if (auth == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+            return ResponseEntity.status(401).body(ApiResponse.error(401, "Not authenticated"));
         }
-        return ResponseEntity.ok(Map.of(
+        return ResponseEntity.ok(ApiResponse.success(Map.of(
                 "username", auth.getName(),
                 "role", auth.getAuthorities().iterator().next().getAuthority()
-        ));
+        )));
     }
 }
