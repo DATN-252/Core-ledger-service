@@ -26,23 +26,34 @@ public class AuthService {
     private long expiration;
 
     public LoginResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
-        );
+        String nameAcc = request.getEffectiveUsername();
 
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        // Tìm User theo: username → phoneNumber → idNumber (CCCD)
+        User user = userRepository.findByUsername(nameAcc)
+                .or(() -> userRepository.findByClientPhoneNumber(nameAcc))
+                .or(() -> userRepository.findByClientIdNumber(nameAcc))
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + nameAcc));
+
+        // Xác thực password (dùng username thực của User)
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(user.getUsername(), request.getPassword())
+        );
 
         String token = jwtUtil.generateToken(user);
 
-        log.info("User '{}' logged in with role '{}'", user.getUsername(), user.getRole());
+        // Lấy clientId nếu là customer
+        String clientId = (user.getClient() != null) ? user.getClient().getClientId() : null;
+
+        log.info("User '{}' logged in with role '{}' (clientId={})",
+                user.getUsername(), user.getRole(), clientId);
 
         return new LoginResponse(
                 token,
                 user.getUsername(),
                 user.getFullName(),
                 user.getRole().name(),
-                expiration
+                expiration,
+                clientId
         );
     }
 }

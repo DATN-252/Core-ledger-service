@@ -44,8 +44,10 @@ public class SecurityConfig {
             // Disable anonymous auth so unauthenticated requests → 401 via authenticationEntryPoint
             .anonymous(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
-                // Public — Auth endpoints
-                .requestMatchers("/auth/**").permitAll()
+                // Public — chỉ login endpoint
+                .requestMatchers("/auth/login").permitAll()
+                // Teller/Admin only — tạo tài khoản mobile cho KH
+                .requestMatchers("/auth/register-customer").hasAnyRole("ADMIN", "TELLER")
                 // Allow /error so validation exceptions don't trigger 401 Unauthorized
                 .requestMatchers("/error").permitAll()
                 // System internal endpoint — authenticated via X-System-Api-Key header

@@ -10,5 +10,6 @@ public class LoginResponse {
     private String username;
     private String fullName;
     private String role;
-    private long expiresIn; // milliseconds
+    private long expiresIn;    // milliseconds
+    private String clientId;   // null for ADMIN, clientId for CUSTOMER
 }
