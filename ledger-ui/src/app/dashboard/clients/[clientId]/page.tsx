@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { getClientAccounts, getTransactions } from '@/lib/api';
+import { getClientAccounts, getTransactions, registerCustomer } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faUser, faCreditCard, faPiggyBank, faHistory } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faUser, faCreditCard, faPiggyBank, faHistory, faMobileAlt } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
 
 export default function ClientDetailPage({ params }: { params: Promise<{ clientId: string }> }) {
@@ -49,17 +49,27 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
 
     return (
         <div className="animate-fade-in">
-            <div style={{ marginBottom: '2rem' }}>
-                <Link href="/dashboard/clients" style={{ color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
-                    <FontAwesomeIcon icon={faArrowLeft} /> Quay lại danh sách
+            <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                    <Link href="/dashboard/clients" style={{ color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
+                        <FontAwesomeIcon icon={faArrowLeft} /> Quay lại danh sách
+                    </Link>
+                    <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+                        <FontAwesomeIcon icon={faUser} style={{ marginRight: '0.5rem' }} />
+                        {clientName}
+                    </h1>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                        Mã khách hàng: {clientId}
+                    </p>
+                </div>
+
+                <Link
+                    href={`/dashboard/clients/${clientId}/register-app?clientName=${encodeURIComponent(clientName)}`}
+                    className="btn-primary"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', textDecoration: 'none' }}>
+                    <FontAwesomeIcon icon={faMobileAlt} />
+                    Tạo tài khoản App
                 </Link>
-                <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
-                    <FontAwesomeIcon icon={faUser} style={{ marginRight: '0.5rem' }} />
-                    {clientName}
-                </h1>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                    Mã khách hàng: {clientId}
-                </p>
             </div>
 
             <div style={{ display: 'grid', gap: '2rem', gridTemplateColumns: '1fr 1fr', marginBottom: '2rem' }}>

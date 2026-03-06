@@ -86,7 +86,7 @@ function NewSavingsForm() {
 
                     <div>
                         <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>
-                            Số Tài Khoản (Bắt đầu bằng S) *
+                            Mã tài khoản *
                         </label>
                         <input
                             required
@@ -94,7 +94,7 @@ function NewSavingsForm() {
                             value={formData.accountNumber}
                             onChange={e => setFormData({ ...formData, accountNumber: e.target.value })}
                             className="input"
-                            placeholder="S-0001"
+                            placeholder="Nhập mã tài khoản..."
                         />
                     </div>
 

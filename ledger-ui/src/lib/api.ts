@@ -42,7 +42,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new Error(err.message || `HTTP ${res.status}`);
   }
 
-  return res.json();
+  const json = await res.json();
+  // Auto-unwrap the new standard ApiResponse format (code 1000)
+  if (json && json.code === 1000 && 'result' in json) {
+    return json.result;
+  }
+  return json;
 }
 
 async function cmsRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -90,6 +95,13 @@ export function getUser() {
   if (typeof window === 'undefined') return null;
   const raw = localStorage.getItem('ledger_user');
   return raw ? JSON.parse(raw) : null;
+}
+
+export async function registerCustomer(clientId: string, password: string) {
+  return request<any>('/auth/register-customer', {
+    method: 'POST',
+    body: JSON.stringify({ clientId, password })
+  });
 }
 
 // ─── Loans ───────────────────────────────────────────────────────────────────

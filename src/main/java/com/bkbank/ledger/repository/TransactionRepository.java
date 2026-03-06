@@ -11,5 +11,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     
     List<Transaction> findByAccountNumberOrderByTransactionDateDesc(String accountNumber);
     
+    List<Transaction> findByAccountNumberInOrderByTransactionDateDesc(List<String> accountNumbers);
+    
     List<Transaction> findTop10ByAccountNumberOrderByTransactionDateDesc(String accountNumber);
 }

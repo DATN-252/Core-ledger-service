@@ -87,7 +87,7 @@ function NewLoanForm() {
 
                     <div>
                         <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>
-                            Số Tài Khoản (Bắt đầu bằng C) *
+                            Mã tài khoản *
                         </label>
                         <input
                             required
@@ -95,7 +95,7 @@ function NewLoanForm() {
                             value={formData.accountNumber}
                             onChange={e => setFormData({ ...formData, accountNumber: e.target.value })}
                             className="input"
-                            placeholder="C-0001"
+                            placeholder="Nhập mã tài khoản..."
                         />
                     </div>
 

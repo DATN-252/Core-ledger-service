@@ -6,7 +6,9 @@ import com.bkbank.ledger.entity.Client;
 import com.bkbank.ledger.entity.LoanAccount;
 import com.bkbank.ledger.entity.SavingsAccount;
 import com.bkbank.ledger.entity.User;
+import com.bkbank.ledger.entity.Transaction;
 import com.bkbank.ledger.repository.UserRepository;
+import com.bkbank.ledger.repository.TransactionRepository;
 import com.bkbank.ledger.service.ClientService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +34,7 @@ public class CustomerController {
     private final UserRepository userRepository;
     private final ClientService clientService;
     private final CmsClient cmsClient;
+    private final TransactionRepository transactionRepository;
 
     private Client getAuthenticatedClient(Authentication authentication) {
         if (authentication == null) {
@@ -163,6 +166,33 @@ public class CustomerController {
             return ResponseEntity.ok(ApiResponse.success(cards));
         } catch (Exception e) {
             log.error("Error getting cards: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    /**
+     * Lấy danh sách biến động số dư (Giao dịch) của KH
+     * GET /customer/me/transactions
+     */
+    @GetMapping("/me/transactions")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<List<Transaction>>> getMyTransactions(Authentication authentication) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+
+            // 1. Get all account numbers (Savings & Loans)
+            List<String> accountIds = new ArrayList<>();
+            clientService.getClientSavingsAccounts(client.getClientId())
+                    .forEach(acc -> accountIds.add(acc.getAccountNumber()));
+            clientService.getClientLoanAccounts(client.getClientId())
+                    .forEach(acc -> accountIds.add(acc.getAccountNumber()));
+
+            // 2. Fetch transactions for these accounts
+            List<Transaction> transactions = transactionRepository.findByAccountNumberInOrderByTransactionDateDesc(accountIds);
+
+            return ResponseEntity.ok(ApiResponse.success(transactions));
+        } catch (Exception e) {
+            log.error("Error getting transactions: {}", e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
     }
