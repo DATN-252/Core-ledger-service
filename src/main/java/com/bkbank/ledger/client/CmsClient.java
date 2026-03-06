@@ -65,4 +65,53 @@ public class CmsClient {
             return List.of();
         }
     }
+
+    /**
+     * Authorize a credit card payment via CMS.
+     */
+    public Map<String, Object> authorizePayment(com.bkbank.ledger.dto.PaymentRequest request, String merchantName) {
+        try {
+            String url = UriComponentsBuilder.fromHttpUrl(cmsUrl + "/api/transaction")
+                    .toUriString();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Internal-Api-Key", cmsApiKey);
+            headers.set("Content-Type", "application/json");
+
+            // Map Core Ledger PaymentRequest -> CMS AuthorizationRequest
+            Map<String, Object> payload = new java.util.HashMap<>();
+            payload.put("cardNumber", request.getCardNumber());
+            payload.put("amount", request.getAmount());
+            payload.put("merchantId", request.getMerchantId());
+            payload.put("merchantName", merchantName);
+            payload.put("cvc", request.getCvc());
+            payload.put("expirationDate", request.getDateCard());
+
+            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(payload, headers);
+
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    requestEntity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+
+            log.info("Payment authorization response from CMS: {}", response.getBody());
+            return response.getBody();
+
+        } catch (org.springframework.web.client.HttpStatusCodeException e) {
+            log.error("Failed to authorize payment via CMS. Status: {}, Response: {}", 
+                e.getStatusCode(), e.getResponseBodyAsString());
+            try {
+                // Try to parse the error response as JSON map
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                return mapper.readValue(e.getResponseBodyAsString(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>(){});
+            } catch (Exception ex) {
+                return Map.of("approved", false, "responseCode", "96", "responseMessage", "System error: " + e.getMessage());
+            }
+        } catch (Exception e) {
+            log.error("Failed to authorize payment via CMS: {}", e.getMessage());
+            return Map.of("approved", false, "responseCode", "96", "responseMessage", "System error: " + e.getMessage());
+        }
+    }
 }

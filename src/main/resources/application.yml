@@ -41,5 +41,5 @@ system:
 
 # CMS Service Configuration (used by ledger to call CMS)
 cms:
-  url: "http://localhost:8084"
-  internal-api-key: "ledger-internal-api-key-2025"
+  url: "http://localhost:8082"
+  internal-api-key: "jpos-to-cms-secret-key-2025"
