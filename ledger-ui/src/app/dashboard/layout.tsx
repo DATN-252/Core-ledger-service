@@ -13,7 +13,7 @@ const navItems = [
     { href: '/dashboard/loans', icon: faCreditCard, label: 'Tài khoản tín dụng' },
     { href: '/dashboard/savings', icon: faPiggyBank, label: 'Tài khoản ghi nợ' },
     { href: '/dashboard/transactions', icon: faListUl, label: 'Giao dịch' },
-    { href: '/dashboard/cards', icon: faIdCard, label: 'Thẻ tín dụng (CMS)' },
+    { href: '/dashboard/cards', icon: faIdCard, label: 'Quản lý thẻ' },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
