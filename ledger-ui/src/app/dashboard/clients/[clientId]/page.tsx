@@ -76,7 +76,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                 {/* Savings Accounts */}
                 <div className="card">
                     <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span><FontAwesomeIcon icon={faPiggyBank} style={{ marginRight: '0.5rem', color: 'var(--accent)' }} />Tài khoản Debit (Tiền gửi)</span>
+                        <span><FontAwesomeIcon icon={faPiggyBank} style={{ marginRight: '0.5rem', color: 'var(--accent)' }} />Tài khoản Debit</span>
                         <Link href={`/dashboard/savings/new?clientId=${clientId}`} className="btn-primary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', textDecoration: 'none' }}>+ Thêm</Link>
                     </h2>
                     {savingsAccounts.length === 0 ? (
@@ -103,7 +103,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                 {/* Loan Accounts */}
                 <div className="card">
                     <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span><FontAwesomeIcon icon={faCreditCard} style={{ marginRight: '0.5rem', color: 'var(--accent)' }} />Tài khoản Credit (Tín dụng)</span>
+                        <span><FontAwesomeIcon icon={faCreditCard} style={{ marginRight: '0.5rem', color: 'var(--accent)' }} />Tài khoản Credit</span>
                         <Link href={`/dashboard/loans/new?clientId=${clientId}`} className="btn-primary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', textDecoration: 'none' }}>+ Thêm</Link>
                     </h2>
                     {loanAccounts.length === 0 ? (
@@ -183,7 +183,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                                         <td style={{ color: 'var(--text-secondary)' }}>{tx.merchantName || '—'}</td>
                                         <td>
                                             <span className={`badge ${tx.transactionType === 'DEPOSIT' || tx.transactionType === 'PAYMENT' ? 'badge-active' : 'badge-pending'}`}>
-                                                {tx.transactionType}
+                                                {tx.transactionType === 'CHARGE' ? (tx.merchantName ? 'CREDIT' : 'CHARGE/FEE') : tx.transactionType}
                                             </span>
                                         </td>
                                         <td style={{

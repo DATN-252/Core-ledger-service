@@ -72,13 +72,13 @@ export default function TransactionsPage() {
                                 ) : filtered.map((txn: any) => (
                                     <tr key={txn.id}>
                                         <td style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>#{txn.id}</td>
-                                        <td style={{ fontWeight: 600, color: txn.transactionType === 'CREDIT' ? 'var(--success)' : 'var(--text-primary)' }}>
-                                            {txn.transactionType === 'CREDIT' ? '+' : '-'}
+                                        <td style={{ fontWeight: 600, color: txn.transactionType === 'CREDIT' || txn.transactionType === 'DEPOSIT' ? 'var(--success)' : 'var(--text-primary)' }}>
+                                            {txn.transactionType === 'CREDIT' || txn.transactionType === 'DEPOSIT' ? '+' : '-'}
                                             {Number(txn.amount).toLocaleString('en-US')} {txn.currency || 'USD'}
                                         </td>
                                         <td>
-                                            <span className={`badge ${txn.transactionType === 'CREDIT' ? 'badge-active' : 'badge-pending'}`}>
-                                                {txn.transactionType || 'CHARGE'}
+                                            <span className={`badge ${txn.transactionType === 'CREDIT' || txn.transactionType === 'DEPOSIT' ? 'badge-active' : 'badge-pending'}`}>
+                                                {txn.transactionType === 'CHARGE' ? (txn.merchantName ? 'CREDIT' : 'CHARGE/FEE') : (txn.transactionType || 'UNKNOWN')}
                                             </span>
                                         </td>
                                         <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>
