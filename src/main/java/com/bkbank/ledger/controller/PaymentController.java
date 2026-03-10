@@ -94,6 +94,12 @@ public class PaymentController {
             if (Boolean.TRUE.equals(approved)) {
                 // Ensure cardNetwork is included in the response for UI
                 cmsResponse.put("cardNetwork", getCardNetwork(request.getCardNumber()));
+                
+                // Add Transaction Metadata for the Receipt Screen
+                java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                cmsResponse.put("transactionTime", now.format(formatter));
+                cmsResponse.put("transactionId", "TXN" + System.currentTimeMillis() + (int)(Math.random() * 1000));
 
                 return ResponseEntity.ok(ApiResponse.success("Payment successful", cmsResponse));
             } else {
