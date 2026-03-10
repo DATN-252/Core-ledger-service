@@ -47,6 +47,9 @@ public class Transaction {
     @Column(name = "merchant_name")
     private String merchantName;
 
+    @Column(name = "card_network")
+    private String cardNetwork;
+
     @Column(nullable = false, columnDefinition = "varchar(255) default 'SUCCESS'")
     private String status = "SUCCESS"; // SUCCESS or FAILED
 
@@ -60,6 +63,7 @@ public class Transaction {
         tx.description = "Card withdrawal";
         tx.merchantId = merchantId;
         tx.merchantName = merchantName;
+        tx.cardNetwork = null;
         tx.status = "SUCCESS";
         return tx;
     }
@@ -74,6 +78,7 @@ public class Transaction {
         tx.description = "Failed withdrawal: " + failureReason;
         tx.merchantId = merchantId;
         tx.merchantName = merchantName;
+        tx.cardNetwork = null;
         tx.status = "FAILED";
         return tx;
     }
@@ -100,6 +105,7 @@ public class Transaction {
         tx.description = "Credit card charge";
         tx.merchantId = merchantId;
         tx.merchantName = merchantName;
+        tx.cardNetwork = null; // Will be set externally if needed
         tx.status = "SUCCESS";
         return tx;
     }
@@ -114,6 +120,7 @@ public class Transaction {
         tx.description = "Failed charge: " + failureReason;
         tx.merchantId = merchantId;
         tx.merchantName = merchantName;
+        tx.cardNetwork = null; // Will be set externally if needed
         tx.status = "FAILED";
         return tx;
     }

@@ -23,6 +23,49 @@ public class PaymentController {
     private final CmsClient cmsClient;
 
     /**
+     * POST /payment/preview
+     * Lấy thông tin merchant và hóa đơn trước khi thanh toán
+     */
+    @PostMapping("/preview")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> previewPayment(@RequestBody Map<String, Object> request) {
+        String merchantId = (String) request.get("merchantId");
+        if (merchantId == null || merchantId.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "merchantId is required"));
+        }
+
+        try {
+            String cardNumber = (String) request.get("cardNumber");
+            String merchantName = "Merchant " + merchantId;
+            Double amount = null;
+
+            if ("SP0001".equals(merchantId)) merchantName = "Điện lực EVN";
+            else if ("SP0002".equals(merchantId)) merchantName = "Siêu thị GO";
+            else if ("SP0003".equals(merchantId)) merchantName = "Tạp hóa Xanh";
+
+            Object reqAmount = request.get("amount");
+            if (reqAmount != null) {
+                amount = Double.valueOf(reqAmount.toString());
+            }
+
+            Map<String, Object> previewData = new java.util.HashMap<>();
+            previewData.put("merchantId", merchantId);
+            previewData.put("merchantName", merchantName);
+            previewData.put("amount", amount);
+            previewData.put("fee", 0);
+            previewData.put("status", "VALID");
+            if (cardNumber != null && !cardNumber.trim().isEmpty()) {
+                previewData.put("cardNetwork", getCardNetwork(cardNumber));
+            }
+
+            return ResponseEntity.ok(ApiResponse.success("Preview successful", previewData));
+        } catch (Exception e) {
+            log.error("Preview processing error: {}", e.getMessage());
+            return ResponseEntity.internalServerError().body(ApiResponse.error(500, "Internal Server Error: " + e.getMessage()));
+        }
+    }
+
+    /**
      * POST /payment/credit-card
      * Xử lý thanh toán thẻ tín dụng từ Mobile App (Online Payment)
      */
@@ -49,6 +92,9 @@ public class PaymentController {
             Object responseMessage = cmsResponse.get("responseMessage");
 
             if (Boolean.TRUE.equals(approved)) {
+                // Ensure cardNetwork is included in the response for UI
+                cmsResponse.put("cardNetwork", getCardNetwork(request.getCardNumber()));
+
                 return ResponseEntity.ok(ApiResponse.success("Payment successful", cmsResponse));
             } else {
                 return ResponseEntity.badRequest().body(ApiResponse.error(400, "Payment failed: " + responseMessage));
@@ -58,5 +104,25 @@ public class PaymentController {
             log.error("Payment processing error: {}", e.getMessage());
             return ResponseEntity.internalServerError().body(ApiResponse.error(500, "Internal Server Error: " + e.getMessage()));
         }
+    }
+
+    private String getCardNetwork(String cardNumber) {
+        if (cardNumber == null || cardNumber.isEmpty()) {
+            return "UNKNOWN";
+        }
+        if (cardNumber.startsWith("4")) {
+            return "VISA";
+        } else if (cardNumber.startsWith("5")) {
+            return "MASTERCARD";
+        } else if (cardNumber.startsWith("34") || cardNumber.startsWith("37")) {
+            return "AMEX";
+        } else if (cardNumber.startsWith("35")) {
+            return "JCB";
+        } else if (cardNumber.startsWith("6")) {
+            return "DISCOVER";
+        } else if (cardNumber.startsWith("9")) {
+            return "NAPAS"; // Typical for Vietnam domestic cards
+        }
+        return "UNKNOWN";
     }
 }

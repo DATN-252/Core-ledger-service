@@ -46,19 +46,21 @@ public class LoanAccountService {
      * Add charge to loan (for credit card transactions)
      */
     @Transactional
-    public LoanAccount addCharge(String accountNumber, Double amount, String merchantId, String merchantName) {
-        log.info("Adding charge of {} to loan account {} at merchant {}", amount, accountNumber, merchantName);
+    public LoanAccount addCharge(String accountNumber, Double amount, String merchantId, String merchantName, String cardNetwork) {
+        log.info("Adding charge of {} to loan account {} at merchant {} with network {}", amount, accountNumber, merchantName, cardNetwork);
         
         LoanAccount account = getAccount(accountNumber);
         
         if (!account.isActive()) {
             Transaction failedTx = Transaction.createFailedCharge(accountNumber, amount, account.getPrincipalOutstanding(), merchantId, merchantName, "Account inactive");
+            failedTx.setCardNetwork(cardNetwork);
             transactionLoggingService.logTransaction(failedTx);
             throw new RuntimeException("Loan account is not active");
         }
         
         if (!account.hasSufficientCredit(amount)) {
             Transaction failedTx = Transaction.createFailedCharge(accountNumber, amount, account.getPrincipalOutstanding(), merchantId, merchantName, "Credit limit exceeded");
+            failedTx.setCardNetwork(cardNetwork);
             transactionLoggingService.logTransaction(failedTx);
             throw new RuntimeException("Credit limit exceeded");
         }
@@ -68,6 +70,7 @@ public class LoanAccountService {
         
         // Log transaction
         Transaction tx = Transaction.createCharge(accountNumber, amount, savedAccount.getPrincipalOutstanding(), merchantId, merchantName);
+        tx.setCardNetwork(cardNetwork);
         transactionRepository.save(tx);
         
         log.info("Charge added successfully. New outstanding: {}", savedAccount.getPrincipalOutstanding());

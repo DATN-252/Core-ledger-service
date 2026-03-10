@@ -73,6 +73,7 @@ public class TransactionController {
         String merchantId = (String) body.getOrDefault("merchantId", "");
         String merchantName = (String) body.getOrDefault("merchantName", "");
         String failureReason = (String) body.getOrDefault("failureReason", "Declined");
+        String cardNetwork = (String) body.getOrDefault("cardNetwork", "UNKNOWN");
 
         Transaction tx;
         if ("SAVINGS".equalsIgnoreCase(accountType)) {
@@ -80,6 +81,7 @@ public class TransactionController {
         } else {
             tx = Transaction.createFailedCharge(accountNumber, amount, currentBalance, merchantId, merchantName, failureReason);
         }
+        tx.setCardNetwork(cardNetwork);
 
         transactionLoggingService.logTransaction(tx);
         log.info("Logged failed transaction for account {} - reason: {}", accountNumber, failureReason);

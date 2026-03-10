@@ -163,11 +163,39 @@ public class CustomerController {
             // 2. Gọi sang CMS service lấy mảng thẻ
             List<Map<String, Object>> cards = cmsClient.getCardsByAccountIds(accountIds);
 
+            // 3. Enrich with card network
+            if (cards != null) {
+                for (Map<String, Object> card : cards) {
+                    String cardNumber = (String) card.get("cardNumber");
+                    card.put("cardNetwork", getCardNetwork(cardNumber));
+                }
+            }
+
             return ResponseEntity.ok(ApiResponse.success(cards));
         } catch (Exception e) {
             log.error("Error getting cards: {}", e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
+    }
+
+    private String getCardNetwork(String cardNumber) {
+        if (cardNumber == null || cardNumber.isEmpty()) {
+            return "UNKNOWN";
+        }
+        if (cardNumber.startsWith("4")) {
+            return "VISA";
+        } else if (cardNumber.startsWith("5")) {
+            return "MASTERCARD";
+        } else if (cardNumber.startsWith("34") || cardNumber.startsWith("37")) {
+            return "AMEX";
+        } else if (cardNumber.startsWith("35")) {
+            return "JCB";
+        } else if (cardNumber.startsWith("6")) {
+            return "DISCOVER";
+        } else if (cardNumber.startsWith("9")) {
+            return "NAPAS"; // Typical for Vietnam domestic cards
+        }
+        return "UNKNOWN";
     }
 
     /**

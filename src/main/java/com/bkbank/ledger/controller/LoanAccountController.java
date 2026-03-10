@@ -96,7 +96,8 @@ public class LoanAccountController {
         try {
             String merchantId = request.getMerchantId();
             String merchantName = request.getMerchantName();
-            LoanAccount account = loanAccountService.addCharge(loanId, request.getAmount(), merchantId, merchantName);
+            String cardNetwork = request.getCardNetwork();
+            LoanAccount account = loanAccountService.addCharge(loanId, request.getAmount(), merchantId, merchantName, cardNetwork);
             
             // Fineract-style response
             Map<String, Object> response = new HashMap<>();
