@@ -3,6 +3,8 @@ package com.bkbank.ledger.controller;
 import com.bkbank.ledger.client.CmsClient;
 import com.bkbank.ledger.dto.ApiResponse;
 import com.bkbank.ledger.dto.PaymentRequest;
+import com.bkbank.ledger.entity.Merchant;
+import com.bkbank.ledger.service.MerchantService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,7 @@ import java.util.Map;
 public class PaymentController {
 
     private final CmsClient cmsClient;
+    private final MerchantService merchantService;
 
     /**
      * POST /payment/preview
@@ -36,12 +39,11 @@ public class PaymentController {
 
         try {
             String cardNumber = (String) request.get("cardNumber");
-            String merchantName = "Merchant " + merchantId;
+            
+            Merchant merchant = merchantService.getActiveMerchant(merchantId);
+            String merchantName = merchant.getName();
+            
             Double amount = null;
-
-            if ("SP0001".equals(merchantId)) merchantName = "Điện lực EVN";
-            else if ("SP0002".equals(merchantId)) merchantName = "Siêu thị GO";
-            else if ("SP0003".equals(merchantId)) merchantName = "Tạp hóa Xanh";
 
             Object reqAmount = request.get("amount");
             if (reqAmount != null) {
@@ -75,13 +77,9 @@ public class PaymentController {
         log.info("Receiving credit card payment request from mobile for merchant: {}", request.getMerchantId());
 
         try {
-            // In a real system we would look up the merchantId in our database to get the real merchantName
-            // For now, using a placeholder based on ID
-            String merchantName = "Merchant " + request.getMerchantId();
-
-            if ("SP0001".equals(request.getMerchantId())) merchantName = "Điện lực EVN";
-            else if ("SP0002".equals(request.getMerchantId())) merchantName = "Siêu thị GO";
-            else if ("SP0003".equals(request.getMerchantId())) merchantName = "Tạp hóa Xanh";
+            // Find and validate the merchant
+            Merchant merchant = merchantService.getActiveMerchant(request.getMerchantId());
+            String merchantName = merchant.getName();
 
             // Call CMS to authorize payment (which includes CVC mapping and Fineract debit)
             Map<String, Object> cmsResponse = cmsClient.authorizePayment(request, merchantName);
@@ -127,7 +125,7 @@ public class PaymentController {
         } else if (cardNumber.startsWith("6")) {
             return "DISCOVER";
         } else if (cardNumber.startsWith("9")) {
-            return "NAPAS"; // Typical for Vietnam domestic cards
+            return "NAPAS"; 
         }
         return "UNKNOWN";
     }

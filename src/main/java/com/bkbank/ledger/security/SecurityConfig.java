@@ -52,6 +52,8 @@ public class SecurityConfig {
                 .requestMatchers("/error").permitAll()
                 // System internal endpoint — authenticated via X-System-Api-Key header
                 .requestMatchers(HttpMethod.POST, "/transactions/log-failed").permitAll()
+                // Public — List of active merchants for POS/Apps
+                .requestMatchers(HttpMethod.GET, "/merchants").permitAll()
                 // All other requests must be authenticated
                 // Role-based checks are done via @PreAuthorize on controller methods
                 .anyRequest().authenticated()
