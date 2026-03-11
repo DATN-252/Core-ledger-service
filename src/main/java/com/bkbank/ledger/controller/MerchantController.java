@@ -3,12 +3,14 @@ package com.bkbank.ledger.controller;
 import com.bkbank.ledger.entity.Merchant;
 import com.bkbank.ledger.repository.MerchantRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/merchants")
@@ -18,15 +20,12 @@ public class MerchantController {
     private final MerchantRepository merchantRepository;
 
     @GetMapping
-    public ResponseEntity<List<Merchant>> getAllActiveMerchants() {
-        // Find all active merchants
-        // (Assuming you might want all for POS simulator testing)
-        // If the table grows large, this might need pagination, 
-        // but for a limited demo list, findAll() is fine.
-        List<Merchant> merchants = merchantRepository.findAll().stream()
-                .filter(m -> m.getStatus() == Merchant.MerchantStatus.ACTIVE)
-                .toList();
-        
+    public ResponseEntity<Page<Merchant>> getAllActiveMerchants(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Merchant> merchants = merchantRepository.findByStatus(Merchant.MerchantStatus.ACTIVE, pageable);
         return ResponseEntity.ok(merchants);
     }
 }

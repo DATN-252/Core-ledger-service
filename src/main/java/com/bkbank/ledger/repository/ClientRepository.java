@@ -5,6 +5,8 @@ import com.bkbank.ledger.entity.enums.ClientStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,10 +49,10 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
     /**
      * Find all clients by status
      */
-    List<Client> findByStatus(ClientStatus status);
+    Page<Client> findByStatus(ClientStatus status, Pageable pageable);
     
     /**
      * Search clients by name (case-insensitive, partial match)
      */
-    List<Client> findByFullNameContainingIgnoreCase(String name);
+    Page<Client> findByFullNameContainingIgnoreCase(String name, Pageable pageable);
 }

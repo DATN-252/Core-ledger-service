@@ -6,11 +6,14 @@ import com.bkbank.ledger.service.TransactionLoggingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -32,11 +35,12 @@ public class TransactionController {
      */
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
-    public ResponseEntity<List<Transaction>> getAll() {
-        List<Transaction> txns = transactionRepository.findAll(
-                org.springframework.data.domain.PageRequest.of(0, 50,
-                        org.springframework.data.domain.Sort.by("transactionDate").descending())
-        ).getContent();
+    public ResponseEntity<Page<Transaction>> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("transactionDate").descending());
+        Page<Transaction> txns = transactionRepository.findAll(pageable);
         return ResponseEntity.ok(txns);
     }
 
@@ -46,9 +50,14 @@ public class TransactionController {
      */
     @GetMapping(params = "accountId")
     @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
-    public ResponseEntity<List<Transaction>> getByAccount(@RequestParam String accountId) {
+    public ResponseEntity<Page<Transaction>> getByAccount(
+            @RequestParam String accountId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(
-                transactionRepository.findByAccountNumberOrderByTransactionDateDesc(accountId)
+                transactionRepository.findByAccountNumberOrderByTransactionDateDesc(accountId, pageable)
         );
     }
 

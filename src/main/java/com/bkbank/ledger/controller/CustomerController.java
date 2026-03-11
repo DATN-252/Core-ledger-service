@@ -12,14 +12,21 @@ import com.bkbank.ledger.repository.TransactionRepository;
 import com.bkbank.ledger.service.ClientService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -94,7 +101,11 @@ public class CustomerController {
      */
     @GetMapping("/me/savings")
     @PreAuthorize("hasRole('CUSTOMER')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMySavingsAccounts(Authentication authentication) {
+    public ResponseEntity<ApiResponse<Page<Map<String, Object>>>> getMySavingsAccounts(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
         try {
             Client client = getAuthenticatedClient(authentication);
             List<SavingsAccount> accounts = clientService.getClientSavingsAccounts(client.getClientId());
@@ -108,7 +119,12 @@ public class CustomerController {
                 return map;
             }).collect(Collectors.toList());
 
-            return ResponseEntity.ok(ApiResponse.success(result));
+            Pageable pageable = PageRequest.of(page, size);
+            int start = Math.min((int)pageable.getOffset(), result.size());
+            int end = Math.min((start + pageable.getPageSize()), result.size());
+            Page<Map<String, Object>> pagedResult = new PageImpl<>(result.subList(start, end), pageable, result.size());
+
+            return ResponseEntity.ok(ApiResponse.success(pagedResult));
         } catch (Exception e) {
             log.error("Error getting savings accounts: {}", e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
@@ -121,7 +137,11 @@ public class CustomerController {
      */
     @GetMapping("/me/loans")
     @PreAuthorize("hasRole('CUSTOMER')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMyLoanAccounts(Authentication authentication) {
+    public ResponseEntity<ApiResponse<Page<Map<String, Object>>>> getMyLoanAccounts(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
         try {
             Client client = getAuthenticatedClient(authentication);
             List<LoanAccount> accounts = clientService.getClientLoanAccounts(client.getClientId());
@@ -136,7 +156,12 @@ public class CustomerController {
                 return map;
             }).collect(Collectors.toList());
 
-            return ResponseEntity.ok(ApiResponse.success(result));
+            Pageable pageable = PageRequest.of(page, size);
+            int start = Math.min((int)pageable.getOffset(), result.size());
+            int end = Math.min((start + pageable.getPageSize()), result.size());
+            Page<Map<String, Object>> pagedResult = new PageImpl<>(result.subList(start, end), pageable, result.size());
+
+            return ResponseEntity.ok(ApiResponse.success(pagedResult));
         } catch (Exception e) {
             log.error("Error getting loan accounts: {}", e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
@@ -149,7 +174,11 @@ public class CustomerController {
      */
     @GetMapping("/me/cards")
     @PreAuthorize("hasRole('CUSTOMER')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMyCards(Authentication authentication) {
+    public ResponseEntity<ApiResponse<Page<Map<String, Object>>>> getMyCards(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
         try {
             Client client = getAuthenticatedClient(authentication);
 
@@ -169,9 +198,16 @@ public class CustomerController {
                     String cardNumber = (String) card.get("cardNumber");
                     card.put("cardNetwork", getCardNetwork(cardNumber));
                 }
+            } else {
+                cards = new ArrayList<>();
             }
 
-            return ResponseEntity.ok(ApiResponse.success(cards));
+            Pageable pageable = PageRequest.of(page, size);
+            int start = Math.min((int)pageable.getOffset(), cards.size());
+            int end = Math.min((start + pageable.getPageSize()), cards.size());
+            Page<Map<String, Object>> pagedResult = new PageImpl<>(cards.subList(start, end), pageable, cards.size());
+
+            return ResponseEntity.ok(ApiResponse.success(pagedResult));
         } catch (Exception e) {
             log.error("Error getting cards: {}", e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
@@ -204,7 +240,11 @@ public class CustomerController {
      */
     @GetMapping("/me/transactions")
     @PreAuthorize("hasRole('CUSTOMER')")
-    public ResponseEntity<ApiResponse<List<Transaction>>> getMyTransactions(Authentication authentication) {
+    public ResponseEntity<ApiResponse<Page<Transaction>>> getMyTransactions(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
         try {
             Client client = getAuthenticatedClient(authentication);
 
@@ -216,7 +256,8 @@ public class CustomerController {
                     .forEach(acc -> accountIds.add(acc.getAccountNumber()));
 
             // 2. Fetch transactions for these accounts
-            List<Transaction> transactions = transactionRepository.findByAccountNumberInOrderByTransactionDateDesc(accountIds);
+            Pageable pageable = PageRequest.of(page, size, Sort.by("transactionDate").descending());
+            Page<Transaction> transactions = transactionRepository.findByAccountNumberInOrderByTransactionDateDesc(accountIds, pageable);
 
             return ResponseEntity.ok(ApiResponse.success(transactions));
         } catch (Exception e) {

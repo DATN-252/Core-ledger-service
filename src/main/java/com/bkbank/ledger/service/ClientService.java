@@ -12,6 +12,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 
 /**
@@ -189,15 +191,15 @@ public class ClientService {
     /**
      * Get all active clients
      */
-    public List<Client> getAllActiveClients() {
-        return clientRepository.findByStatus(ClientStatus.ACTIVE);
+    public Page<Client> getAllActiveClients(Pageable pageable) {
+        return clientRepository.findByStatus(ClientStatus.ACTIVE, pageable);
     }
     
     /**
      * Search clients by name
      */
-    public List<Client> searchClientsByName(String name) {
-        return clientRepository.findByFullNameContainingIgnoreCase(name);
+    public Page<Client> searchClientsByName(String name, Pageable pageable) {
+        return clientRepository.findByFullNameContainingIgnoreCase(name, pageable);
     }
     
     /**

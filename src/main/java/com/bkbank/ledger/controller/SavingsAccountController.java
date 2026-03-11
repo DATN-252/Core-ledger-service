@@ -6,6 +6,9 @@ import com.bkbank.ledger.repository.SavingsAccountRepository;
 import com.bkbank.ledger.service.SavingsAccountService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -33,9 +36,13 @@ public class SavingsAccountController {
      */
     @GetMapping("/savingsaccounts")
     @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
-    public ResponseEntity<List<Map<String, Object>>> listAccounts() {
-        List<SavingsAccount> accounts = savingsAccountRepository.findAll();
-        List<Map<String, Object>> result = accounts.stream().map(account -> {
+    public ResponseEntity<Page<Map<String, Object>>> listAccounts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<SavingsAccount> accounts = savingsAccountRepository.findAll(pageable);
+        Page<Map<String, Object>> result = accounts.map(account -> {
             Map<String, Object> m = new HashMap<>();
             m.put("id", account.getAccountNumber());
             m.put("balance", account.getBalance());
@@ -43,7 +50,7 @@ public class SavingsAccountController {
             m.put("status", account.getStatus().name());
             m.put("clientName", account.getClientName());
             return m;
-        }).collect(Collectors.toList());
+        });
         return ResponseEntity.ok(result);
     }
 
