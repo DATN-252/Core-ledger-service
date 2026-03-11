@@ -19,6 +19,7 @@ export default function NewCardPage() {
         accountId: '', // For debit
         loanAccountId: '', // For credit
         creditLimit: 0, // For credit
+        network: 'VISA', // Card network
     });
 
     const handleChange = (e: any) => {
@@ -53,7 +54,8 @@ export default function NewCardPage() {
                     cvv: formData.cvv,
                     expirationDate: formData.expirationDate,
                     accountId: formData.accountId,
-                    cardholderName: formData.cardholderName
+                    cardholderName: formData.cardholderName,
+                    network: formData.network,
                 });
             } else {
                 await issueCreditCard({
@@ -62,7 +64,8 @@ export default function NewCardPage() {
                     expirationDate: formData.expirationDate,
                     loanAccountId: formData.loanAccountId,
                     creditLimit: formData.creditLimit,
-                    cardholderName: formData.cardholderName
+                    cardholderName: formData.cardholderName,
+                    network: formData.network,
                 });
             }
             alert('Phát hành thẻ thành công!');
@@ -126,6 +129,17 @@ export default function NewCardPage() {
                     <div>
                         <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Ngày hết hạn *</label>
                         <input required type="date" name="expirationDate" value={formData.expirationDate} onChange={handleChange} className="input" />
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Network *</label>
+                        <select name="network" value={formData.network} onChange={handleChange} className="input" required>
+                            <option value="VISA">VISA</option>
+                            <option value="MASTERCARD">MASTERCARD</option>
+                            <option value="NAPAS">NAPAS</option>
+                            <option value="JCB">JCB</option>
+                            <option value="AMEX">AMEX</option>
+                            <option value="DISCOVER">DISCOVER</option>
+                        </select>
                     </div>
                 </div>
 

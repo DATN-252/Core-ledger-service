@@ -56,8 +56,14 @@ public class PaymentController {
             previewData.put("amount", amount);
             previewData.put("fee", 0);
             previewData.put("status", "VALID");
-            if (cardNumber != null && !cardNumber.trim().isEmpty()) {
-                previewData.put("cardNetwork", getCardNetwork(cardNumber));
+            
+            // Network can now be supplied by UI directly
+            Object reqNetwork = request.get("cardNetwork");
+            if (reqNetwork != null) {
+                previewData.put("cardNetwork", reqNetwork.toString());
+            } else if (cardNumber != null && !cardNumber.trim().isEmpty()) {
+                // Fallback for older UI versions, though ideally not needed
+                previewData.put("cardNetwork", "UNKNOWN");
             }
 
             return ResponseEntity.ok(ApiResponse.success("Preview successful", previewData));
@@ -90,8 +96,8 @@ public class PaymentController {
             Object responseMessage = cmsResponse.get("responseMessage");
 
             if (Boolean.TRUE.equals(approved)) {
-                // Ensure cardNetwork is included in the response for UI
-                cmsResponse.put("cardNetwork", getCardNetwork(request.getCardNumber()));
+                // Network is now supplied by CMS in the authorization response natively
+                // Do not guess it anymore. Let the UI handle whatever CMS gave us.
                 
                 // Add Transaction Metadata for the Receipt Screen
                 java.time.LocalDateTime now = java.time.LocalDateTime.now();
@@ -108,25 +114,5 @@ public class PaymentController {
             log.error("Payment processing error: {}", e.getMessage());
             return ResponseEntity.internalServerError().body(ApiResponse.error(500, "Internal Server Error: " + e.getMessage()));
         }
-    }
-
-    private String getCardNetwork(String cardNumber) {
-        if (cardNumber == null || cardNumber.isEmpty()) {
-            return "UNKNOWN";
-        }
-        if (cardNumber.startsWith("4")) {
-            return "VISA";
-        } else if (cardNumber.startsWith("5")) {
-            return "MASTERCARD";
-        } else if (cardNumber.startsWith("34") || cardNumber.startsWith("37")) {
-            return "AMEX";
-        } else if (cardNumber.startsWith("35")) {
-            return "JCB";
-        } else if (cardNumber.startsWith("6")) {
-            return "DISCOVER";
-        } else if (cardNumber.startsWith("9")) {
-            return "NAPAS"; 
-        }
-        return "UNKNOWN";
     }
 }

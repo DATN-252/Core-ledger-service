@@ -109,8 +109,8 @@ export async function getLoan(loanId: string) {
   return request<any>(`/loans/${loanId}`);
 }
 
-export async function getAllLoans() {
-  return request<any[]>('/loans');
+export async function getAllLoans(page = 0, size = 10) {
+  return request<any>(`/loans?page=${page}&size=${size}`);
 }
 
 export async function createLoan(data: any) {
@@ -126,8 +126,8 @@ export async function getSavingsAccount(id: string) {
   return request<any>(`/savingsaccounts/${id}`);
 }
 
-export async function getAllSavingsAccounts() {
-  return request<any[]>('/savingsaccounts');
+export async function getAllSavingsAccounts(page = 0, size = 10) {
+  return request<any>(`/savingsaccounts?page=${page}&size=${size}`);
 }
 
 export async function createSavingsAccount(data: any) {
@@ -139,15 +139,16 @@ export async function savingsCommand(id: string, command: 'activate' | 'lock') {
 }
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
-export async function getTransactions(accountId?: string) {
-  const path = accountId ? `/transactions?accountId=${accountId}` : '/transactions';
-  return request<any[]>(path);
+export async function getTransactions(accountId?: string, page = 0, size = 10) {
+  const path = accountId
+    ? `/transactions?accountId=${accountId}&page=${page}&size=${size}`
+    : `/transactions?page=${page}&size=${size}`;
+  return request<any>(path);
 }
 
 // ─── Clients ──────────────────────────────────────────────────────────────────
-export async function getAllClients() {
-  const res = await request<any>('/clients');
-  return res.clients || [];
+export async function getAllClients(page = 0, size = 10) {
+  return request<any>(`/clients?page=${page}&size=${size}`);
 }
 
 export async function getClient(clientId: string) {
@@ -168,12 +169,12 @@ export async function getCreditCards(clientId?: string) {
   return cmsRequest<any[]>(path);
 }
 
-export async function issueDebitCard(data: { pan: string, cvv: string, expirationDate: string, accountId: string, cardholderName: string }) {
+export async function issueDebitCard(data: { pan: string, cvv: string, expirationDate: string, accountId: string, cardholderName: string, network?: string }) {
   const params = new URLSearchParams(data as any);
   return cmsRequest<any>(`/cards/issue?${params.toString()}`, { method: 'POST' });
 }
 
-export async function issueCreditCard(data: { pan: string, cvv: string, expirationDate: string, creditLimit: number, loanAccountId: string, cardholderName: string }) {
+export async function issueCreditCard(data: { pan: string, cvv: string, expirationDate: string, creditLimit: number, loanAccountId: string, cardholderName: string, network?: string }) {
   const params = new URLSearchParams(data as any);
   return cmsRequest<any>(`/cards/issue/credit?${params.toString()}`, { method: 'POST' });
 }

@@ -3,18 +3,25 @@ import { useEffect, useState } from 'react';
 import { getTransactions } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faListUl } from '@fortawesome/free-solid-svg-icons';
+import { Pagination } from '@/components/Pagination';
 
 export default function TransactionsPage() {
     const [txns, setTxns] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [page, setPage] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
 
     useEffect(() => {
-        getTransactions()
-            .then(data => setTxns(data || []))
+        setLoading(true);
+        getTransactions(undefined, page, 10)
+            .then(data => {
+                setTxns(data?.content || []);
+                setTotalPages(data?.totalPages || 1);
+            })
             .catch(() => setTxns([]))
             .finally(() => setLoading(false));
-    }, []);
+    }, [page]);
 
     const filtered = txns.filter(t =>
         !search ||
@@ -99,6 +106,8 @@ export default function TransactionsPage() {
                         </table>
                     </div>
                 )}
+
+                <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
         </div>
     );

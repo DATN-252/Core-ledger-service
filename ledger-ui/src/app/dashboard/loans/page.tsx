@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { getAllLoans, loanCommand } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCreditCard, faCheck, faLock, faLockOpen } from '@fortawesome/free-solid-svg-icons';
+import { Pagination } from '@/components/Pagination';
 
 const STATUS_BADGE: Record<string, string> = {
     ACTIVE: 'badge-active',
@@ -15,12 +16,18 @@ export default function LoansPage() {
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [search, setSearch] = useState('');
+    const [page, setPage] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
 
-    useEffect(() => { loadLoans(); }, []);
+    useEffect(() => { loadLoans(); }, [page]);
 
     async function loadLoans() {
         setLoading(true);
-        try { setLoans(await getAllLoans()); }
+        try {
+            const data = await getAllLoans(page, 10);
+            setLoans(data?.content || []);
+            setTotalPages(data?.totalPages || 1);
+        }
         catch { setLoans([]); }
         finally { setLoading(false); }
     }
@@ -142,6 +149,8 @@ export default function LoansPage() {
                         </table>
                     </div>
                 )}
+
+                <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
         </div>
     );

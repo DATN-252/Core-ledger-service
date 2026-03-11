@@ -12,6 +12,38 @@ const STATUS_BADGE: Record<string, string> = {
     EXPIRED: 'badge-locked'
 };
 
+const NETWORK_STYLES: Record<string, { bg: string; color: string; label: string }> = {
+    VISA:       { bg: '#1a1f71', color: '#fff', label: 'VISA' },
+    MASTERCARD: { bg: '#eb001b', color: '#fff', label: 'MASTERCARD' },
+    MASTER:     { bg: '#eb001b', color: '#fff', label: 'MASTER' },
+    AMEX:       { bg: '#007bc1', color: '#fff', label: 'AMEX' },
+    JCB:        { bg: '#003087', color: '#fff', label: 'JCB' },
+    DISCOVER:   { bg: '#f76f20', color: '#fff', label: 'DISCOVER' },
+    NAPAS:      { bg: '#d62828', color: '#fff', label: 'NAPAS' },
+    UNKNOWN:    { bg: '#444', color: '#aaa', label: 'UNKNOWN' },
+};
+
+function NetworkBadge({ network }: { network?: string }) {
+    const key = (network || 'UNKNOWN').toUpperCase();
+    const style = NETWORK_STYLES[key] || NETWORK_STYLES['UNKNOWN'];
+    return (
+        <span style={{
+            display: 'inline-block',
+            background: style.bg,
+            color: style.color,
+            fontSize: '0.7rem',
+            fontWeight: 700,
+            letterSpacing: '0.05em',
+            borderRadius: '4px',
+            padding: '2px 7px',
+            fontFamily: 'monospace',
+            textTransform: 'uppercase'
+        }}>
+            {style.label}
+        </span>
+    );
+}
+
 export default function CardsPage() {
     const [cards, setCards] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -84,6 +116,7 @@ export default function CardsPage() {
                                     <th>Số Thẻ (PAN)</th>
                                     <th>Chủ thẻ</th>
                                     <th>Loại Thẻ</th>
+                                    <th>Network</th>
                                     <th>Tài khoản l/kết</th>
                                     <th>Hạn mức</th>
                                     <th>Dư nợ</th>
@@ -113,6 +146,9 @@ export default function CardsPage() {
                                                         <FontAwesomeIcon icon={faMoneyBillWave} style={{ marginRight: '0.25rem' }} /> GHI NỢ
                                                     </span>
                                                 )}
+                                            </td>
+                                            <td>
+                                                <NetworkBadge network={card.network} />
                                             </td>
                                             <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
                                                 {card.accountId || '—'}

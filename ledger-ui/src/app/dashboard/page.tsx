@@ -84,15 +84,15 @@ export default function DashboardPage() {
 
     useEffect(() => {
         Promise.all([
-            getAllLoans().catch(() => []),
-            getAllSavingsAccounts().catch(() => []),
-            getTransactions().catch(() => []),
-            getAllClients().catch(() => []),
+            getAllLoans(0, 10000).then(res => res.content || []).catch(() => []),
+            getAllSavingsAccounts(0, 10000).then(res => res.content || []).catch(() => []),
+            getTransactions(undefined, 0, 10000).then(res => res.content || []).catch(() => []),
+            getAllClients(0, 10000).then(res => res.content || []).catch(() => []),
         ]).then(([l, s, t, c]) => {
-            setLoans(l || []);
-            setSavings(s || []);
-            setTxns(t || []);
-            setClients(c || []);
+            setLoans(l);
+            setSavings(s);
+            setTxns(t);
+            setClients(c);
             setLoading(false);
         });
     }, []);

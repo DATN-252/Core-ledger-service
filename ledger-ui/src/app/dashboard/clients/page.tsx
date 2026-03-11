@@ -4,18 +4,25 @@ import { getAllClients } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUsers, faPlus, faEye } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
+import { Pagination } from '@/components/Pagination';
 
 export default function ClientsPage() {
     const [clients, setClients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [page, setPage] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
 
     useEffect(() => {
-        getAllClients()
-            .then(data => setClients(data || []))
+        setLoading(true);
+        getAllClients(page, 10)
+            .then(data => {
+                setClients(data?.content || []);
+                setTotalPages(data?.totalPages || 1);
+            })
             .catch(() => setClients([]))
             .finally(() => setLoading(false));
-    }, []);
+    }, [page]);
 
     const filtered = clients.filter(c =>
         !search ||
@@ -100,6 +107,8 @@ export default function ClientsPage() {
                         </table>
                     </div>
                 )}
+
+                <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
         </div>
     );

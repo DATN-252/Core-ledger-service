@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { getAllSavingsAccounts, savingsCommand } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPiggyBank, faCheck, faLock } from '@fortawesome/free-solid-svg-icons';
+import { Pagination } from '@/components/Pagination';
 
 const STATUS_BADGE: Record<string, string> = {
     ACTIVE: 'badge-active',
@@ -15,12 +16,18 @@ export default function SavingsPage() {
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [search, setSearch] = useState('');
+    const [page, setPage] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
 
-    useEffect(() => { loadAccounts(); }, []);
+    useEffect(() => { loadAccounts(); }, [page]);
 
     async function loadAccounts() {
         setLoading(true);
-        try { setAccounts(await getAllSavingsAccounts()); }
+        try {
+            const data = await getAllSavingsAccounts(page, 10);
+            setAccounts(data?.content || []);
+            setTotalPages(data?.totalPages || 1);
+        }
         catch { setAccounts([]); }
         finally { setLoading(false); }
     }

@@ -25,12 +25,12 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                     ...(data.loanAccounts || [])
                 ];
 
-                const txPromises = allAccounts.map((acc: any) => getTransactions(acc.accountNumber));
+                const txPromises = allAccounts.map((acc: any) => getTransactions(acc.accountNumber, 0, 10000));
                 const txResults = await Promise.all(txPromises);
 
-                // Flatten and sort
-                let allTx = txResults.flat();
-                allTx.sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime());
+                // Extract content and Flatten
+                let allTx = txResults.map((res: any) => res?.content || []).flat();
+                allTx.sort((a: any, b: any) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime());
                 setTransactions(allTx);
             } catch (err) {
                 console.error(err);
