@@ -31,9 +31,6 @@ public class CmsClient {
         this.restTemplate = restTemplate;
     }
 
-    /**
-     * Fetch cards from CMS by a list of account IDs.
-     */
     public List<Map<String, Object>> getCardsByAccountIds(List<String> accountIds) {
         if (accountIds == null || accountIds.isEmpty()) {
             return List.of();
@@ -55,9 +52,9 @@ public class CmsClient {
                     new ParameterizedTypeReference<List<Map<String, Object>>>() {}
             );
 
-            log.info("Fetched {} cards from CMS for accounts: {}", 
+            log.info("Fetched {} cards from CMS for accounts: {}",
                     response.getBody() != null ? response.getBody().size() : 0, accountIds);
-                    
+
             return response.getBody() != null ? response.getBody() : List.of();
 
         } catch (Exception e) {
@@ -66,9 +63,6 @@ public class CmsClient {
         }
     }
 
-    /**
-     * Authorize a credit card payment via CMS.
-     */
     public Map<String, Object> authorizePayment(com.bkbank.ledger.dto.PaymentRequest request, String merchantName) {
         try {
             String url = UriComponentsBuilder.fromHttpUrl(cmsUrl + "/api/transaction")
@@ -78,7 +72,6 @@ public class CmsClient {
             headers.set("X-Internal-Api-Key", cmsApiKey);
             headers.set("Content-Type", "application/json");
 
-            // Map Core Ledger PaymentRequest -> CMS AuthorizationRequest
             Map<String, Object> payload = new java.util.HashMap<>();
             payload.put("cardNumber", request.getCardNumber());
             payload.put("amount", request.getAmount());
@@ -86,6 +79,7 @@ public class CmsClient {
             payload.put("merchantName", merchantName);
             payload.put("cvc", request.getCvc());
             payload.put("expirationDate", request.getDateCard());
+            payload.put("idempotencyKey", request.getIdempotencyKey());
 
             HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(payload, headers);
 
@@ -100,10 +94,9 @@ public class CmsClient {
             return response.getBody();
 
         } catch (org.springframework.web.client.HttpStatusCodeException e) {
-            log.error("Failed to authorize payment via CMS. Status: {}, Response: {}", 
+            log.error("Failed to authorize payment via CMS. Status: {}, Response: {}",
                 e.getStatusCode(), e.getResponseBodyAsString());
             try {
-                // Try to parse the error response as JSON map
                 com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
                 return mapper.readValue(e.getResponseBodyAsString(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>(){});
             } catch (Exception ex) {

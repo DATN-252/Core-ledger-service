@@ -7,8 +7,8 @@ public class PaymentRequest {
     private Double amount;
     private String merchantId;
     private String currency; // Currently ignored, assuming system currency
+    private String idempotencyKey;
 
-    // Getters and Setters
     public String getCardNumber() {
         return cardNumber;
     }
@@ -55,5 +55,13 @@ public class PaymentRequest {
 
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
     }
 }

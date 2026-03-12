@@ -7,6 +7,7 @@ import com.bkbank.ledger.entity.Merchant;
 import com.bkbank.ledger.service.MerchantService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Map;
 
 @RestController
@@ -25,10 +28,6 @@ public class PaymentController {
     private final CmsClient cmsClient;
     private final MerchantService merchantService;
 
-    /**
-     * POST /payment/preview
-     * Lấy thông tin merchant và hóa đơn trước khi thanh toán
-     */
     @PostMapping("/preview")
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> previewPayment(@RequestBody Map<String, Object> request) {
@@ -39,12 +38,11 @@ public class PaymentController {
 
         try {
             String cardNumber = (String) request.get("cardNumber");
-            
+
             Merchant merchant = merchantService.getActiveMerchant(merchantId);
             String merchantName = merchant.getName();
-            
-            Double amount = null;
 
+            Double amount = null;
             Object reqAmount = request.get("amount");
             if (reqAmount != null) {
                 amount = Double.valueOf(reqAmount.toString());
@@ -56,13 +54,11 @@ public class PaymentController {
             previewData.put("amount", amount);
             previewData.put("fee", 0);
             previewData.put("status", "VALID");
-            
-            // Network can now be supplied by UI directly
+
             Object reqNetwork = request.get("cardNetwork");
             if (reqNetwork != null) {
                 previewData.put("cardNetwork", reqNetwork.toString());
             } else if (cardNumber != null && !cardNumber.trim().isEmpty()) {
-                // Fallback for older UI versions, though ideally not needed
                 previewData.put("cardNetwork", "UNKNOWN");
             }
 
@@ -73,46 +69,85 @@ public class PaymentController {
         }
     }
 
-    /**
-     * POST /payment/credit-card
-     * Xử lý thanh toán thẻ tín dụng từ Mobile App (Online Payment)
-     */
     @PostMapping("/credit-card")
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> processCreditCardPayment(@RequestBody PaymentRequest request) {
-        log.info("Receiving credit card payment request from mobile for merchant: {}", request.getMerchantId());
+        log.info("Receiving credit card payment request for merchant: {}", request.getMerchantId());
 
         try {
-            // Find and validate the merchant
             Merchant merchant = merchantService.getActiveMerchant(request.getMerchantId());
             String merchantName = merchant.getName();
 
-            // Call CMS to authorize payment (which includes CVC mapping and Fineract debit)
+            ensureIdempotencyKey(request);
             Map<String, Object> cmsResponse = cmsClient.authorizePayment(request, merchantName);
 
-            // CMS returns {"approved": true/false, "responseCode": "...", "responseMessage": "..."}
             Boolean approved = (Boolean) cmsResponse.get("approved");
-            String responseCode = (String) cmsResponse.get("responseCode");
-            Object responseMessage = cmsResponse.get("responseMessage");
+            String responseCode = stringValue(cmsResponse.get("responseCode"));
+            String responseMessage = stringValue(cmsResponse.get("responseMessage"));
+            if (responseMessage == null) {
+                responseMessage = stringValue(cmsResponse.get("message"));
+            }
+
+            cmsResponse.put("idempotencyKey", request.getIdempotencyKey());
 
             if (Boolean.TRUE.equals(approved)) {
-                // Network is now supplied by CMS in the authorization response natively
-                // Do not guess it anymore. Let the UI handle whatever CMS gave us.
-                
-                // Add Transaction Metadata for the Receipt Screen
                 java.time.LocalDateTime now = java.time.LocalDateTime.now();
                 java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
                 cmsResponse.put("transactionTime", now.format(formatter));
-                cmsResponse.put("transactionId", "TXN" + System.currentTimeMillis() + (int)(Math.random() * 1000));
+                cmsResponse.put("transactionId", "TXN" + System.currentTimeMillis() + (int) (Math.random() * 1000));
 
                 return ResponseEntity.ok(ApiResponse.success("Payment successful", cmsResponse));
-            } else {
-                return ResponseEntity.badRequest().body(ApiResponse.error(400, "Payment failed: " + responseMessage));
             }
+
+            if ("94".equals(responseCode)) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(ApiResponse.error(409, responseMessage != null ? responseMessage : "Duplicate payment request"));
+            }
+
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(400, "Payment failed: " + (responseMessage != null ? responseMessage : "Unknown error")));
 
         } catch (Exception e) {
             log.error("Payment processing error: {}", e.getMessage());
             return ResponseEntity.internalServerError().body(ApiResponse.error(500, "Internal Server Error: " + e.getMessage()));
         }
+    }
+
+    private void ensureIdempotencyKey(PaymentRequest request) {
+        if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().trim().isEmpty()) {
+            return;
+        }
+
+        String fallbackKey = buildFallbackIdempotencyKey(request);
+        request.setIdempotencyKey(fallbackKey);
+        log.warn("Generated fallback idempotencyKey for payment request. This is temporary until clients send their own stable key.");
+    }
+
+    private String buildFallbackIdempotencyKey(PaymentRequest request) {
+        try {
+            String raw = String.join("|",
+                    safe(request.getCardNumber()),
+                    request.getAmount() != null ? request.getAmount().toString() : "",
+                    safe(request.getMerchantId()),
+                    safe(request.getDateCard()),
+                    safe(request.getCvc()));
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder("AUTO-");
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate idempotency key", e);
+        }
+    }
+
+    private String safe(String value) {
+        return value != null ? value : "";
+    }
+
+    private String stringValue(Object value) {
+        return value != null ? value.toString() : null;
     }
 }
