@@ -79,6 +79,8 @@ public class PaymentController {
             String merchantName = merchant.getName();
 
             ensureIdempotencyKey(request);
+            ensurePaymentId(request);
+            ensureChannel(request);
             Map<String, Object> cmsResponse = cmsClient.authorizePayment(request, merchantName);
 
             Boolean approved = (Boolean) cmsResponse.get("approved");
@@ -89,6 +91,7 @@ public class PaymentController {
             }
 
             cmsResponse.put("idempotencyKey", request.getIdempotencyKey());
+            cmsResponse.putIfAbsent("paymentId", request.getPaymentId());
 
             if (Boolean.TRUE.equals(approved)) {
                 java.time.LocalDateTime now = java.time.LocalDateTime.now();
@@ -121,6 +124,25 @@ public class PaymentController {
         String fallbackKey = buildFallbackIdempotencyKey(request);
         request.setIdempotencyKey(fallbackKey);
         log.warn("Generated fallback idempotencyKey for payment request. This is temporary until clients send their own stable key.");
+    }
+
+    private void ensurePaymentId(PaymentRequest request) {
+        if (request.getPaymentId() != null && !request.getPaymentId().trim().isEmpty()) {
+            return;
+        }
+        String source = request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank()
+                ? request.getIdempotencyKey()
+                : java.util.UUID.randomUUID().toString();
+        request.setPaymentId("PAY-" + source.replaceAll("[^A-Za-z0-9]", "").toUpperCase().substring(0, Math.min(24, source.replaceAll("[^A-Za-z0-9]", "").length())));
+        if (request.getPaymentId().length() < 10) {
+            request.setPaymentId("PAY-" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 24).toUpperCase());
+        }
+    }
+
+    private void ensureChannel(PaymentRequest request) {
+        if (request.getChannel() == null || request.getChannel().trim().isEmpty()) {
+            request.setChannel("ONLINE");
+        }
     }
 
     private String buildFallbackIdempotencyKey(PaymentRequest request) {

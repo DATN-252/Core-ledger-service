@@ -47,7 +47,10 @@ public class LoanAccountService {
      * Add charge to loan (for credit card transactions)
      */
     @Transactional
-    public LoanAccount addCharge(String accountNumber, Double amount, String merchantId, String merchantName, String cardNetwork, String location, Double latitude, Double longitude) {
+    public LoanAccount addCharge(String accountNumber, Double amount, String merchantId, String merchantName, String cardNetwork,
+                                 String location, Double latitude, Double longitude, String paymentId, String idempotencyKey,
+                                 String originalTransactionId, String channel, String authCode, String stan, String rrn,
+                                 String externalReference, String responseCode, String responseMessage) {
         log.info("Adding charge of {} to loan account {} at merchant {} with network {} (Location: {})", amount, accountNumber, merchantName, cardNetwork, location);
         
         LoanAccount account = getAccount(accountNumber);
@@ -55,6 +58,9 @@ public class LoanAccountService {
         if (!account.isActive()) {
             Transaction failedTx = Transaction.createFailedCharge(accountNumber, amount, account.getPrincipalOutstanding(), merchantId, merchantName, location, latitude, longitude, "Account inactive");
             failedTx.setCardNetwork(cardNetwork);
+            failedTx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
+                    responseCode != null ? responseCode : "96",
+                    responseMessage != null ? responseMessage : "Account inactive");
             transactionLoggingService.logTransaction(failedTx);
             throw new RuntimeException("Loan account is not active");
         }
@@ -62,6 +68,9 @@ public class LoanAccountService {
         if (!account.hasSufficientCredit(amount)) {
             Transaction failedTx = Transaction.createFailedCharge(accountNumber, amount, account.getPrincipalOutstanding(), merchantId, merchantName, location, latitude, longitude, "Credit limit exceeded");
             failedTx.setCardNetwork(cardNetwork);
+            failedTx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
+                    responseCode != null ? responseCode : "51",
+                    responseMessage != null ? responseMessage : "Credit limit exceeded");
             transactionLoggingService.logTransaction(failedTx);
             throw new RuntimeException("Credit limit exceeded");
         }
@@ -72,6 +81,9 @@ public class LoanAccountService {
         // Log transaction
         Transaction tx = Transaction.createCharge(accountNumber, amount, savedAccount.getPrincipalOutstanding(), merchantId, merchantName, location, latitude, longitude);
         tx.setCardNetwork(cardNetwork);
+        tx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
+                responseCode != null ? responseCode : "00",
+                responseMessage != null ? responseMessage : "Approved");
         transactionRepository.save(tx);
         
         log.info("Charge added successfully. New outstanding: {}", savedAccount.getPrincipalOutstanding());

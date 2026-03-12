@@ -33,6 +33,18 @@ public class Transaction {
     @Column(nullable = false)
     private Double amount;
 
+    @Column(name = "payment_id", nullable = false, unique = true, length = 64)
+    private String paymentId;
+
+    @Column(name = "idempotency_key", length = 120)
+    private String idempotencyKey;
+
+    @Column(name = "original_transaction_id", length = 64)
+    private String originalTransactionId;
+
+    @Column(length = 20)
+    private String channel;
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private LocalDateTime transactionDate;
@@ -54,11 +66,30 @@ public class Transaction {
     @Column(name = "card_network")
     private String cardNetwork;
 
+    @Column(name = "auth_code", length = 20)
+    private String authCode;
+
+    @Column(length = 20)
+    private String stan;
+
+    @Column(length = 30)
+    private String rrn;
+
+    @Column(name = "external_reference", length = 100)
+    private String externalReference;
+
+    @Column(name = "response_code", length = 10)
+    private String responseCode;
+
+    @Column(name = "response_message", length = 255)
+    private String responseMessage;
+
     @Column(nullable = false, columnDefinition = "varchar(255) default 'SUCCESS'")
     private String status = "SUCCESS"; // SUCCESS or FAILED
 
     public static Transaction createWithdrawal(String accountNumber, Double amount, Double balanceAfter, String merchantId, String merchantName, String location, Double latitude, Double longitude) {
         Transaction tx = new Transaction();
+        initializeDefaults(tx);
         tx.accountNumber = accountNumber;
         tx.accountType = "SAVINGS";
         tx.transactionType = "WITHDRAWAL";
@@ -72,11 +103,14 @@ public class Transaction {
         tx.longitude = longitude;
         tx.cardNetwork = null;
         tx.status = "SUCCESS";
+        tx.responseCode = "00";
+        tx.responseMessage = "Approved";
         return tx;
     }
 
     public static Transaction createFailedWithdrawal(String accountNumber, Double amount, Double currentBalance, String merchantId, String merchantName, String location, Double latitude, Double longitude, String failureReason) {
         Transaction tx = new Transaction();
+        initializeDefaults(tx);
         tx.accountNumber = accountNumber;
         tx.accountType = "SAVINGS";
         tx.transactionType = "WITHDRAWAL";
@@ -90,11 +124,14 @@ public class Transaction {
         tx.longitude = longitude;
         tx.cardNetwork = null;
         tx.status = "FAILED";
+        tx.responseCode = "96";
+        tx.responseMessage = failureReason;
         return tx;
     }
 
     public static Transaction createDeposit(String accountNumber, Double amount, Double balanceAfter) {
         Transaction tx = new Transaction();
+        initializeDefaults(tx);
         tx.accountNumber = accountNumber;
         tx.accountType = "SAVINGS";
         tx.transactionType = "DEPOSIT";
@@ -102,11 +139,14 @@ public class Transaction {
         tx.balanceAfter = balanceAfter;
         tx.description = "Deposit";
         tx.status = "SUCCESS";
+        tx.responseCode = "00";
+        tx.responseMessage = "Approved";
         return tx;
     }
 
     public static Transaction createCharge(String accountNumber, Double amount, Double outstandingAfter, String merchantId, String merchantName, String location, Double latitude, Double longitude) {
         Transaction tx = new Transaction();
+        initializeDefaults(tx);
         tx.accountNumber = accountNumber;
         tx.accountType = "LOAN";
         tx.transactionType = "CHARGE";
@@ -120,11 +160,14 @@ public class Transaction {
         tx.longitude = longitude;
         tx.cardNetwork = null; // Will be set externally if needed
         tx.status = "SUCCESS";
+        tx.responseCode = "00";
+        tx.responseMessage = "Approved";
         return tx;
     }
 
     public static Transaction createFailedCharge(String accountNumber, Double amount, Double currentOutstanding, String merchantId, String merchantName, String location, Double latitude, Double longitude, String failureReason) {
         Transaction tx = new Transaction();
+        initializeDefaults(tx);
         tx.accountNumber = accountNumber;
         tx.accountType = "LOAN";
         tx.transactionType = "CHARGE";
@@ -138,11 +181,14 @@ public class Transaction {
         tx.longitude = longitude;
         tx.cardNetwork = null; // Will be set externally if needed
         tx.status = "FAILED";
+        tx.responseCode = "96";
+        tx.responseMessage = failureReason;
         return tx;
     }
 
     public static Transaction createPayment(String accountNumber, Double amount, Double outstandingAfter) {
         Transaction tx = new Transaction();
+        initializeDefaults(tx);
         tx.accountNumber = accountNumber;
         tx.accountType = "LOAN";
         tx.transactionType = "PAYMENT";
@@ -150,6 +196,47 @@ public class Transaction {
         tx.balanceAfter = outstandingAfter;
         tx.description = "Loan payment";
         tx.status = "SUCCESS";
+        tx.responseCode = "00";
+        tx.responseMessage = "Approved";
         return tx;
+    }
+
+    public void applyReferenceData(String paymentId,
+                                   String idempotencyKey,
+                                   String originalTransactionId,
+                                   String channel,
+                                   String authCode,
+                                   String stan,
+                                   String rrn,
+                                   String externalReference,
+                                   String responseCode,
+                                   String responseMessage) {
+        if (paymentId != null && !paymentId.isBlank()) {
+            this.paymentId = paymentId;
+        }
+        this.idempotencyKey = idempotencyKey;
+        this.originalTransactionId = originalTransactionId;
+        if (channel != null && !channel.isBlank()) {
+            this.channel = channel;
+        }
+        this.authCode = authCode;
+        this.stan = stan;
+        this.rrn = rrn;
+        this.externalReference = externalReference;
+        if (responseCode != null && !responseCode.isBlank()) {
+            this.responseCode = responseCode;
+        }
+        if (responseMessage != null && !responseMessage.isBlank()) {
+            this.responseMessage = responseMessage;
+        }
+    }
+
+    private static void initializeDefaults(Transaction tx) {
+        tx.paymentId = generatePaymentId();
+        tx.channel = "SYSTEM";
+    }
+
+    private static String generatePaymentId() {
+        return "PAY-" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 24).toUpperCase();
     }
 }

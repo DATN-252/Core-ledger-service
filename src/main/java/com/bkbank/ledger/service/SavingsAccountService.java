@@ -45,19 +45,28 @@ public class SavingsAccountService {
      * Withdraw from account (for debit card transactions)
      */
     @Transactional
-    public SavingsAccount withdraw(String accountNumber, Double amount, String merchantId, String merchantName, String location, Double latitude, Double longitude) {
+    public SavingsAccount withdraw(String accountNumber, Double amount, String merchantId, String merchantName, String location, Double latitude, Double longitude,
+                                   String paymentId, String idempotencyKey, String originalTransactionId, String channel,
+                                   String authCode, String stan, String rrn, String externalReference,
+                                   String responseCode, String responseMessage) {
         log.info("Withdrawing {} from account {} at merchant {} (Location: {})", amount, accountNumber, merchantName, location);
         
         SavingsAccount account = getAccount(accountNumber);
         
         if (!account.isActive()) {
             Transaction failedTx = Transaction.createFailedWithdrawal(accountNumber, amount, account.getBalance(), merchantId, merchantName, location, latitude, longitude, "Account inactive");
+            failedTx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
+                    responseCode != null ? responseCode : "96",
+                    responseMessage != null ? responseMessage : "Account inactive");
             transactionLoggingService.logTransaction(failedTx);
             throw new RuntimeException("Account is not active");
         }
         
         if (!account.hasSufficientBalance(amount)) {
             Transaction failedTx = Transaction.createFailedWithdrawal(accountNumber, amount, account.getBalance(), merchantId, merchantName, location, latitude, longitude, "Insufficient balance");
+            failedTx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
+                    responseCode != null ? responseCode : "51",
+                    responseMessage != null ? responseMessage : "Insufficient balance");
             transactionLoggingService.logTransaction(failedTx);
             throw new RuntimeException("Insufficient balance");
         }
@@ -67,6 +76,9 @@ public class SavingsAccountService {
         
         // Log transaction
         Transaction tx = Transaction.createWithdrawal(accountNumber, amount, savedAccount.getBalance(), merchantId, merchantName, location, latitude, longitude);
+        tx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
+                responseCode != null ? responseCode : "00",
+                responseMessage != null ? responseMessage : "Approved");
         transactionRepository.save(tx);
         
         log.info("Withdrawal successful. New balance: {}", savedAccount.getBalance());

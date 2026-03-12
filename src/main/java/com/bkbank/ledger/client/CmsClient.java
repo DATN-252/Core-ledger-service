@@ -79,7 +79,10 @@ public class CmsClient {
             payload.put("merchantName", merchantName);
             payload.put("cvc", request.getCvc());
             payload.put("expirationDate", request.getDateCard());
+            payload.put("paymentId", request.getPaymentId());
             payload.put("idempotencyKey", request.getIdempotencyKey());
+            payload.put("originalTransactionId", request.getOriginalTransactionId());
+            payload.put("channel", request.getChannel());
 
             HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(payload, headers);
 

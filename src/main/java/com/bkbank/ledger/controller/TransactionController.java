@@ -62,6 +62,38 @@ public class TransactionController {
     }
 
     /**
+     * Get transaction by paymentId
+     * GET /transactions?paymentId=PAY-20260312-000123
+     */
+    @GetMapping(params = "paymentId")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> getByPaymentId(@RequestParam String paymentId) {
+        return transactionRepository.findByPaymentId(paymentId)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(404)
+                        .body(Map.of(
+                                "error", "Transaction not found",
+                                "paymentId", paymentId
+                        )));
+    }
+
+    /**
+     * Get transaction by idempotencyKey
+     * GET /transactions?idempotencyKey=checkout-order-123
+     */
+    @GetMapping(params = "idempotencyKey")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> getByIdempotencyKey(@RequestParam String idempotencyKey) {
+        return transactionRepository.findByIdempotencyKey(idempotencyKey)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(404)
+                        .body(Map.of(
+                                "error", "Transaction not found",
+                                "idempotencyKey", idempotencyKey
+                        )));
+    }
+
+    /**
      * Log a failed (declined) transaction — called by CMS service
      * POST /transactions/log-failed
      * Authenticated by X-System-Api-Key header
@@ -86,6 +118,16 @@ public class TransactionController {
         String location = (String) body.getOrDefault("location", null);
         Double latitude = body.get("latitude") instanceof Number ? ((Number) body.get("latitude")).doubleValue() : null;
         Double longitude = body.get("longitude") instanceof Number ? ((Number) body.get("longitude")).doubleValue() : null;
+        String paymentId = (String) body.getOrDefault("paymentId", null);
+        String idempotencyKey = (String) body.getOrDefault("idempotencyKey", null);
+        String originalTransactionId = (String) body.getOrDefault("originalTransactionId", null);
+        String channel = (String) body.getOrDefault("channel", "SYSTEM");
+        String authCode = (String) body.getOrDefault("authCode", null);
+        String stan = (String) body.getOrDefault("stan", null);
+        String rrn = (String) body.getOrDefault("rrn", null);
+        String externalReference = (String) body.getOrDefault("externalReference", null);
+        String responseCode = (String) body.getOrDefault("responseCode", "96");
+        String responseMessage = (String) body.getOrDefault("responseMessage", failureReason);
 
         Transaction tx;
         if ("SAVINGS".equalsIgnoreCase(accountType)) {
@@ -94,6 +136,7 @@ public class TransactionController {
             tx = Transaction.createFailedCharge(accountNumber, amount, currentBalance, merchantId, merchantName, location, latitude, longitude, failureReason);
         }
         tx.setCardNetwork(cardNetwork);
+        tx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference, responseCode, responseMessage);
 
         transactionLoggingService.logTransaction(tx);
         log.info("Logged failed transaction for account {} - reason: {}", accountNumber, failureReason);

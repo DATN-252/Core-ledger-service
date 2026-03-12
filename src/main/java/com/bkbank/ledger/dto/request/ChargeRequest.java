@@ -23,4 +23,16 @@ public class ChargeRequest {
     private String location;
     private Double latitude;
     private Double longitude;
+
+    // Standard transaction references
+    private String paymentId;
+    private String idempotencyKey;
+    private String originalTransactionId;
+    private String channel;
+    private String authCode;
+    private String stan;
+    private String rrn;
+    private String externalReference;
+    private String responseCode;
+    private String responseMessage;
 }

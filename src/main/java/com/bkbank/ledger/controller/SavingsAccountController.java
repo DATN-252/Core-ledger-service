@@ -105,7 +105,25 @@ public class SavingsAccountController {
                 String location = request.getLocation();
                 Double latitude = request.getLatitude();
                 Double longitude = request.getLongitude();
-                account = savingsAccountService.withdraw(accountId, request.getTransactionAmount(), merchantId, merchantName, location, latitude, longitude);
+                account = savingsAccountService.withdraw(
+                        accountId,
+                        request.getTransactionAmount(),
+                        merchantId,
+                        merchantName,
+                        location,
+                        latitude,
+                        longitude,
+                        request.getPaymentId(),
+                        request.getIdempotencyKey(),
+                        request.getOriginalTransactionId(),
+                        request.getChannel(),
+                        request.getAuthCode(),
+                        request.getStan(),
+                        request.getRrn(),
+                        request.getExternalReference(),
+                        request.getResponseCode(),
+                        request.getResponseMessage()
+                );
             } else if ("deposit".equalsIgnoreCase(command)) {
                 account = savingsAccountService.deposit(accountId, request.getTransactionAmount());
             } else {
