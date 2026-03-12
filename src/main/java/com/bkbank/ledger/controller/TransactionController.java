@@ -83,12 +83,15 @@ public class TransactionController {
         String merchantName = (String) body.getOrDefault("merchantName", "");
         String failureReason = (String) body.getOrDefault("failureReason", "Declined");
         String cardNetwork = (String) body.getOrDefault("cardNetwork", "UNKNOWN");
+        String location = (String) body.getOrDefault("location", null);
+        Double latitude = body.get("latitude") instanceof Number ? ((Number) body.get("latitude")).doubleValue() : null;
+        Double longitude = body.get("longitude") instanceof Number ? ((Number) body.get("longitude")).doubleValue() : null;
 
         Transaction tx;
         if ("SAVINGS".equalsIgnoreCase(accountType)) {
-            tx = Transaction.createFailedWithdrawal(accountNumber, amount, currentBalance, merchantId, merchantName, failureReason);
+            tx = Transaction.createFailedWithdrawal(accountNumber, amount, currentBalance, merchantId, merchantName, location, latitude, longitude, failureReason);
         } else {
-            tx = Transaction.createFailedCharge(accountNumber, amount, currentBalance, merchantId, merchantName, failureReason);
+            tx = Transaction.createFailedCharge(accountNumber, amount, currentBalance, merchantId, merchantName, location, latitude, longitude, failureReason);
         }
         tx.setCardNetwork(cardNetwork);
 

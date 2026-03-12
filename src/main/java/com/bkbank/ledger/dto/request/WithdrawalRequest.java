@@ -16,4 +16,9 @@ public class WithdrawalRequest {
     // Merchant Information
     private String merchantId;
     private String merchantName;
+    
+    // Location Information
+    private String location;
+    private Double latitude;
+    private Double longitude;
 }

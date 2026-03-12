@@ -45,19 +45,19 @@ public class SavingsAccountService {
      * Withdraw from account (for debit card transactions)
      */
     @Transactional
-    public SavingsAccount withdraw(String accountNumber, Double amount, String merchantId, String merchantName) {
-        log.info("Withdrawing {} from account {} at merchant {}", amount, accountNumber, merchantName);
+    public SavingsAccount withdraw(String accountNumber, Double amount, String merchantId, String merchantName, String location, Double latitude, Double longitude) {
+        log.info("Withdrawing {} from account {} at merchant {} (Location: {})", amount, accountNumber, merchantName, location);
         
         SavingsAccount account = getAccount(accountNumber);
         
         if (!account.isActive()) {
-            Transaction failedTx = Transaction.createFailedWithdrawal(accountNumber, amount, account.getBalance(), merchantId, merchantName, "Account inactive");
+            Transaction failedTx = Transaction.createFailedWithdrawal(accountNumber, amount, account.getBalance(), merchantId, merchantName, location, latitude, longitude, "Account inactive");
             transactionLoggingService.logTransaction(failedTx);
             throw new RuntimeException("Account is not active");
         }
         
         if (!account.hasSufficientBalance(amount)) {
-            Transaction failedTx = Transaction.createFailedWithdrawal(accountNumber, amount, account.getBalance(), merchantId, merchantName, "Insufficient balance");
+            Transaction failedTx = Transaction.createFailedWithdrawal(accountNumber, amount, account.getBalance(), merchantId, merchantName, location, latitude, longitude, "Insufficient balance");
             transactionLoggingService.logTransaction(failedTx);
             throw new RuntimeException("Insufficient balance");
         }
@@ -66,7 +66,7 @@ public class SavingsAccountService {
         SavingsAccount savedAccount = savingsAccountRepository.save(account);
         
         // Log transaction
-        Transaction tx = Transaction.createWithdrawal(accountNumber, amount, savedAccount.getBalance(), merchantId, merchantName);
+        Transaction tx = Transaction.createWithdrawal(accountNumber, amount, savedAccount.getBalance(), merchantId, merchantName, location, latitude, longitude);
         transactionRepository.save(tx);
         
         log.info("Withdrawal successful. New balance: {}", savedAccount.getBalance());

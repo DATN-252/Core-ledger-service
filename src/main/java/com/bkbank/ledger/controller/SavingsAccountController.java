@@ -102,7 +102,10 @@ public class SavingsAccountController {
             if ("withdrawal".equalsIgnoreCase(command)) {
                 String merchantId = request.getMerchantId();
                 String merchantName = request.getMerchantName();
-                account = savingsAccountService.withdraw(accountId, request.getTransactionAmount(), merchantId, merchantName);
+                String location = request.getLocation();
+                Double latitude = request.getLatitude();
+                Double longitude = request.getLongitude();
+                account = savingsAccountService.withdraw(accountId, request.getTransactionAmount(), merchantId, merchantName, location, latitude, longitude);
             } else if ("deposit".equalsIgnoreCase(command)) {
                 account = savingsAccountService.deposit(accountId, request.getTransactionAmount());
             } else {

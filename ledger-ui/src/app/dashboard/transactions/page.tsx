@@ -65,6 +65,7 @@ export default function TransactionsPage() {
                                     <th>Loại</th>
                                     <th>Merchant ID</th>
                                     <th>Merchant Name</th>
+                                    <th>Vị trí</th>
                                     <th>Trạng thái</th>
                                     <th>Tài khoản</th>
                                 </tr>
@@ -92,6 +93,15 @@ export default function TransactionsPage() {
                                             {txn.merchantId || <span style={{ color: 'var(--text-secondary)' }}>—</span>}
                                         </td>
                                         <td>{txn.merchantName || <span style={{ color: 'var(--text-secondary)' }}>—</span>}</td>
+                                        <td>
+                                            {txn.location ? (
+                                                <span title={`Tọa độ: ${txn.latitude}, ${txn.longitude}`}>
+                                                    📍 {txn.location}
+                                                </span>
+                                            ) : (
+                                                <span style={{ color: 'var(--text-secondary)' }}>—</span>
+                                            )}
+                                        </td>
                                         <td>
                                             {txn.status === 'FAILED' ? (
                                                 <span className="badge" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)' }}>THẤT BẠI</span>

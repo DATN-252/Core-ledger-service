@@ -104,7 +104,10 @@ public class LoanAccountController {
             String merchantId = request.getMerchantId();
             String merchantName = request.getMerchantName();
             String cardNetwork = request.getCardNetwork();
-            LoanAccount account = loanAccountService.addCharge(loanId, request.getAmount(), merchantId, merchantName, cardNetwork);
+            String location = request.getLocation();
+            Double latitude = request.getLatitude();
+            Double longitude = request.getLongitude();
+            LoanAccount account = loanAccountService.addCharge(loanId, request.getAmount(), merchantId, merchantName, cardNetwork, location, latitude, longitude);
             
             // Fineract-style response
             Map<String, Object> response = new HashMap<>();

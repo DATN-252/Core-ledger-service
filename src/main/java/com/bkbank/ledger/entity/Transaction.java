@@ -47,13 +47,17 @@ public class Transaction {
     @Column(name = "merchant_name")
     private String merchantName;
 
+    private String location;
+    private Double latitude;
+    private Double longitude;
+
     @Column(name = "card_network")
     private String cardNetwork;
 
     @Column(nullable = false, columnDefinition = "varchar(255) default 'SUCCESS'")
     private String status = "SUCCESS"; // SUCCESS or FAILED
 
-    public static Transaction createWithdrawal(String accountNumber, Double amount, Double balanceAfter, String merchantId, String merchantName) {
+    public static Transaction createWithdrawal(String accountNumber, Double amount, Double balanceAfter, String merchantId, String merchantName, String location, Double latitude, Double longitude) {
         Transaction tx = new Transaction();
         tx.accountNumber = accountNumber;
         tx.accountType = "SAVINGS";
@@ -63,12 +67,15 @@ public class Transaction {
         tx.description = "Card withdrawal";
         tx.merchantId = merchantId;
         tx.merchantName = merchantName;
+        tx.location = location;
+        tx.latitude = latitude;
+        tx.longitude = longitude;
         tx.cardNetwork = null;
         tx.status = "SUCCESS";
         return tx;
     }
 
-    public static Transaction createFailedWithdrawal(String accountNumber, Double amount, Double currentBalance, String merchantId, String merchantName, String failureReason) {
+    public static Transaction createFailedWithdrawal(String accountNumber, Double amount, Double currentBalance, String merchantId, String merchantName, String location, Double latitude, Double longitude, String failureReason) {
         Transaction tx = new Transaction();
         tx.accountNumber = accountNumber;
         tx.accountType = "SAVINGS";
@@ -78,6 +85,9 @@ public class Transaction {
         tx.description = "Failed withdrawal: " + failureReason;
         tx.merchantId = merchantId;
         tx.merchantName = merchantName;
+        tx.location = location;
+        tx.latitude = latitude;
+        tx.longitude = longitude;
         tx.cardNetwork = null;
         tx.status = "FAILED";
         return tx;
@@ -95,7 +105,7 @@ public class Transaction {
         return tx;
     }
 
-    public static Transaction createCharge(String accountNumber, Double amount, Double outstandingAfter, String merchantId, String merchantName) {
+    public static Transaction createCharge(String accountNumber, Double amount, Double outstandingAfter, String merchantId, String merchantName, String location, Double latitude, Double longitude) {
         Transaction tx = new Transaction();
         tx.accountNumber = accountNumber;
         tx.accountType = "LOAN";
@@ -105,12 +115,15 @@ public class Transaction {
         tx.description = "Credit card charge";
         tx.merchantId = merchantId;
         tx.merchantName = merchantName;
+        tx.location = location;
+        tx.latitude = latitude;
+        tx.longitude = longitude;
         tx.cardNetwork = null; // Will be set externally if needed
         tx.status = "SUCCESS";
         return tx;
     }
 
-    public static Transaction createFailedCharge(String accountNumber, Double amount, Double currentOutstanding, String merchantId, String merchantName, String failureReason) {
+    public static Transaction createFailedCharge(String accountNumber, Double amount, Double currentOutstanding, String merchantId, String merchantName, String location, Double latitude, Double longitude, String failureReason) {
         Transaction tx = new Transaction();
         tx.accountNumber = accountNumber;
         tx.accountType = "LOAN";
@@ -120,6 +133,9 @@ public class Transaction {
         tx.description = "Failed charge: " + failureReason;
         tx.merchantId = merchantId;
         tx.merchantName = merchantName;
+        tx.location = location;
+        tx.latitude = latitude;
+        tx.longitude = longitude;
         tx.cardNetwork = null; // Will be set externally if needed
         tx.status = "FAILED";
         return tx;

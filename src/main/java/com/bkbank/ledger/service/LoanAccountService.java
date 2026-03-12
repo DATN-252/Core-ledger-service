@@ -47,20 +47,20 @@ public class LoanAccountService {
      * Add charge to loan (for credit card transactions)
      */
     @Transactional
-    public LoanAccount addCharge(String accountNumber, Double amount, String merchantId, String merchantName, String cardNetwork) {
-        log.info("Adding charge of {} to loan account {} at merchant {} with network {}", amount, accountNumber, merchantName, cardNetwork);
+    public LoanAccount addCharge(String accountNumber, Double amount, String merchantId, String merchantName, String cardNetwork, String location, Double latitude, Double longitude) {
+        log.info("Adding charge of {} to loan account {} at merchant {} with network {} (Location: {})", amount, accountNumber, merchantName, cardNetwork, location);
         
         LoanAccount account = getAccount(accountNumber);
         
         if (!account.isActive()) {
-            Transaction failedTx = Transaction.createFailedCharge(accountNumber, amount, account.getPrincipalOutstanding(), merchantId, merchantName, "Account inactive");
+            Transaction failedTx = Transaction.createFailedCharge(accountNumber, amount, account.getPrincipalOutstanding(), merchantId, merchantName, location, latitude, longitude, "Account inactive");
             failedTx.setCardNetwork(cardNetwork);
             transactionLoggingService.logTransaction(failedTx);
             throw new RuntimeException("Loan account is not active");
         }
         
         if (!account.hasSufficientCredit(amount)) {
-            Transaction failedTx = Transaction.createFailedCharge(accountNumber, amount, account.getPrincipalOutstanding(), merchantId, merchantName, "Credit limit exceeded");
+            Transaction failedTx = Transaction.createFailedCharge(accountNumber, amount, account.getPrincipalOutstanding(), merchantId, merchantName, location, latitude, longitude, "Credit limit exceeded");
             failedTx.setCardNetwork(cardNetwork);
             transactionLoggingService.logTransaction(failedTx);
             throw new RuntimeException("Credit limit exceeded");
@@ -70,7 +70,7 @@ public class LoanAccountService {
         LoanAccount savedAccount = loanAccountRepository.save(account);
         
         // Log transaction
-        Transaction tx = Transaction.createCharge(accountNumber, amount, savedAccount.getPrincipalOutstanding(), merchantId, merchantName);
+        Transaction tx = Transaction.createCharge(accountNumber, amount, savedAccount.getPrincipalOutstanding(), merchantId, merchantName, location, latitude, longitude);
         tx.setCardNetwork(cardNetwork);
         transactionRepository.save(tx);
         
