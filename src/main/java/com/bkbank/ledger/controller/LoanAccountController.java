@@ -1,9 +1,14 @@
 package com.bkbank.ledger.controller;
 
 import com.bkbank.ledger.dto.ChargeRequest;
+import com.bkbank.ledger.dto.response.CreditCardMonthlyStatementResponse;
+import com.bkbank.ledger.dto.response.CreditCardStatementSummaryResponse;
+import com.bkbank.ledger.dto.response.LoanStatementResponse;
 import com.bkbank.ledger.entity.LoanAccount;
 import com.bkbank.ledger.repository.LoanAccountRepository;
+import com.bkbank.ledger.service.CreditCardStatementService;
 import com.bkbank.ledger.service.LoanAccountService;
+import com.bkbank.ledger.service.StatementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -13,10 +18,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Controller for Loan Accounts (Credit Cards)
@@ -29,6 +34,8 @@ public class LoanAccountController {
 
     private final LoanAccountService loanAccountService;
     private final LoanAccountRepository loanAccountRepository;
+    private final StatementService statementService;
+    private final CreditCardStatementService creditCardStatementService;
 
     /**
      * List all loan accounts
@@ -79,10 +86,91 @@ public class LoanAccountController {
             response.put("currency", Map.of("code", account.getCurrency()));
             response.put("status", Map.of("value", account.getStatus().name()));
             response.put("clientName", account.getClientName());
+            response.put("billingDayOfMonth", account.getBillingDayOfMonth());
+            response.put("paymentDueDays", account.getPaymentDueDays());
+            response.put("minimumPaymentRate", account.getMinimumPaymentRate());
+            response.put("minimumPaymentFloor", account.getMinimumPaymentFloor());
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error getting loan: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Generate loan statement by date range
+     * GET /loans/{loanId}/statement?fromDate=2026-03-01&toDate=2026-03-31
+     */
+    @GetMapping("/loans/{loanId}/statement")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> getStatement(
+            @PathVariable String loanId,
+            @RequestParam LocalDate fromDate,
+            @RequestParam LocalDate toDate
+    ) {
+        try {
+            LoanStatementResponse statement = statementService.getLoanStatement(loanId, fromDate, toDate);
+            return ResponseEntity.ok(statement);
+        } catch (Exception e) {
+            log.error("Get statement failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Generate monthly credit-card style statement
+     * POST /loans/{loanId}/monthly-statements/generate?billingDate=2026-03-25
+     */
+    @PostMapping("/loans/{loanId}/monthly-statements/generate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> generateMonthlyStatement(
+            @PathVariable String loanId,
+            @RequestParam LocalDate billingDate
+    ) {
+        try {
+            CreditCardMonthlyStatementResponse statement =
+                    creditCardStatementService.generateMonthlyStatement(loanId, billingDate);
+            return ResponseEntity.ok(statement);
+        } catch (Exception e) {
+            log.error("Generate monthly statement failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * List persisted monthly statement snapshots for a loan account
+     * GET /loans/{loanId}/monthly-statements
+     */
+    @GetMapping("/loans/{loanId}/monthly-statements")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> getMonthlyStatementHistory(@PathVariable String loanId) {
+        try {
+            List<CreditCardStatementSummaryResponse> statements =
+                    creditCardStatementService.getStatementHistory(loanId);
+            return ResponseEntity.ok(statements);
+        } catch (Exception e) {
+            log.error("Get monthly statement history failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Get persisted monthly statement detail by billing date
+     * GET /loans/{loanId}/monthly-statements/{billingDate}
+     */
+    @GetMapping("/loans/{loanId}/monthly-statements/{billingDate}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> getMonthlyStatementDetail(
+            @PathVariable String loanId,
+            @PathVariable LocalDate billingDate
+    ) {
+        try {
+            CreditCardMonthlyStatementResponse statement =
+                    creditCardStatementService.getStatementDetail(loanId, billingDate);
+            return ResponseEntity.ok(statement);
+        } catch (Exception e) {
+            log.error("Get monthly statement detail failed: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
@@ -107,7 +195,26 @@ public class LoanAccountController {
             String location = request.getLocation();
             Double latitude = request.getLatitude();
             Double longitude = request.getLongitude();
-            LoanAccount account = loanAccountService.addCharge(loanId, request.getAmount(), merchantId, merchantName, cardNetwork, location, latitude, longitude);
+            LoanAccount account = loanAccountService.addCharge(
+                    loanId,
+                    request.getAmount(),
+                    merchantId,
+                    merchantName,
+                    cardNetwork,
+                    location,
+                    latitude,
+                    longitude,
+                    request.getPaymentId(),
+                    request.getIdempotencyKey(),
+                    request.getOriginalTransactionId(),
+                    request.getChannel(),
+                    request.getAuthCode(),
+                    request.getStan(),
+                    request.getRrn(),
+                    request.getExternalReference(),
+                    request.getResponseCode(),
+                    request.getResponseMessage()
+            );
             
             // Fineract-style response
             Map<String, Object> response = new HashMap<>();

@@ -2,6 +2,9 @@ package com.bkbank.ledger.controller;
 
 import com.bkbank.ledger.client.CmsClient;
 import com.bkbank.ledger.dto.ApiResponse;
+import com.bkbank.ledger.dto.response.CreditCardMonthlyStatementResponse;
+import com.bkbank.ledger.dto.response.CreditCardStatementSummaryResponse;
+import com.bkbank.ledger.dto.response.LoanStatementResponse;
 import com.bkbank.ledger.entity.Client;
 import com.bkbank.ledger.entity.LoanAccount;
 import com.bkbank.ledger.entity.SavingsAccount;
@@ -10,6 +13,8 @@ import com.bkbank.ledger.entity.Transaction;
 import com.bkbank.ledger.repository.UserRepository;
 import com.bkbank.ledger.repository.TransactionRepository;
 import com.bkbank.ledger.service.ClientService;
+import com.bkbank.ledger.service.CreditCardStatementService;
+import com.bkbank.ledger.service.StatementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -21,10 +26,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -42,6 +49,8 @@ public class CustomerController {
     private final ClientService clientService;
     private final CmsClient cmsClient;
     private final TransactionRepository transactionRepository;
+    private final StatementService statementService;
+    private final CreditCardStatementService creditCardStatementService;
 
     private Client getAuthenticatedClient(Authentication authentication) {
         if (authentication == null) {
@@ -57,6 +66,15 @@ public class CustomerController {
             throw new RuntimeException("Tài khoản không được liên kết với hồ sơ khách hàng nào");
         }
         return client;
+    }
+
+    private void ensureLoanBelongsToClient(Client client, String loanId) {
+        boolean owned = clientService.getClientLoanAccounts(client.getClientId()).stream()
+                .map(LoanAccount::getAccountNumber)
+                .anyMatch(loanId::equals);
+        if (!owned) {
+            throw new RuntimeException("Khong tim thay tai khoan vay cua khach hang");
+        }
     }
 
     /**
@@ -164,6 +182,81 @@ public class CustomerController {
             return ResponseEntity.ok(ApiResponse.success(pagedResult));
         } catch (Exception e) {
             log.error("Error getting loan accounts: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @GetMapping("/me/loans/{loanId}/statement")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<LoanStatementResponse>> getMyLoanStatement(
+            Authentication authentication,
+            @PathVariable String loanId,
+            @RequestParam LocalDate fromDate,
+            @RequestParam LocalDate toDate
+    ) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+            ensureLoanBelongsToClient(client, loanId);
+            LoanStatementResponse statement = statementService.getLoanStatement(loanId, fromDate, toDate);
+            return ResponseEntity.ok(ApiResponse.success(statement));
+        } catch (Exception e) {
+            log.error("Error getting loan statement: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @GetMapping("/me/loans/{loanId}/monthly-statement")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<CreditCardMonthlyStatementResponse>> generateMyMonthlyStatement(
+            Authentication authentication,
+            @PathVariable String loanId,
+            @RequestParam LocalDate billingDate
+    ) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+            ensureLoanBelongsToClient(client, loanId);
+            CreditCardMonthlyStatementResponse statement =
+                    creditCardStatementService.generateMonthlyStatement(loanId, billingDate);
+            return ResponseEntity.ok(ApiResponse.success(statement));
+        } catch (Exception e) {
+            log.error("Error generating monthly statement: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @GetMapping("/me/loans/{loanId}/monthly-statements")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<List<CreditCardStatementSummaryResponse>>> getMyMonthlyStatementHistory(
+            Authentication authentication,
+            @PathVariable String loanId
+    ) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+            ensureLoanBelongsToClient(client, loanId);
+            List<CreditCardStatementSummaryResponse> statements =
+                    creditCardStatementService.getStatementHistory(loanId);
+            return ResponseEntity.ok(ApiResponse.success(statements));
+        } catch (Exception e) {
+            log.error("Error getting monthly statement history: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @GetMapping("/me/loans/{loanId}/monthly-statements/{billingDate}")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<CreditCardMonthlyStatementResponse>> getMyMonthlyStatementDetail(
+            Authentication authentication,
+            @PathVariable String loanId,
+            @PathVariable LocalDate billingDate
+    ) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+            ensureLoanBelongsToClient(client, loanId);
+            CreditCardMonthlyStatementResponse statement =
+                    creditCardStatementService.getStatementDetail(loanId, billingDate);
+            return ResponseEntity.ok(ApiResponse.success(statement));
+        } catch (Exception e) {
+            log.error("Error getting monthly statement detail: {}", e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
     }

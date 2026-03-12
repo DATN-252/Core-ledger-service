@@ -35,6 +35,18 @@ public class LoanAccount {
     @Column(name = "currency", nullable = false)
     private String currency = "USD";
 
+    @Column(name = "billing_day_of_month", nullable = false)
+    private Integer billingDayOfMonth = 25;
+
+    @Column(name = "payment_due_days", nullable = false)
+    private Integer paymentDueDays = 20;
+
+    @Column(name = "minimum_payment_rate", nullable = false)
+    private Double minimumPaymentRate = 5.0;
+
+    @Column(name = "minimum_payment_floor", nullable = false)
+    private Double minimumPaymentFloor = 10.0;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private AccountStatus status = AccountStatus.PENDING;
