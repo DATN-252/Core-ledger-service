@@ -1,8 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { getAllLoans, loanCommand } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCreditCard, faCheck, faLock, faLockOpen } from '@fortawesome/free-solid-svg-icons';
+import { faCreditCard, faCheck, faLock, faLockOpen, faFileInvoiceDollar } from '@fortawesome/free-solid-svg-icons';
 import { Pagination } from '@/components/Pagination';
 
 const STATUS_BADGE: Record<string, string> = {
@@ -113,6 +114,13 @@ export default function LoansPage() {
                                             </td>
                                             <td>
                                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    <Link
+                                                        href={`/dashboard/loans/${loan.id || loan.accountNo}/statements`}
+                                                        className="btn-secondary"
+                                                        style={{ fontSize: '0.8125rem', padding: '0.5rem 0.9rem', textDecoration: 'none' }}
+                                                    >
+                                                        <FontAwesomeIcon icon={faFileInvoiceDollar} /> Sao kê
+                                                    </Link>
                                                     {status === 'PENDING' && (
                                                         <button
                                                             className="btn-success"

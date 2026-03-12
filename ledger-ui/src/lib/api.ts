@@ -121,6 +121,21 @@ export async function loanCommand(loanId: string, command: 'activate' | 'lock' |
   return request<any>(`/loans/${loanId}?command=${command}`, { method: 'POST', body: '{}' });
 }
 
+export async function getLoanMonthlyStatements(loanId: string) {
+  return request<any[]>(`/loans/${loanId}/monthly-statements`);
+}
+
+export async function getLoanMonthlyStatementDetail(loanId: string, billingDate: string) {
+  return request<any>(`/loans/${loanId}/monthly-statements/${billingDate}`);
+}
+
+export async function generateLoanMonthlyStatement(loanId: string, billingDate: string) {
+  return request<any>(`/loans/${loanId}/monthly-statements/generate?billingDate=${encodeURIComponent(billingDate)}`, {
+    method: 'POST',
+    body: '{}',
+  });
+}
+
 // ─── Savings Accounts ────────────────────────────────────────────────────────
 export async function getSavingsAccount(id: string) {
   return request<any>(`/savingsaccounts/${id}`);
