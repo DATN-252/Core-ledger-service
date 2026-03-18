@@ -37,7 +37,7 @@ public class CmsClient {
         }
 
         try {
-            String url = UriComponentsBuilder.fromHttpUrl(cmsUrl + "/api/cards")
+            String url = UriComponentsBuilder.fromHttpUrl(cmsUrl + "/api/internal/cards")
                     .queryParam("accountIds", String.join(",", accountIds))
                     .toUriString();
 
@@ -57,6 +57,10 @@ public class CmsClient {
 
             return response.getBody() != null ? response.getBody() : List.of();
 
+        } catch (org.springframework.web.client.HttpStatusCodeException e) {
+            log.error("Failed to fetch cards from CMS for accounts {}. Status: {}, Response: {}",
+                    accountIds, e.getStatusCode(), e.getResponseBodyAsString());
+            return List.of();
         } catch (Exception e) {
             log.error("Failed to fetch cards from CMS for accounts {}: {}", accountIds, e.getMessage());
             return List.of();
