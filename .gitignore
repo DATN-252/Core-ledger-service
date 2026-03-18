@@ -44,3 +44,8 @@ data/
 # Logs
 logs/
 *.log
+
+# Environment files
+.env
+.env.local
+.env.*.local

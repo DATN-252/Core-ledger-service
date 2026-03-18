@@ -155,10 +155,10 @@ psql -h $dbHost -p $dbPort -U $dbUser -d $dbName -c $checkIndexesSQL
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "7. Migration Status" -ForegroundColor Cyan
+Write-Host "7. JPA Schema Status" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
-# Check if migration has been run
+# Check if JPA-managed schema is available
 $checkMigrationSQL = @"
 DO $$ 
 BEGIN
@@ -166,7 +166,7 @@ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'clients') THEN
         RAISE NOTICE '✓ Clients table exists';
     ELSE
-        RAISE NOTICE '✗ Clients table MISSING - run migration!';
+        RAISE NOTICE '✗ Clients table missing - start service to let JPA create schema';
     END IF;
     
     -- Check if client_id column exists in savings_accounts
@@ -176,7 +176,7 @@ BEGIN
     ) THEN
         RAISE NOTICE '✓ savings_accounts.client_id column exists';
     ELSE
-        RAISE NOTICE '✗ savings_accounts.client_id MISSING - run migration!';
+        RAISE NOTICE '✗ savings_accounts.client_id missing - start service to let JPA update schema';
     END IF;
     
     -- Check if client_id column exists in loan_accounts
@@ -186,7 +186,7 @@ BEGIN
     ) THEN
         RAISE NOTICE '✓ loan_accounts.client_id column exists';
     ELSE
-        RAISE NOTICE '✗ loan_accounts.client_id MISSING - run migration!';
+        RAISE NOTICE '✗ loan_accounts.client_id missing - start service to let JPA update schema';
     END IF;
     
     -- Check FK constraints
@@ -241,7 +241,7 @@ Write-Host "Database check complete!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Yellow
-Write-Host "  1. If migration not run: psql -U postgres -d ledger_db -f migrations/001_add_client_entity.sql" -ForegroundColor Gray
+Write-Host "  1. If schema missing: start service and let JPA/Hibernate create/update tables" -ForegroundColor Gray
 Write-Host "  2. If tables empty: Run test-client-api.ps1 to create sample data" -ForegroundColor Gray
 Write-Host "  3. Start service: .\gradlew bootRun" -ForegroundColor Gray
 Write-Host ""

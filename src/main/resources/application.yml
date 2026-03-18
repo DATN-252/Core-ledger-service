@@ -1,28 +1,26 @@
 server:
-  port: 8083
+  port: ${SERVER_PORT:${PORT:8083}}
 
 spring:
+  config:
+    import: optional:file:.env[.properties]
   application:
     name: core-ledger-service
   
   datasource:
-    url: jdbc:postgresql://localhost:5434/ledgerdb
-    username: ledgeruser
-    password: ledgerpassword
+    url: ${DB_URL:jdbc:postgresql://localhost:5434/ledgerdb}
+    username: ${DB_USERNAME:ledgeruser}
+    password: ${DB_PASSWORD:ledgerpassword}
     driver-class-name: org.postgresql.Driver
   
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: ${JPA_SHOW_SQL:true}
     properties:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
-  
-  sql:
-    init:
-      mode: always
 
 logging:
   level:
@@ -32,14 +30,14 @@ logging:
 
 # JWT Configuration
 jwt:
-  secret: "BkBankLedgerSecretKey2025VeryLongSecretKey12345678" # Min 32 chars
-  expiration: 86400000 # 24 hours in milliseconds
+  secret: ${JWT_SECRET:BkBankLedgerSecretKey2025VeryLongSecretKey12345678}
+  expiration: ${JWT_EXPIRATION:86400000}
 
 # System API Key (used by CMS service to call ledger)
 system:
-  api-key: "bkbank-internal-system-api-key-2025"
+  api-key: ${SYSTEM_API_KEY:bkbank-internal-system-api-key-2025}
 
 # CMS Service Configuration (used by ledger to call CMS)
 cms:
-  url: "http://localhost:8082"
-  internal-api-key: "jpos-to-cms-secret-key-2025"
+  url: ${CMS_URL:http://localhost:8082}
+  internal-api-key: ${CMS_INTERNAL_API_KEY:jpos-to-cms-secret-key-2025}

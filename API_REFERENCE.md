@@ -12,7 +12,7 @@
 2. [Savings Accounts APIs](#savings-accounts-apis) (Debit Cards)
 3. [Loan Accounts APIs](#loan-accounts-apis) (Credit Cards)
 4. [Error Responses](#error-responses)
-5. [Migration Guide](#migration-guide)
+5. [Schema Management](#schema-management)
 
 ---
 
@@ -355,7 +355,7 @@
 }
 ```
 
-**Migration**: Clients phải được tạo trước khi tạo accounts.
+**Lưu ý**: Clients phải được tạo trước khi tạo accounts.
 
 ---
 
@@ -462,25 +462,16 @@
 
 ---
 
-## Migration Guide
+## Schema Management
 
-### From v1.0 to v2.0
+Schema hiện được quản lý trực tiếp bởi JPA/Hibernate.
 
-**Step 1**: Run migration SQL
-```bash
-psql -U postgres -d ledger_db -f migrations/001_add_client_entity.sql
-```
+- `spring.jpa.hibernate.ddl-auto=update`
+- Khi entity thay đổi, Hibernate sẽ tự đồng bộ schema khi service khởi động
+- Không cần chạy SQL migration thủ công trong flow local/dev hiện tại
 
-**Step 2**: Update account creation flow
+**Account creation flow**:
 
-**Old Flow**:
-```java
-// Create account directly with name
-POST /savingsaccounts
-{ "accountNumber": "ACC_001", "clientName": "John" }
-```
-
-**New Flow**:
 ```java
 // 1. Create client first
 POST /clients
@@ -490,11 +481,6 @@ POST /clients
 POST /savingsaccounts
 { "accountNumber": "ACC_001", "clientId": "CLI_001" }
 ```
-
-**Step 3**: Verify backward compatibility
-- GET endpoints still return `clientName`
-- Existing integrations continue to work
-- CMS service just needs config update
 
 ---
 
