@@ -22,6 +22,10 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
+app:
+  seed:
+    demo-data: ${APP_SEED_DEMO_DATA:false}
+
 logging:
   level:
     com.bkbank.ledger: DEBUG
