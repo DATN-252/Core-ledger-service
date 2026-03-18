@@ -105,6 +105,40 @@ public class SavingsAccountService {
     }
 
     /**
+     * Apply a refund/reversal credit to a debit account and log it as a dedicated transaction type.
+     */
+    @Transactional
+    public Transaction applyCardAdjustment(String accountNumber,
+                                           Transaction originalTransaction,
+                                           String adjustmentType,
+                                           String reason,
+                                           String paymentId,
+                                           String idempotencyKey,
+                                           String channel,
+                                           String externalReference) {
+        SavingsAccount account = getAccount(accountNumber);
+        account.applyCardAdjustment(originalTransaction.getAmount());
+        SavingsAccount savedAccount = savingsAccountRepository.save(account);
+
+        Transaction adjustmentTx = "REVERSAL".equalsIgnoreCase(adjustmentType)
+                ? Transaction.createReversal(originalTransaction, savedAccount.getBalance(), reason)
+                : Transaction.createRefund(originalTransaction, savedAccount.getBalance(), reason);
+        adjustmentTx.applyReferenceData(
+                paymentId,
+                idempotencyKey,
+                originalTransaction.getPaymentId(),
+                channel,
+                null,
+                null,
+                null,
+                externalReference,
+                "00",
+                reason != null && !reason.isBlank() ? reason : adjustmentType + " successful"
+        );
+        return transactionRepository.save(adjustmentTx);
+    }
+
+    /**
      * Create new savings account
      */
     @Transactional

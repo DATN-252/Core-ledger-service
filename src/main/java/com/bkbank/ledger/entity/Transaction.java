@@ -28,7 +28,7 @@ public class Transaction {
     private String accountType; // SAVINGS or LOAN
 
     @Column(nullable = false)
-    private String transactionType; // WITHDRAWAL, DEPOSIT, CHARGE, PAYMENT
+    private String transactionType; // WITHDRAWAL, DEPOSIT, CHARGE, PAYMENT, REVERSAL, REFUND
 
     @Column(nullable = false)
     private Double amount;
@@ -85,7 +85,7 @@ public class Transaction {
     private String responseMessage;
 
     @Column(nullable = false, columnDefinition = "varchar(255) default 'SUCCESS'")
-    private String status = "SUCCESS"; // SUCCESS or FAILED
+    private String status = "SUCCESS"; // SUCCESS, FAILED, REVERSED, REFUNDED
 
     public static Transaction createWithdrawal(String accountNumber, Double amount, Double balanceAfter, String merchantId, String merchantName, String location, Double latitude, Double longitude) {
         Transaction tx = new Transaction();
@@ -201,6 +201,14 @@ public class Transaction {
         return tx;
     }
 
+    public static Transaction createRefund(Transaction originalTransaction, Double balanceAfter, String reason) {
+        return createAdjustment(originalTransaction, balanceAfter, "REFUND", reason);
+    }
+
+    public static Transaction createReversal(Transaction originalTransaction, Double balanceAfter, String reason) {
+        return createAdjustment(originalTransaction, balanceAfter, "REVERSAL", reason);
+    }
+
     public void applyReferenceData(String paymentId,
                                    String idempotencyKey,
                                    String originalTransactionId,
@@ -234,6 +242,32 @@ public class Transaction {
     private static void initializeDefaults(Transaction tx) {
         tx.paymentId = generatePaymentId();
         tx.channel = "SYSTEM";
+    }
+
+    private static Transaction createAdjustment(Transaction originalTransaction,
+                                                Double balanceAfter,
+                                                String adjustmentType,
+                                                String reason) {
+        Transaction tx = new Transaction();
+        initializeDefaults(tx);
+        tx.accountNumber = originalTransaction.accountNumber;
+        tx.accountType = originalTransaction.accountType;
+        tx.transactionType = adjustmentType;
+        tx.amount = originalTransaction.amount;
+        tx.balanceAfter = balanceAfter;
+        tx.description = adjustmentType + " for " + originalTransaction.paymentId
+                + (reason != null && !reason.isBlank() ? " - " + reason : "");
+        tx.merchantId = originalTransaction.merchantId;
+        tx.merchantName = originalTransaction.merchantName;
+        tx.location = originalTransaction.location;
+        tx.latitude = originalTransaction.latitude;
+        tx.longitude = originalTransaction.longitude;
+        tx.cardNetwork = originalTransaction.cardNetwork;
+        tx.status = "SUCCESS";
+        tx.responseCode = "00";
+        tx.responseMessage = reason != null && !reason.isBlank() ? reason : "Approved";
+        tx.originalTransactionId = originalTransaction.paymentId;
+        return tx;
     }
 
     private static String generatePaymentId() {

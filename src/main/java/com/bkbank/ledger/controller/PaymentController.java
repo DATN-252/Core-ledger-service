@@ -2,9 +2,12 @@ package com.bkbank.ledger.controller;
 
 import com.bkbank.ledger.client.CmsClient;
 import com.bkbank.ledger.dto.ApiResponse;
+import com.bkbank.ledger.dto.PaymentAdjustmentRequest;
 import com.bkbank.ledger.dto.PaymentRequest;
 import com.bkbank.ledger.entity.Merchant;
+import com.bkbank.ledger.entity.Transaction;
 import com.bkbank.ledger.service.MerchantService;
+import com.bkbank.ledger.service.PaymentAdjustmentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -30,6 +33,7 @@ public class PaymentController {
 
     private final CmsClient cmsClient;
     private final MerchantService merchantService;
+    private final PaymentAdjustmentService paymentAdjustmentService;
     private static final String DEFAULT_BANK_NAME = "BKBank Merchant Network";
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -135,6 +139,18 @@ public class PaymentController {
         }
     }
 
+    @PostMapping("/reversal")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER', 'SYSTEM')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> reversePayment(@RequestBody PaymentAdjustmentRequest request) {
+        return processAdjustment("REVERSAL", request);
+    }
+
+    @PostMapping("/refund")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER', 'SYSTEM')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> refundPayment(@RequestBody PaymentAdjustmentRequest request) {
+        return processAdjustment("REFUND", request);
+    }
+
     private void ensureIdempotencyKey(PaymentRequest request) {
         if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().trim().isEmpty()) {
             return;
@@ -233,5 +249,44 @@ public class PaymentController {
             return preferred;
         }
         return fallback;
+    }
+
+    private ResponseEntity<ApiResponse<Map<String, Object>>> processAdjustment(String adjustmentType,
+                                                                               PaymentAdjustmentRequest request) {
+        try {
+            Transaction adjustment = paymentAdjustmentService.applyAdjustment(adjustmentType, request);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("approved", true);
+            response.put("adjustmentType", adjustmentType);
+            response.put("paymentId", adjustment.getPaymentId());
+            response.put("originalPaymentId", adjustment.getOriginalTransactionId());
+            response.put("originalTransactionStatus", "REVERSAL".equalsIgnoreCase(adjustmentType) ? "REVERSED" : "REFUNDED");
+            response.put("responseCode", adjustment.getResponseCode());
+            response.put("responseMessage", adjustment.getResponseMessage());
+            response.put("accountNumber", adjustment.getAccountNumber());
+            response.put("accountType", adjustment.getAccountType());
+            response.put("merchantId", adjustment.getMerchantId());
+            response.put("merchantName", adjustment.getMerchantName());
+            response.put("amount", adjustment.getAmount());
+            response.put("balanceAfter", adjustment.getBalanceAfter());
+            response.put("status", adjustment.getStatus());
+            response.put("idempotencyKey", adjustment.getIdempotencyKey());
+            response.put("channel", adjustment.getChannel());
+            response.put("transactionTime", adjustment.getTransactionDate() != null
+                    ? adjustment.getTransactionDate().format(DATE_TIME_FORMATTER)
+                    : LocalDateTime.now().format(DATE_TIME_FORMATTER));
+
+            return ResponseEntity.ok(ApiResponse.success(adjustmentType + " successful", response));
+        } catch (IllegalArgumentException e) {
+            log.error("{} failed: {}", adjustmentType, e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        } catch (RuntimeException e) {
+            log.error("{} failed: {}", adjustmentType, e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(404, e.getMessage()));
+        } catch (Exception e) {
+            log.error("{} processing error: {}", adjustmentType, e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(ApiResponse.error(500, "Internal Server Error: " + e.getMessage()));
+        }
     }
 }

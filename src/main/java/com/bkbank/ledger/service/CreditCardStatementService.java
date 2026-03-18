@@ -71,6 +71,9 @@ public class CreditCardStatementService {
             }
             if ("CHARGE".equalsIgnoreCase(tx.getTransactionType())) {
                 totalCharges += safe(tx.getAmount());
+            } else if ("REFUND".equalsIgnoreCase(tx.getTransactionType())
+                    || "REVERSAL".equalsIgnoreCase(tx.getTransactionType())) {
+                totalCharges -= safe(tx.getAmount());
             } else if ("PAYMENT".equalsIgnoreCase(tx.getTransactionType())) {
                 totalPayments += safe(tx.getAmount());
             }
@@ -244,6 +247,7 @@ public class CreditCardStatementService {
                 );
 
         double paidAmountAfterStatement = 0.0;
+        double creditedByAdjustmentsAfterStatement = 0.0;
         LocalDateTime lastPaymentDate = null;
 
         for (Transaction tx : postStatementTransactions) {
@@ -253,13 +257,17 @@ public class CreditCardStatementService {
             if ("PAYMENT".equalsIgnoreCase(tx.getTransactionType())) {
                 paidAmountAfterStatement += safe(tx.getAmount());
                 lastPaymentDate = tx.getTransactionDate();
+            } else if ("REFUND".equalsIgnoreCase(tx.getTransactionType())
+                    || "REVERSAL".equalsIgnoreCase(tx.getTransactionType())) {
+                creditedByAdjustmentsAfterStatement += safe(tx.getAmount());
             }
         }
 
         paidAmountAfterStatement = roundMoney(paidAmountAfterStatement);
-        double remainingMinimumDue = roundMoney(Math.max(safe(snapshot.getMinimumDue()) - paidAmountAfterStatement, 0.0));
-        double remainingBalance = roundMoney(Math.max(safe(snapshot.getNewBalance()) - paidAmountAfterStatement, 0.0));
-        String statementStatus = determineStatementStatus(snapshot, paidAmountAfterStatement, remainingMinimumDue, remainingBalance);
+        double appliedCreditsAfterStatement = roundMoney(paidAmountAfterStatement + creditedByAdjustmentsAfterStatement);
+        double remainingMinimumDue = roundMoney(Math.max(safe(snapshot.getMinimumDue()) - appliedCreditsAfterStatement, 0.0));
+        double remainingBalance = roundMoney(Math.max(safe(snapshot.getNewBalance()) - appliedCreditsAfterStatement, 0.0));
+        String statementStatus = determineStatementStatus(snapshot, appliedCreditsAfterStatement, remainingMinimumDue, remainingBalance);
 
         snapshot.setPaidAmountAfterStatement(paidAmountAfterStatement);
         snapshot.setRemainingMinimumDue(remainingMinimumDue);

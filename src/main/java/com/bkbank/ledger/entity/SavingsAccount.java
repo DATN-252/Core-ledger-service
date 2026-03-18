@@ -88,6 +88,17 @@ public class SavingsAccount {
         this.balance += amount;
     }
 
+    /**
+     * Apply a refund/reversal credit to the account.
+     * Locked accounts can still receive credits, but closed/pending accounts cannot.
+     */
+    public void applyCardAdjustment(Double amount) {
+        if (status == AccountStatus.CLOSED || status == AccountStatus.PENDING) {
+            throw new IllegalStateException("Account cannot receive card adjustments. Status: " + status);
+        }
+        this.balance += amount;
+    }
+
     // ==================== State Machine Methods ====================
 
     /**

@@ -205,6 +205,14 @@ public class LoanAccount {
     }
 
     /**
+     * Apply a refund/reversal against an existing card charge.
+     * Locked accounts can still receive credits, but closed/pending accounts cannot.
+     */
+    public void applyCardAdjustment(Double amount) {
+        makePayment(amount);
+    }
+
+    /**
      * Backward compatibility: Get client name
      * For API responses to maintain compatibility
      */

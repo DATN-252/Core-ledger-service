@@ -103,6 +103,9 @@ public class StatementService {
             }
             if ("CHARGE".equalsIgnoreCase(tx.getTransactionType())) {
                 totalCharges += safe(tx.getAmount());
+            } else if ("REFUND".equalsIgnoreCase(tx.getTransactionType())
+                    || "REVERSAL".equalsIgnoreCase(tx.getTransactionType())) {
+                totalCharges -= safe(tx.getAmount());
             } else if ("PAYMENT".equalsIgnoreCase(tx.getTransactionType())) {
                 totalPayments += safe(tx.getAmount());
             }

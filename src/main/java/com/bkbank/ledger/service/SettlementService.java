@@ -45,14 +45,12 @@ public class SettlementService {
                 );
 
         double grossAmount = transactions.stream()
-                .filter(tx -> "CHARGE".equalsIgnoreCase(tx.getTransactionType()) || "WITHDRAWAL".equalsIgnoreCase(tx.getTransactionType()))
-                .map(Transaction::getAmount)
-                .filter(amount -> amount != null)
-                .mapToDouble(Double::doubleValue)
+                .filter(this::affectsSettlement)
+                .mapToDouble(this::signedSettlementAmount)
                 .sum();
 
         int transactionCount = (int) transactions.stream()
-                .filter(tx -> "CHARGE".equalsIgnoreCase(tx.getTransactionType()) || "WITHDRAWAL".equalsIgnoreCase(tx.getTransactionType()))
+                .filter(this::affectsSettlement)
                 .count();
 
         double feeAmount = grossAmount * appliedFeeRate / 100.0;
@@ -70,5 +68,21 @@ public class SettlementService {
                 feeAmount,
                 netAmount
         );
+    }
+
+    private boolean affectsSettlement(Transaction tx) {
+        return "CHARGE".equalsIgnoreCase(tx.getTransactionType())
+                || "WITHDRAWAL".equalsIgnoreCase(tx.getTransactionType())
+                || "REFUND".equalsIgnoreCase(tx.getTransactionType())
+                || "REVERSAL".equalsIgnoreCase(tx.getTransactionType());
+    }
+
+    private double signedSettlementAmount(Transaction tx) {
+        double amount = tx.getAmount() != null ? tx.getAmount() : 0.0;
+        if ("REFUND".equalsIgnoreCase(tx.getTransactionType())
+                || "REVERSAL".equalsIgnoreCase(tx.getTransactionType())) {
+            return -amount;
+        }
+        return amount;
     }
 }
