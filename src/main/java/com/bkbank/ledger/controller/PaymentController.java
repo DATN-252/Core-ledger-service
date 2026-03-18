@@ -17,6 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -27,40 +30,43 @@ public class PaymentController {
 
     private final CmsClient cmsClient;
     private final MerchantService merchantService;
+    private static final String DEFAULT_BANK_NAME = "BKBank Merchant Network";
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @PostMapping("/preview")
     @PreAuthorize("hasRole('CUSTOMER')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> previewPayment(@RequestBody Map<String, Object> request) {
-        String merchantId = (String) request.get("merchantId");
+    public ResponseEntity<ApiResponse<Map<String, Object>>> previewPayment(@RequestBody PaymentRequest request) {
+        String merchantId = request.getMerchantId();
         if (merchantId == null || merchantId.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, "merchantId is required"));
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "merchantId or recipientAccount is required"));
         }
 
         try {
-            String cardNumber = (String) request.get("cardNumber");
-
             Merchant merchant = merchantService.getActiveMerchant(merchantId);
-            String merchantName = merchant.getName();
+            LocalDateTime now = LocalDateTime.now();
+            Double amount = request.getAmount();
+            double fee = 0.0;
+            String inferredNetwork = firstNonBlank(request.getCardNetwork(), inferCardNetwork(request.getCardNumber()));
+            String resolvedCardType = firstNonBlank(request.getCardType(), resolveCardTypeFromNetwork(inferredNetwork));
 
-            Double amount = null;
-            Object reqAmount = request.get("amount");
-            if (reqAmount != null) {
-                amount = Double.valueOf(reqAmount.toString());
-            }
-
-            Map<String, Object> previewData = new java.util.HashMap<>();
+            Map<String, Object> previewData = new HashMap<>();
             previewData.put("merchantId", merchantId);
-            previewData.put("merchantName", merchantName);
+            previewData.put("merchantName", merchant.getName());
+            previewData.put("recipientAccount", merchantId);
+            previewData.put("recipientName", merchant.getName());
+            previewData.put("bankName", DEFAULT_BANK_NAME);
             previewData.put("amount", amount);
             previewData.put("fee", 0);
+            previewData.put("totalAmount", amount != null ? amount + fee : null);
+            previewData.put("currency", firstNonBlank(request.getCurrency(), "VND"));
             previewData.put("status", "VALID");
-
-            Object reqNetwork = request.get("cardNetwork");
-            if (reqNetwork != null) {
-                previewData.put("cardNetwork", reqNetwork.toString());
-            } else if (cardNumber != null && !cardNumber.trim().isEmpty()) {
-                previewData.put("cardNetwork", "UNKNOWN");
-            }
+            previewData.put("cardType", resolvedCardType);
+            previewData.put("cardNetwork", inferredNetwork);
+            previewData.put("maskedCardNumber", maskCardNumber(request.getCardNumber()));
+            previewData.put("cardholderName", request.getCardholderName());
+            previewData.put("billingAddress", request.getBillingAddress());
+            previewData.put("zipCode", request.getZipCode());
+            previewData.put("executionTime", now.format(DATE_TIME_FORMATTER));
 
             return ResponseEntity.ok(ApiResponse.success("Preview successful", previewData));
         } catch (Exception e) {
@@ -77,6 +83,8 @@ public class PaymentController {
         try {
             Merchant merchant = merchantService.getActiveMerchant(request.getMerchantId());
             String merchantName = merchant.getName();
+            String inferredNetwork = firstNonBlank(request.getCardNetwork(), inferCardNetwork(request.getCardNumber()));
+            String resolvedCardType = firstNonBlank(request.getCardType(), resolveCardTypeFromNetwork(inferredNetwork));
 
             ensureIdempotencyKey(request);
             ensurePaymentId(request);
@@ -92,11 +100,22 @@ public class PaymentController {
 
             cmsResponse.put("idempotencyKey", request.getIdempotencyKey());
             cmsResponse.putIfAbsent("paymentId", request.getPaymentId());
+            cmsResponse.put("merchantId", request.getMerchantId());
+            cmsResponse.put("merchantName", merchantName);
+            cmsResponse.put("recipientAccount", request.getMerchantId());
+            cmsResponse.put("recipientName", merchantName);
+            cmsResponse.put("bankName", DEFAULT_BANK_NAME);
+            cmsResponse.put("amount", request.getAmount());
+            cmsResponse.put("fee", 0);
+            cmsResponse.put("totalAmount", request.getAmount());
+            cmsResponse.put("currency", firstNonBlank(request.getCurrency(), "VND"));
+            cmsResponse.put("cardType", firstNonBlank(stringValue(cmsResponse.get("cardType")), resolvedCardType));
+            cmsResponse.put("cardNetwork", firstNonBlank(stringValue(cmsResponse.get("cardNetwork")), inferredNetwork));
+            cmsResponse.put("maskedCardNumber", firstNonBlank(stringValue(cmsResponse.get("maskedPan")), maskCardNumber(request.getCardNumber())));
 
             if (Boolean.TRUE.equals(approved)) {
-                java.time.LocalDateTime now = java.time.LocalDateTime.now();
-                java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                cmsResponse.put("transactionTime", now.format(formatter));
+                LocalDateTime now = LocalDateTime.now();
+                cmsResponse.put("transactionTime", now.format(DATE_TIME_FORMATTER));
                 cmsResponse.put("transactionId", "TXN" + System.currentTimeMillis() + (int) (Math.random() * 1000));
 
                 return ResponseEntity.ok(ApiResponse.success("Payment successful", cmsResponse));
@@ -171,5 +190,48 @@ public class PaymentController {
 
     private String stringValue(Object value) {
         return value != null ? value.toString() : null;
+    }
+
+    private String inferCardNetwork(String cardNumber) {
+        if (cardNumber == null || cardNumber.isBlank()) {
+            return "UNKNOWN";
+        }
+        if (cardNumber.startsWith("4")) {
+            return "VISA";
+        }
+        if (cardNumber.startsWith("5")) {
+            return "MASTERCARD";
+        }
+        if (cardNumber.startsWith("34") || cardNumber.startsWith("37")) {
+            return "AMEX";
+        }
+        if (cardNumber.startsWith("35")) {
+            return "JCB";
+        }
+        if (cardNumber.startsWith("6")) {
+            return "DISCOVER";
+        }
+        if (cardNumber.startsWith("9")) {
+            return "NAPAS";
+        }
+        return "UNKNOWN";
+    }
+
+    private String resolveCardTypeFromNetwork(String cardNetwork) {
+        return "UNKNOWN";
+    }
+
+    private String maskCardNumber(String cardNumber) {
+        if (cardNumber == null || cardNumber.length() < 4) {
+            return "****";
+        }
+        return "**** **** **** " + cardNumber.substring(cardNumber.length() - 4);
+    }
+
+    private String firstNonBlank(String preferred, String fallback) {
+        if (preferred != null && !preferred.isBlank()) {
+            return preferred;
+        }
+        return fallback;
     }
 }

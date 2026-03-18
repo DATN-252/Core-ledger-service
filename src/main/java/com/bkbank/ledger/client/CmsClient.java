@@ -83,6 +83,11 @@ public class CmsClient {
             payload.put("merchantName", merchantName);
             payload.put("cvc", request.getCvc());
             payload.put("expirationDate", request.getDateCard());
+            payload.put("cardType", request.getCardType());
+            payload.put("cardNetwork", request.getCardNetwork());
+            payload.put("cardholderName", request.getCardholderName());
+            payload.put("billingAddress", request.getBillingAddress());
+            payload.put("zipCode", request.getZipCode());
             payload.put("paymentId", request.getPaymentId());
             payload.put("idempotencyKey", request.getIdempotencyKey());
             payload.put("originalTransactionId", request.getOriginalTransactionId());

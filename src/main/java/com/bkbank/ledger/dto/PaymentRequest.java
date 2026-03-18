@@ -1,12 +1,25 @@
 package com.bkbank.ledger.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+
 public class PaymentRequest {
     private String cardNumber;
     private String cvc;
+
+    @JsonAlias("expirationDate")
     private String dateCard; // Equivalent to expirationDate, e.g. "12/26"
+
     private Double amount;
+
+    @JsonAlias({"recipientAccount", "destinationAccount"})
     private String merchantId;
+
     private String currency; // Currently ignored, assuming system currency
+    private String cardType;
+    private String cardNetwork;
+    private String cardholderName;
+    private String billingAddress;
+    private String zipCode;
     private String paymentId;
     private String idempotencyKey;
     private String originalTransactionId;
@@ -58,6 +71,46 @@ public class PaymentRequest {
 
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+    public String getCardType() {
+        return cardType;
+    }
+
+    public void setCardType(String cardType) {
+        this.cardType = cardType;
+    }
+
+    public String getCardNetwork() {
+        return cardNetwork;
+    }
+
+    public void setCardNetwork(String cardNetwork) {
+        this.cardNetwork = cardNetwork;
+    }
+
+    public String getCardholderName() {
+        return cardholderName;
+    }
+
+    public void setCardholderName(String cardholderName) {
+        this.cardholderName = cardholderName;
+    }
+
+    public String getBillingAddress() {
+        return billingAddress;
+    }
+
+    public void setBillingAddress(String billingAddress) {
+        this.billingAddress = billingAddress;
+    }
+
+    public String getZipCode() {
+        return zipCode;
+    }
+
+    public void setZipCode(String zipCode) {
+        this.zipCode = zipCode;
     }
 
     public String getIdempotencyKey() {
