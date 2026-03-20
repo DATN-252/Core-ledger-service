@@ -1,13 +1,16 @@
 package com.bkbank.ledger.controller;
 
 import com.bkbank.ledger.client.CmsClient;
-import com.bkbank.ledger.dto.ApiResponse;
-import com.bkbank.ledger.dto.PaymentAdjustmentRequest;
-import com.bkbank.ledger.dto.PaymentRequest;
+import com.bkbank.ledger.dto.response.ApiResponse;
+import com.bkbank.ledger.dto.response.PaymentErrorDetail;
+import com.bkbank.ledger.dto.request.PaymentAdjustmentRequest;
+import com.bkbank.ledger.dto.request.PaymentRequest;
 import com.bkbank.ledger.entity.Merchant;
 import com.bkbank.ledger.entity.Transaction;
+import com.bkbank.ledger.service.LoanAccountService;
 import com.bkbank.ledger.service.MerchantService;
 import com.bkbank.ledger.service.PaymentAdjustmentService;
+import com.bkbank.ledger.service.SavingsAccountService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -34,6 +37,8 @@ public class PaymentController {
     private final CmsClient cmsClient;
     private final MerchantService merchantService;
     private final PaymentAdjustmentService paymentAdjustmentService;
+    private final SavingsAccountService savingsAccountService;
+    private final LoanAccountService loanAccountService;
     private static final String DEFAULT_BANK_NAME = "BKBank Merchant Network";
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -42,11 +47,17 @@ public class PaymentController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> previewPayment(@RequestBody PaymentRequest request) {
         String merchantId = request.getMerchantId();
         if (merchantId == null || merchantId.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, "merchantId or recipientAccount is required"));
+            return errorResponse(HttpStatus.BAD_REQUEST,
+                    "merchantId or recipientAccount is required",
+                    "INVALID_REQUEST",
+                    null,
+                    false,
+                    null,
+                    null);
         }
 
         try {
-            Merchant merchant = merchantService.getActiveMerchant(merchantId);
+            Merchant merchant = resolveMerchant(merchantId, null, null);
             LocalDateTime now = LocalDateTime.now();
             Double amount = request.getAmount();
             double fee = 0.0;
@@ -73,9 +84,25 @@ public class PaymentController {
             previewData.put("executionTime", now.format(DATE_TIME_FORMATTER));
 
             return ResponseEntity.ok(ApiResponse.success("Preview successful", previewData));
+        } catch (PaymentErrorRuntimeException e) {
+            return e.response;
+        } catch (IllegalArgumentException e) {
+            return errorResponse(HttpStatus.BAD_REQUEST,
+                    e.getMessage(),
+                    "INVALID_REQUEST",
+                    null,
+                    false,
+                    null,
+                    null);
         } catch (Exception e) {
             log.error("Preview processing error: {}", e.getMessage());
-            return ResponseEntity.internalServerError().body(ApiResponse.error(500, "Internal Server Error: " + e.getMessage()));
+            return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Internal Server Error: " + e.getMessage(),
+                    "SYSTEM_ERROR",
+                    "96",
+                    true,
+                    null,
+                    null);
         }
     }
 
@@ -85,14 +112,13 @@ public class PaymentController {
         log.info("Receiving credit card payment request for merchant: {}", request.getMerchantId());
 
         try {
-            Merchant merchant = merchantService.getActiveMerchant(request.getMerchantId());
-            String merchantName = merchant.getName();
-            String inferredNetwork = firstNonBlank(request.getCardNetwork(), inferCardNetwork(request.getCardNumber()));
-            String resolvedCardType = firstNonBlank(request.getCardType(), resolveCardTypeFromNetwork(inferredNetwork));
-
             ensureIdempotencyKey(request);
             ensurePaymentId(request);
             ensureChannel(request);
+            Merchant merchant = resolveMerchant(request.getMerchantId(), request.getPaymentId(), request.getIdempotencyKey());
+            String merchantName = merchant.getName();
+            String inferredNetwork = firstNonBlank(request.getCardNetwork(), inferCardNetwork(request.getCardNumber()));
+            String resolvedCardType = firstNonBlank(request.getCardType(), resolveCardTypeFromNetwork(inferredNetwork));
             Map<String, Object> cmsResponse = cmsClient.authorizePayment(request, merchantName);
 
             Boolean approved = (Boolean) cmsResponse.get("approved");
@@ -112,7 +138,7 @@ public class PaymentController {
             cmsResponse.put("amount", request.getAmount());
             cmsResponse.put("fee", 0);
             cmsResponse.put("totalAmount", request.getAmount());
-            cmsResponse.put("currency", firstNonBlank(request.getCurrency(), "VND"));
+            cmsResponse.put("currency", resolvePaymentCurrency(cmsResponse));
             cmsResponse.put("cardType", firstNonBlank(stringValue(cmsResponse.get("cardType")), resolvedCardType));
             cmsResponse.put("cardNetwork", firstNonBlank(stringValue(cmsResponse.get("cardNetwork")), inferredNetwork));
             cmsResponse.put("maskedCardNumber", firstNonBlank(stringValue(cmsResponse.get("maskedPan")), maskCardNumber(request.getCardNumber())));
@@ -124,18 +150,30 @@ public class PaymentController {
 
                 return ResponseEntity.ok(ApiResponse.success("Payment successful", cmsResponse));
             }
+            return declinedResponse(responseCode,
+                    responseMessage != null ? responseMessage : "Unknown error",
+                    request.getPaymentId(),
+                    request.getIdempotencyKey());
 
-            if ("94".equals(responseCode)) {
-                return ResponseEntity.status(HttpStatus.CONFLICT)
-                        .body(ApiResponse.error(409, responseMessage != null ? responseMessage : "Duplicate payment request"));
-            }
-
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(400, "Payment failed: " + (responseMessage != null ? responseMessage : "Unknown error")));
-
+        } catch (PaymentErrorRuntimeException e) {
+            return e.response;
+        } catch (IllegalArgumentException e) {
+            return errorResponse(HttpStatus.BAD_REQUEST,
+                    e.getMessage(),
+                    "INVALID_REQUEST",
+                    null,
+                    false,
+                    request.getPaymentId(),
+                    request.getIdempotencyKey());
         } catch (Exception e) {
             log.error("Payment processing error: {}", e.getMessage());
-            return ResponseEntity.internalServerError().body(ApiResponse.error(500, "Internal Server Error: " + e.getMessage()));
+            return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Internal Server Error: " + e.getMessage(),
+                    "SYSTEM_ERROR",
+                    "96",
+                    true,
+                    request.getPaymentId(),
+                    request.getIdempotencyKey());
         }
     }
 
@@ -280,13 +318,173 @@ public class PaymentController {
             return ResponseEntity.ok(ApiResponse.success(adjustmentType + " successful", response));
         } catch (IllegalArgumentException e) {
             log.error("{} failed: {}", adjustmentType, e.getMessage());
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+            return errorResponse(HttpStatus.BAD_REQUEST,
+                    e.getMessage(),
+                    "INVALID_REQUEST",
+                    null,
+                    false,
+                    request.getPaymentId(),
+                    request.getIdempotencyKey());
         } catch (RuntimeException e) {
             log.error("{} failed: {}", adjustmentType, e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(404, e.getMessage()));
+            return errorResponse(HttpStatus.NOT_FOUND,
+                    e.getMessage(),
+                    "TRANSACTION_NOT_FOUND",
+                    null,
+                    false,
+                    request.getPaymentId(),
+                    request.getIdempotencyKey());
         } catch (Exception e) {
             log.error("{} processing error: {}", adjustmentType, e.getMessage(), e);
-            return ResponseEntity.internalServerError().body(ApiResponse.error(500, "Internal Server Error: " + e.getMessage()));
+            return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Internal Server Error: " + e.getMessage(),
+                    "SYSTEM_ERROR",
+                    "96",
+                    true,
+                    request.getPaymentId(),
+                    request.getIdempotencyKey());
+        }
+    }
+
+    private Merchant resolveMerchant(String merchantId, String paymentId, String idempotencyKey) {
+        if (merchantId == null || merchantId.isBlank()) {
+            throw new IllegalArgumentException("merchantId or recipientAccount is required");
+        }
+        try {
+            return merchantService.getActiveMerchant(merchantId);
+        } catch (RuntimeException ex) {
+            throw new PaymentErrorRuntimeException(errorResponse(
+                    HttpStatus.BAD_REQUEST,
+                    ex.getMessage(),
+                    "MERCHANT_INVALID",
+                    "03",
+                    false,
+                    paymentId,
+                    idempotencyKey
+            ));
+        }
+    }
+
+    private ResponseEntity<ApiResponse<Map<String, Object>>> declinedResponse(String responseCode,
+                                                                              String responseMessage,
+                                                                              String paymentId,
+                                                                              String idempotencyKey) {
+        String normalizedCode = responseCode != null ? responseCode : "96";
+        String errorCode = mapErrorCode(normalizedCode, responseMessage);
+        HttpStatus httpStatus = mapHttpStatus(normalizedCode);
+        boolean retryable = isRetryable(normalizedCode);
+        String message = "Payment failed: " + responseMessage;
+        return errorResponse(httpStatus, message, errorCode, normalizedCode, retryable, paymentId, idempotencyKey);
+    }
+
+    private ResponseEntity<ApiResponse<Map<String, Object>>> errorResponse(HttpStatus httpStatus,
+                                                                           String message,
+                                                                           String errorCode,
+                                                                           String responseCode,
+                                                                           boolean retryable,
+                                                                           String paymentId,
+                                                                           String idempotencyKey) {
+        PaymentErrorDetail detail = PaymentErrorDetail.builder()
+                .errorCode(errorCode)
+                .responseCode(responseCode)
+                .httpStatus(httpStatus.value())
+                .retryable(retryable)
+                .paymentId(paymentId)
+                .idempotencyKey(idempotencyKey)
+                .build();
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("errorCode", detail.getErrorCode());
+        result.put("responseCode", detail.getResponseCode());
+        result.put("httpStatus", detail.getHttpStatus());
+        result.put("retryable", detail.isRetryable());
+        result.put("paymentId", detail.getPaymentId());
+        result.put("idempotencyKey", detail.getIdempotencyKey());
+
+        return ResponseEntity.status(httpStatus)
+                .body(ApiResponse.<Map<String, Object>>builder()
+                        .code(httpStatus.value())
+                        .message(message)
+                        .result(result)
+                        .build());
+    }
+
+    private String mapErrorCode(String responseCode, String responseMessage) {
+        if ("14".equals(responseCode)) {
+            return "INVALID_CARD";
+        }
+        if ("55".equals(responseCode)) {
+            return "INVALID_CVV";
+        }
+        if ("54".equals(responseCode)) {
+            if (responseMessage != null && responseMessage.toLowerCase().contains("format")) {
+                return "INVALID_EXPIRATION_DATE";
+            }
+            if (responseMessage != null && responseMessage.toLowerCase().contains("invalid expiration")) {
+                return "INVALID_EXPIRATION_DATE";
+            }
+            return "EXPIRED_CARD";
+        }
+        if ("51".equals(responseCode)) {
+            if (responseMessage != null && responseMessage.toLowerCase().contains("insufficient")) {
+                return "INSUFFICIENT_FUNDS";
+            }
+            return "CREDIT_LIMIT_EXCEEDED";
+        }
+        if ("94".equals(responseCode)) {
+            return "DUPLICATE_REQUEST";
+        }
+        if ("43".equals(responseCode)) {
+            return "CARD_RESTRICTED";
+        }
+        if ("03".equals(responseCode)) {
+            return "MERCHANT_INVALID";
+        }
+        return "SYSTEM_ERROR";
+    }
+
+    private HttpStatus mapHttpStatus(String responseCode) {
+        if ("94".equals(responseCode)) {
+            return HttpStatus.CONFLICT;
+        }
+        if ("96".equals(responseCode)) {
+            return HttpStatus.INTERNAL_SERVER_ERROR;
+        }
+        return HttpStatus.BAD_REQUEST;
+    }
+
+    private boolean isRetryable(String responseCode) {
+        return "96".equals(responseCode);
+    }
+
+    private String resolvePaymentCurrency(Map<String, Object> cmsResponse) {
+        String accountId = stringValue(cmsResponse.get("accountId"));
+        String accountType = stringValue(cmsResponse.get("accountType"));
+
+        if (accountId == null || accountType == null) {
+            return "USD";
+        }
+
+        try {
+            if ("SAVINGS".equalsIgnoreCase(accountType)) {
+                return savingsAccountService.getAccount(accountId).getCurrency();
+            }
+            if ("LOAN".equalsIgnoreCase(accountType)) {
+                return loanAccountService.getAccount(accountId).getCurrency();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to resolve currency from account {} ({})", accountId, accountType);
+        }
+
+        return "USD";
+    }
+
+    private static class PaymentErrorRuntimeException extends RuntimeException {
+        private final transient ResponseEntity<ApiResponse<Map<String, Object>>> response;
+
+        private PaymentErrorRuntimeException(ResponseEntity<ApiResponse<Map<String, Object>>> response) {
+            this.response = response;
         }
     }
 }
+

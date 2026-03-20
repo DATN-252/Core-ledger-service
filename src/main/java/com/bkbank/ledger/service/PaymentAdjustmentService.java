@@ -1,6 +1,6 @@
 package com.bkbank.ledger.service;
 
-import com.bkbank.ledger.dto.PaymentAdjustmentRequest;
+import com.bkbank.ledger.dto.request.PaymentAdjustmentRequest;
 import com.bkbank.ledger.entity.Transaction;
 import com.bkbank.ledger.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
@@ -154,3 +154,4 @@ public class PaymentAdjustmentService {
         return fallback;
     }
 }
+

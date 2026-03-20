@@ -67,7 +67,7 @@ public class CmsClient {
         }
     }
 
-    public Map<String, Object> authorizePayment(com.bkbank.ledger.dto.PaymentRequest request, String merchantName) {
+    public Map<String, Object> authorizePayment(com.bkbank.ledger.dto.request.PaymentRequest request, String merchantName) {
         try {
             String url = UriComponentsBuilder.fromHttpUrl(cmsUrl + "/api/transaction")
                     .toUriString();

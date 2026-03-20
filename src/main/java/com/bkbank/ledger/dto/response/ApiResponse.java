@@ -1,4 +1,4 @@
-package com.bkbank.ledger.dto;
+package com.bkbank.ledger.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;

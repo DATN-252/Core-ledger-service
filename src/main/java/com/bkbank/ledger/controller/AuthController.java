@@ -1,8 +1,8 @@
 package com.bkbank.ledger.controller;
 
-import com.bkbank.ledger.dto.ApiResponse;
-import com.bkbank.ledger.dto.LoginRequest;
-import com.bkbank.ledger.dto.LoginResponse;
+import com.bkbank.ledger.dto.response.ApiResponse;
+import com.bkbank.ledger.dto.request.LoginRequest;
+import com.bkbank.ledger.dto.response.LoginResponse;
 import com.bkbank.ledger.entity.Client;
 import com.bkbank.ledger.entity.User;
 import com.bkbank.ledger.entity.enums.UserRole;
@@ -103,3 +103,4 @@ public class AuthController {
         )));
     }
 }
+

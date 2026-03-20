@@ -1,4 +1,4 @@
-package com.bkbank.ledger.dto;
+package com.bkbank.ledger.dto.request;
 
 import lombok.Data;
 

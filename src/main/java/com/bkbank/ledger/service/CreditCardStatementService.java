@@ -32,6 +32,8 @@ public class CreditCardStatementService {
         LoanAccount account = loanAccountRepository.findByAccountNumber(accountNumber)
                 .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
 
+        validateBillingDateNotInFuture(billingDate);
+
         LocalDate normalizedBillingDate = normalizeBillingDate(billingDate, account.getBillingDayOfMonth());
         if (!normalizedBillingDate.equals(billingDate)) {
             throw new IllegalArgumentException("billingDate does not match account billing day");
@@ -133,6 +135,7 @@ public class CreditCardStatementService {
                 .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
 
         return creditCardStatementRepository.findByAccountNumberOrderByBillingDateDesc(accountNumber).stream()
+                .map(statement -> syncSnapshotFromTransactions(account, statement))
                 .map(statement -> refreshStatementPaymentStatus(account, statement))
                 .map(this::toSummaryResponse)
                 .toList();
@@ -143,9 +146,12 @@ public class CreditCardStatementService {
         LoanAccount account = loanAccountRepository.findByAccountNumber(accountNumber)
                 .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
 
+        validateBillingDateNotInFuture(billingDate);
+
         CreditCardStatement snapshot = creditCardStatementRepository.findByAccountNumberAndBillingDate(accountNumber, billingDate)
                 .orElseThrow(() -> new RuntimeException("Statement not found for billingDate: " + billingDate));
 
+        snapshot = syncSnapshotFromTransactions(account, snapshot);
         snapshot = refreshStatementPaymentStatus(account, snapshot);
         return buildStatementDetailResponse(account, snapshot);
     }
@@ -155,6 +161,12 @@ public class CreditCardStatementService {
         YearMonth yearMonth = YearMonth.from(referenceDate);
         int day = Math.min(configuredDay, yearMonth.lengthOfMonth());
         return yearMonth.atDay(day);
+    }
+
+    private void validateBillingDateNotInFuture(LocalDate billingDate) {
+        if (billingDate != null && billingDate.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("billingDate cannot be in the future");
+        }
     }
 
     private CreditCardStatementSummaryResponse toSummaryResponse(CreditCardStatement statement) {
@@ -179,6 +191,62 @@ public class CreditCardStatementService {
                 statement.getLastPaymentDate(),
                 statement.getCreatedAt()
         );
+    }
+
+    private CreditCardStatement syncSnapshotFromTransactions(LoanAccount account, CreditCardStatement snapshot) {
+        LocalDateTime from = snapshot.getStatementPeriodStart().atStartOfDay();
+        LocalDateTime to = snapshot.getStatementPeriodEnd().atTime(LocalTime.MAX);
+
+        double previousBalance = transactionRepository
+                .findTopByAccountNumberAndAccountTypeAndTransactionDateBeforeOrderByTransactionDateDesc(
+                        account.getAccountNumber(),
+                        "LOAN",
+                        from
+                )
+                .map(Transaction::getBalanceAfter)
+                .orElse(0.0);
+
+        List<Transaction> transactions = transactionRepository
+                .findByAccountNumberAndAccountTypeAndTransactionDateBetweenOrderByTransactionDateAsc(
+                        account.getAccountNumber(),
+                        "LOAN",
+                        from,
+                        to
+                );
+
+        double totalCharges = 0.0;
+        double totalPayments = 0.0;
+        for (Transaction tx : transactions) {
+            if (!"SUCCESS".equalsIgnoreCase(tx.getStatus())) {
+                continue;
+            }
+            if ("CHARGE".equalsIgnoreCase(tx.getTransactionType())) {
+                totalCharges += safe(tx.getAmount());
+            } else if ("REFUND".equalsIgnoreCase(tx.getTransactionType())
+                    || "REVERSAL".equalsIgnoreCase(tx.getTransactionType())) {
+                totalCharges -= safe(tx.getAmount());
+            } else if ("PAYMENT".equalsIgnoreCase(tx.getTransactionType())) {
+                totalPayments += safe(tx.getAmount());
+            }
+        }
+
+        double newBalance = roundMoney(previousBalance + totalCharges - totalPayments);
+        double minimumDue = calculateMinimumDue(
+                newBalance,
+                safe(account.getMinimumPaymentRate()),
+                safe(account.getMinimumPaymentFloor())
+        );
+        double availableCredit = roundMoney(safe(account.getPrincipal()) - newBalance);
+
+        snapshot.setPreviousBalance(roundMoney(previousBalance));
+        snapshot.setTotalCharges(roundMoney(totalCharges));
+        snapshot.setTotalPayments(roundMoney(totalPayments));
+        snapshot.setMinimumDue(minimumDue);
+        snapshot.setNewBalance(newBalance);
+        snapshot.setAvailableCreditAtBilling(availableCredit);
+        snapshot.setTransactionCount(transactions.size());
+
+        return creditCardStatementRepository.save(snapshot);
     }
 
     private CreditCardMonthlyStatementResponse buildStatementDetailResponse(LoanAccount account, CreditCardStatement snapshot) {

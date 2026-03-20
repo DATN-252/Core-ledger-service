@@ -1,7 +1,7 @@
 package com.bkbank.ledger.service;
 
-import com.bkbank.ledger.dto.LoginRequest;
-import com.bkbank.ledger.dto.LoginResponse;
+import com.bkbank.ledger.dto.request.LoginRequest;
+import com.bkbank.ledger.dto.response.LoginResponse;
 import com.bkbank.ledger.entity.User;
 import com.bkbank.ledger.repository.UserRepository;
 import com.bkbank.ledger.security.JwtUtil;
@@ -57,3 +57,4 @@ public class AuthService {
         );
     }
 }
+

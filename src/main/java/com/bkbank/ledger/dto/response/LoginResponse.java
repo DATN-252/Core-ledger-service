@@ -1,4 +1,4 @@
-package com.bkbank.ledger.dto;
+package com.bkbank.ledger.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

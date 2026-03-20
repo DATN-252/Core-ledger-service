@@ -1,6 +1,6 @@
 package com.bkbank.ledger.exception;
 
-import com.bkbank.ledger.dto.ApiResponse;
+import com.bkbank.ledger.dto.response.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -41,3 +41,4 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(400, ex.getMessage()));
     }
 }
+

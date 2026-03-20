@@ -1,7 +1,7 @@
 package com.bkbank.ledger.controller;
 
 import com.bkbank.ledger.client.CmsClient;
-import com.bkbank.ledger.dto.ApiResponse;
+import com.bkbank.ledger.dto.response.ApiResponse;
 import com.bkbank.ledger.dto.response.CreditCardMonthlyStatementResponse;
 import com.bkbank.ledger.dto.response.CreditCardStatementSummaryResponse;
 import com.bkbank.ledger.dto.response.LoanStatementResponse;
@@ -275,21 +275,23 @@ public class CustomerController {
         try {
             Client client = getAuthenticatedClient(authentication);
 
-            // 1. Lấy tất cả account của Client (cả Savings(ghi nợ) và Loan(tín dụng))
-            List<String> accountIds = new ArrayList<>();
-            clientService.getClientSavingsAccounts(client.getClientId())
-                    .forEach(acc -> accountIds.add(acc.getAccountNumber()));
-            clientService.getClientLoanAccounts(client.getClientId())
-                    .forEach(acc -> accountIds.add(acc.getAccountNumber()));
+            List<SavingsAccount> savingsAccounts = clientService.getClientSavingsAccounts(client.getClientId());
+            List<LoanAccount> loanAccounts = clientService.getClientLoanAccounts(client.getClientId());
 
-            // 2. Gọi sang CMS service lấy mảng thẻ
+            Map<String, SavingsAccount> savingsByAccount = savingsAccounts.stream()
+                    .collect(Collectors.toMap(SavingsAccount::getAccountNumber, acc -> acc));
+            Map<String, LoanAccount> loansByAccount = loanAccounts.stream()
+                    .collect(Collectors.toMap(LoanAccount::getAccountNumber, acc -> acc));
+
+            List<String> accountIds = new ArrayList<>();
+            accountIds.addAll(savingsByAccount.keySet());
+            accountIds.addAll(loansByAccount.keySet());
+
             List<Map<String, Object>> cards = cmsClient.getCardsByAccountIds(accountIds);
 
-            // 3. Enrich with card network
             if (cards != null) {
                 for (Map<String, Object> card : cards) {
-                    String cardNumber = (String) card.get("cardNumber");
-                    card.put("cardNetwork", getCardNetwork(cardNumber));
+                    enrichCardWithAccountData(card, savingsByAccount, loansByAccount);
                 }
             } else {
                 cards = new ArrayList<>();
@@ -307,24 +309,45 @@ public class CustomerController {
         }
     }
 
-    private String getCardNetwork(String cardNumber) {
-        if (cardNumber == null || cardNumber.isEmpty()) {
-            return "UNKNOWN";
+    private void enrichCardWithAccountData(Map<String, Object> card,
+                                           Map<String, SavingsAccount> savingsByAccount,
+                                           Map<String, LoanAccount> loansByAccount) {
+        String accountId = (String) card.get("accountId");
+        String cardType = stringValue(card.get("cardType"));
+
+        if (accountId == null || accountId.isBlank()) {
+            return;
         }
-        if (cardNumber.startsWith("4")) {
-            return "VISA";
-        } else if (cardNumber.startsWith("5")) {
-            return "MASTERCARD";
-        } else if (cardNumber.startsWith("34") || cardNumber.startsWith("37")) {
-            return "AMEX";
-        } else if (cardNumber.startsWith("35")) {
-            return "JCB";
-        } else if (cardNumber.startsWith("6")) {
-            return "DISCOVER";
-        } else if (cardNumber.startsWith("9")) {
-            return "NAPAS"; // Typical for Vietnam domestic cards
+
+        if ("DEBIT".equalsIgnoreCase(cardType)) {
+            SavingsAccount savingsAccount = savingsByAccount.get(accountId);
+            if (savingsAccount != null) {
+                card.put("balance", savingsAccount.getBalance());
+                card.put("currency", savingsAccount.getCurrency());
+                card.put("accountStatus", savingsAccount.getStatus().name());
+            }
+            return;
         }
-        return "UNKNOWN";
+
+        if ("CREDIT".equalsIgnoreCase(cardType)) {
+            LoanAccount loanAccount = loansByAccount.get(accountId);
+            if (loanAccount != null) {
+                double creditLimit = loanAccount.getPrincipal() != null ? loanAccount.getPrincipal() : 0.0;
+                double outstandingBalance = loanAccount.getPrincipalOutstanding() != null ? loanAccount.getPrincipalOutstanding() : 0.0;
+                card.put("creditLimit", creditLimit);
+                card.put("outstandingBalance", outstandingBalance);
+                card.put("availableCredit", Math.max(creditLimit - outstandingBalance, 0.0));
+                card.put("currency", loanAccount.getCurrency());
+                card.put("accountStatus", loanAccount.getStatus().name());
+            }
+        }
+    }
+
+    private String stringValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        return value.toString();
     }
 
     /**
@@ -359,3 +382,4 @@ public class CustomerController {
         }
     }
 }
+
