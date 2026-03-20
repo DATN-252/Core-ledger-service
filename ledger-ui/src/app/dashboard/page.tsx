@@ -4,7 +4,7 @@ import { getAllLoans, getAllSavingsAccounts, getTransactions, getAllClients } fr
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faCreditCard, faPiggyBank, faListUl, faUsers,
-    faArrowTrendUp, faArrowTrendDown, faBuildingColumns, faChartBar
+    faArrowTrendUp, faArrowTrendDown, faBuildingColumns, faChartBar, faArrowRight
 } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
 import {
@@ -146,6 +146,34 @@ export default function DashboardPage() {
     const PIE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
 
     const recentTxns = txns.slice(0, 8);
+    const formatAmount = (txn: any) => {
+        const negativeTypes = ['WITHDRAWAL', 'CHARGE', 'FEE'];
+        const isNegative = negativeTypes.includes(txn.transactionType);
+        return `${isNegative ? '-' : '+'}${Number(txn.amount || 0).toLocaleString('en-US')} ${txn.currency || 'USD'}`;
+    };
+
+    const formatTransactionType = (txn: any) => {
+        if (txn.transactionType === 'CHARGE') return 'CHARGE';
+        if (txn.transactionType === 'PAYMENT') return 'PAYMENT';
+        if (txn.transactionType === 'WITHDRAWAL') return 'WITHDRAWAL';
+        if (txn.transactionType === 'DEPOSIT') return 'DEPOSIT';
+        if (txn.transactionType === 'REFUND') return 'REFUND';
+        if (txn.transactionType === 'REVERSAL') return 'REVERSAL';
+        return txn.transactionType || 'UNKNOWN';
+    };
+
+    const formatStatus = (status: string) => {
+        switch (status) {
+            case 'FAILED':
+                return { label: 'THẤT BẠI', className: '', style: { backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)' } };
+            case 'REVERSED':
+                return { label: 'ĐÃ ĐẢO', className: 'badge-pending', style: {} };
+            case 'REFUNDED':
+                return { label: 'ĐÃ HOÀN', className: 'badge-pending', style: {} };
+            default:
+                return { label: 'THÀNH CÔNG', className: 'badge-active', style: {} };
+        }
+    };
 
     const now = new Date();
 
@@ -363,43 +391,60 @@ export default function DashboardPage() {
                     <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Chưa có giao dịch nào</div>
                 ) : (
                     <div className="table-container">
-                        <table>
+                        <table className="transaction-table transaction-table--dashboard">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
-                                    <th>Ngày giờ</th>
+                                    <th>#ID</th>
+                                    <th>Thời gian</th>
                                     <th>Tài khoản</th>
                                     <th>Merchant</th>
                                     <th>Loại</th>
                                     <th>Số tiền</th>
                                     <th>Trạng thái</th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {recentTxns.map((txn: any) => (
                                     <tr key={txn.id}>
-                                        <td style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', fontFamily: 'monospace' }}>#{txn.id}</td>
-                                        <td style={{ fontSize: '0.8125rem' }}>
+                                        <td className="transaction-cell-id">#{txn.id}</td>
+                                        <td className="transaction-cell-time">
                                             {txn.transactionDate ? new Date(txn.transactionDate).toLocaleString('vi-VN') : '—'}
                                         </td>
-                                        <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>{txn.accountNumber || '-'}</td>
+                                        <td className="transaction-cell-account">
+                                            <div style={{ fontFamily: 'monospace' }}>{txn.accountNumber || '—'}</div>
+                                            <div style={{ color: 'var(--text-secondary)', marginTop: '0.125rem' }}>{txn.accountType || ''}</div>
+                                        </td>
                                         <td style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{txn.merchantName || '—'}</td>
                                         <td>
-                                            <span className={`badge ${txn.transactionType === 'CREDIT' || txn.transactionType === 'DEPOSIT' ? 'badge-active' : 'badge-pending'}`}>
-                                                {txn.transactionType === 'CHARGE' ? (txn.merchantName ? 'CREDIT' : 'CHARGE/FEE') : txn.transactionType}
+                                            <span className={`badge ${['DEPOSIT', 'PAYMENT', 'REFUND', 'REVERSAL'].includes(txn.transactionType) ? 'badge-active' : 'badge-pending'}`}>
+                                                {formatTransactionType(txn)}
                                             </span>
                                         </td>
-                                        <td style={{ fontWeight: 700 }}>
-                                            <span style={{ color: txn.transactionType === 'CREDIT' || txn.transactionType === 'DEPOSIT' ? 'var(--success)' : 'var(--warning)' }}>
-                                                {txn.transactionType === 'CREDIT' || txn.transactionType === 'DEPOSIT' ? '+' : '-'}
-                                                {Number(txn.amount || 0).toLocaleString('en-US')} {txn.currency || 'USD'}
-                                            </span>
+                                        <td style={{
+                                            fontWeight: 700,
+                                            color: ['DEPOSIT', 'PAYMENT', 'REFUND', 'REVERSAL'].includes(txn.transactionType) ? 'var(--success)' : 'var(--warning)'
+                                        }}>
+                                            {formatAmount(txn)}
                                         </td>
                                         <td>
-                                            {txn.status === 'FAILED'
-                                                ? <span className="badge" style={{ background: 'rgba(239,68,68,0.15)', color: 'var(--danger)' }}>THẤT BẠI</span>
-                                                : <span className="badge badge-active">THÀNH CÔNG</span>
-                                            }
+                                            {(() => {
+                                                const badge = formatStatus(txn.status);
+                                                return (
+                                                    <span className={`badge ${badge.className}`} style={badge.style}>
+                                                        {badge.label}
+                                                    </span>
+                                                );
+                                            })()}
+                                        </td>
+                                        <td className="transaction-cell-action">
+                                            <Link
+                                                href={`/dashboard/transactions/${txn.id}`}
+                                                className="transaction-detail-link"
+                                            >
+                                                Chi tiết
+                                                <FontAwesomeIcon icon={faArrowRight} />
+                                            </Link>
                                         </td>
                                     </tr>
                                 ))}

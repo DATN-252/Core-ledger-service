@@ -268,7 +268,9 @@ tbody tr:last-child {
 .transaction-table--full th:nth-child(1),
 .transaction-table--full td:nth-child(1),
 .transaction-table--client th:nth-child(1),
-.transaction-table--client td:nth-child(1) {
+.transaction-table--client td:nth-child(1),
+.transaction-table--dashboard th:nth-child(1),
+.transaction-table--dashboard td:nth-child(1) {
   width: 58px;
 }
 
@@ -282,10 +284,17 @@ tbody tr:last-child {
   width: 158px;
 }
 
+.transaction-table--dashboard th:nth-child(2),
+.transaction-table--dashboard td:nth-child(2) {
+  width: 170px;
+}
+
 .transaction-table--full th:nth-child(3),
 .transaction-table--full td:nth-child(3),
 .transaction-table--client th:nth-child(3),
-.transaction-table--client td:nth-child(3) {
+.transaction-table--client td:nth-child(3),
+.transaction-table--dashboard th:nth-child(3),
+.transaction-table--dashboard td:nth-child(3) {
   width: 120px;
 }
 
@@ -294,6 +303,11 @@ tbody tr:last-child {
 .transaction-table--client th:nth-child(6),
 .transaction-table--client td:nth-child(6) {
   width: 110px;
+}
+
+.transaction-table--dashboard th:nth-child(4),
+.transaction-table--dashboard td:nth-child(4) {
+  width: 170px;
 }
 
 .transaction-table--full th:nth-child(5),
@@ -323,6 +337,21 @@ tbody tr:last-child {
   width: 156px;
 }
 
+.transaction-table--dashboard th:nth-child(5),
+.transaction-table--dashboard td:nth-child(5) {
+  width: 110px;
+}
+
+.transaction-table--dashboard th:nth-child(6),
+.transaction-table--dashboard td:nth-child(6) {
+  width: 126px;
+}
+
+.transaction-table--dashboard th:nth-child(7),
+.transaction-table--dashboard td:nth-child(7) {
+  width: 156px;
+}
+
 .transaction-table--full th:nth-child(9),
 .transaction-table--full td:nth-child(9),
 .transaction-table--client th:nth-child(9),
@@ -333,7 +362,9 @@ tbody tr:last-child {
 .transaction-table--full th:last-child,
 .transaction-table--full td:last-child,
 .transaction-table--client th:last-child,
-.transaction-table--client td:last-child {
+.transaction-table--client td:last-child,
+.transaction-table--dashboard th:last-child,
+.transaction-table--dashboard td:last-child {
   width: 96px;
 }
 
