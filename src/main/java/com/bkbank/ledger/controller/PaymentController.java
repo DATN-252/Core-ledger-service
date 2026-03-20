@@ -67,6 +67,7 @@ public class PaymentController {
             Map<String, Object> previewData = new HashMap<>();
             previewData.put("merchantId", merchantId);
             previewData.put("merchantName", merchant.getName());
+            previewData.put("merchantAddress", merchant.getDisplayAddress());
             previewData.put("recipientAccount", merchantId);
             previewData.put("recipientName", merchant.getName());
             previewData.put("bankName", DEFAULT_BANK_NAME);
@@ -136,6 +137,7 @@ public class PaymentController {
             cmsResponse.putIfAbsent("paymentId", request.getPaymentId());
             cmsResponse.put("merchantId", request.getMerchantId());
             cmsResponse.put("merchantName", merchantName);
+            cmsResponse.put("merchantAddress", merchant.getDisplayAddress());
             cmsResponse.put("recipientAccount", request.getMerchantId());
             cmsResponse.put("recipientName", merchantName);
             cmsResponse.put("bankName", DEFAULT_BANK_NAME);

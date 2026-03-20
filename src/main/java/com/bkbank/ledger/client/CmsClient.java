@@ -82,6 +82,7 @@ public class CmsClient {
             payload.put("amount", request.getAmount());
             payload.put("merchantId", request.getMerchantId());
             payload.put("merchantName", merchant.getName());
+            payload.put("merchantAddress", merchant.getDisplayAddress());
             payload.put("merchantCategory", merchant.getCategory());
             payload.put("merchantLatitude", merchant.getLatitude());
             payload.put("merchantLongitude", merchant.getLongitude());

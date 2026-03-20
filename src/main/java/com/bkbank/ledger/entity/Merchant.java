@@ -29,6 +29,10 @@ public class Merchant {
     private String name;
 
     private String category;
+    private String addressLine;
+    private String ward;
+    private String district;
+    private String postalCode;
     private Double latitude;
     private Double longitude;
 
@@ -49,5 +53,29 @@ public class Merchant {
 
     public enum MerchantStatus {
         ACTIVE, INACTIVE
+    }
+
+    @Transient
+    public String getDisplayAddress() {
+        StringBuilder builder = new StringBuilder();
+        appendPart(builder, addressLine);
+        appendPart(builder, ward);
+        appendPart(builder, district);
+        if (cityReference != null) {
+            appendPart(builder, cityReference.getCityName());
+            appendPart(builder, cityReference.getCountry());
+        }
+        appendPart(builder, postalCode);
+        return builder.length() > 0 ? builder.toString() : name;
+    }
+
+    private void appendPart(StringBuilder builder, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        if (!builder.isEmpty()) {
+            builder.append(", ");
+        }
+        builder.append(value);
     }
 }
