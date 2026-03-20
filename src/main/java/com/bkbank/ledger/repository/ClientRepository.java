@@ -50,6 +50,8 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
      * Find all clients by status
      */
     Page<Client> findByStatus(ClientStatus status, Pageable pageable);
+
+    long countByStatus(ClientStatus status);
     
     /**
      * Search clients by name (case-insensitive, partial match)

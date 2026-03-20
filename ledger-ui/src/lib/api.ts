@@ -165,6 +165,10 @@ export async function getTransactionDetail(id: string | number) {
   return request<any>(`/transactions/${id}`);
 }
 
+export async function getDashboardSummary() {
+  return request<any>('/dashboard/summary');
+}
+
 // ─── Clients ──────────────────────────────────────────────────────────────────
 export async function getAllClients(page = 0, size = 10) {
   return request<any>(`/clients?page=${page}&size=${size}`);

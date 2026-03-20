@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useState, useMemo } from 'react';
-import { getAllLoans, getAllSavingsAccounts, getTransactions, getAllClients } from '@/lib/api';
+import { useEffect, useState } from 'react';
+import { getDashboardSummary } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faCreditCard, faPiggyBank, faListUl, faUsers,
@@ -76,76 +76,59 @@ function CustomTooltip({ active, payload, label }: any) {
 
 // ─── Main Dashboard Page ──────────────────────────────────────────────────────
 export default function DashboardPage() {
-    const [loans, setLoans] = useState<any[]>([]);
-    const [savings, setSavings] = useState<any[]>([]);
-    const [txns, setTxns] = useState<any[]>([]);
-    const [clients, setClients] = useState<any[]>([]);
+    const [summary, setSummary] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        Promise.all([
-            getAllLoans(0, 10000).then(res => res.content || []).catch(() => []),
-            getAllSavingsAccounts(0, 10000).then(res => res.content || []).catch(() => []),
-            getTransactions(undefined, 0, 10000).then(res => res.content || []).catch(() => []),
-            getAllClients(0, 10000).then(res => res.content || []).catch(() => []),
-        ]).then(([l, s, t, c]) => {
-            setLoans(l);
-            setSavings(s);
-            setTxns(t);
-            setClients(c);
-            setLoading(false);
-        });
+        getDashboardSummary()
+            .then((data) => {
+                setSummary(data);
+            })
+            .catch(() => {
+                setSummary({
+                    clientCount: 0,
+                    activeClientCount: 0,
+                    loanCount: 0,
+                    activeLoanCount: 0,
+                    lockedLoanCount: 0,
+                    savingsCount: 0,
+                    activeSavingsCount: 0,
+                    totalTransactionCount: 0,
+                    successTransactionCount: 0,
+                    failedTransactionCount: 0,
+                    totalCreditLimit: 0,
+                    totalOutstanding: 0,
+                    txnByDay: [],
+                    txnTypeData: [],
+                    recentTransactions: [],
+                });
+            })
+            .finally(() => {
+                setLoading(false);
+            });
     }, []);
 
     // ── Derived stats ──────────────────────────────────────────────────────────
-    const activeLoans = loans.filter(l => l.status?.value === 'ACTIVE').length;
-    const lockedLoans = loans.filter(l => l.status?.value === 'LOCKED').length;
-    const activeSavings = savings.filter(s => s.status === 'ACTIVE').length;
-
-    const totalCreditLimit = useMemo(() =>
-        loans.reduce((sum, l) => sum + Number(l.principal || 0), 0), [loans]);
-
-    const totalOutstanding = useMemo(() =>
-        loans.reduce((sum, l) => sum + Number(l.principalOutstanding || 0), 0), [loans]);
-
-    const successCount = txns.filter(t => t.status !== 'FAILED').length;
-    const failedCount = txns.filter(t => t.status === 'FAILED').length;
-
-    // ── Chart: Group transactions by date ─────────────────────────────────────
-    const txnByDay = useMemo(() => {
-        const map: Record<string, { date: string; success: number; failed: number; total: number }> = {};
-        txns.forEach(t => {
-            const day = t.transactionDate
-                ? new Date(t.transactionDate).toLocaleDateString('vi-VN', { month: '2-digit', day: '2-digit' })
-                : 'N/A';
-            if (!map[day]) map[day] = { date: day, success: 0, failed: 0, total: 0 };
-            map[day].total++;
-            if (t.status === 'FAILED') map[day].failed++;
-            else map[day].success++;
-        });
-        return Object.values(map).slice(-14); // last 14 days
-    }, [txns]);
-
-    // ── Chart: Transaction types ──────────────────────────────────────────────
-    const txnTypeData = useMemo(() => {
-        const map: Record<string, number> = {};
-        txns.forEach(t => {
-            const type = t.transactionType || 'UNKNOWN';
-            map[type] = (map[type] || 0) + 1;
-        });
-        return Object.entries(map).map(([name, value]) => ({ name, value }));
-    }, [txns]);
+    const activeLoans = summary?.activeLoanCount || 0;
+    const lockedLoans = summary?.lockedLoanCount || 0;
+    const activeSavings = summary?.activeSavingsCount || 0;
+    const totalCreditLimit = Number(summary?.totalCreditLimit || 0);
+    const totalOutstanding = Number(summary?.totalOutstanding || 0);
+    const successCount = summary?.successTransactionCount || 0;
+    const failedCount = summary?.failedTransactionCount || 0;
+    const txnByDay = summary?.txnByDay || [];
+    const txnTypeData = summary?.txnTypeData || [];
 
     // ── Chart: Account status (Loan) ──────────────────────────────────────────
     const loanStatusData = [
         { name: 'Active', value: activeLoans, color: '#10b981' },
         { name: 'Locked', value: lockedLoans, color: '#ef4444' },
-        { name: 'Pending', value: loans.length - activeLoans - lockedLoans, color: '#f59e0b' },
+        { name: 'Pending', value: (summary?.loanCount || 0) - activeLoans - lockedLoans, color: '#f59e0b' },
     ].filter(d => d.value > 0);
 
     const PIE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
 
-    const recentTxns = txns.slice(0, 8);
+    const recentTxns = summary?.recentTransactions || [];
     const formatAmount = (txn: any) => {
         const negativeTypes = ['WITHDRAWAL', 'CHARGE', 'FEE'];
         const isNegative = negativeTypes.includes(txn.transactionType);
@@ -214,29 +197,29 @@ export default function DashboardPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
                 <KpiCard
                     label="Khách hàng"
-                    value={clients.length}
-                    sub={`${clients.filter(c => c.status === 'ACTIVE').length} đang hoạt động`}
+                    value={summary?.clientCount || 0}
+                    sub={`${summary?.activeClientCount || 0} đang hoạt động`}
                     icon={faUsers}
                     accent="#6366f1"
                     trend={{ value: 12, label: 'tháng này' }}
                 />
                 <KpiCard
                     label="Tài khoản tín dụng"
-                    value={loans.length}
+                    value={summary?.loanCount || 0}
                     sub={`${activeLoans} ACTIVE / ${lockedLoans} LOCKED`}
                     icon={faCreditCard}
                     accent="#8b5cf6"
                 />
                 <KpiCard
                     label="Tài khoản ghi nợ"
-                    value={savings.length}
+                    value={summary?.savingsCount || 0}
                     sub={`${activeSavings} đang hoạt động`}
                     icon={faPiggyBank}
                     accent="#f59e0b"
                 />
                 <KpiCard
                     label="Tổng giao dịch"
-                    value={txns.length}
+                    value={summary?.totalTransactionCount || 0}
                     sub={`${successCount} thành công / ${failedCount} thất bại`}
                     icon={faListUl}
                     accent="#10b981"
@@ -365,7 +348,7 @@ export default function DashboardPage() {
                                     <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                                     <Tooltip content={<CustomTooltip />} />
                                     <Bar dataKey="value" name="Số lượng" radius={[4, 4, 0, 0]}>
-                                        {txnTypeData.map((_, i) => (
+                                        {txnTypeData.map((_item: any, i: number) => (
                                             <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                                         ))}
                                     </Bar>
