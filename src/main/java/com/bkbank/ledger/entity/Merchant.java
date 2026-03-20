@@ -29,6 +29,12 @@ public class Merchant {
     private String name;
 
     private String category;
+    private Double latitude;
+    private Double longitude;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "city_reference_id")
+    private CityReference cityReference;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

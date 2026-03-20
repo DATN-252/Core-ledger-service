@@ -1,6 +1,8 @@
 package com.bkbank.ledger.service;
 
+import com.bkbank.ledger.entity.CityReference;
 import com.bkbank.ledger.entity.Merchant;
+import com.bkbank.ledger.repository.CityReferenceRepository;
 import com.bkbank.ledger.repository.MerchantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class MerchantService {
 
+    private final CityReferenceRepository cityReferenceRepository;
     private final MerchantRepository merchantRepository;
 
     /**
@@ -34,12 +37,46 @@ public class MerchantService {
      */
     @Transactional
     public void createDemoMerchantsIfNotExist() {
-        if (merchantRepository.count() == 0) {
-            log.info("No merchants found in DB. Creating demo merchants...");
-            merchantRepository.save(new Merchant(null, "SP0001", "Điện lực EVN", "UTILITY", Merchant.MerchantStatus.ACTIVE, null, null));
-            merchantRepository.save(new Merchant(null, "SP0002", "Siêu thị GO", "RETAIL", Merchant.MerchantStatus.ACTIVE, null, null));
-            merchantRepository.save(new Merchant(null, "SP0003", "Tạp hóa Xanh", "RETAIL", Merchant.MerchantStatus.ACTIVE, null, null));
-            log.info("Demo merchants created successfully.");
-        }
+        CityReference hanoi = upsertCity("VN_HAN", "Hanoi", "Vietnam", 8_400_000, 21.0285, 105.8542);
+        CityReference hcmc = upsertCity("VN_HCM", "Ho Chi Minh City", "Vietnam", 9_300_000, 10.8231, 106.6297);
+        CityReference danang = upsertCity("VN_DAD", "Da Nang", "Vietnam", 1_250_000, 16.0471, 108.2068);
+
+        upsertMerchant("SP0001", "Điện lực EVN", "UTILITY", 21.0285, 105.8542, hanoi);
+        upsertMerchant("SP0002", "Siêu thị GO", "RETAIL", 10.8231, 106.6297, hcmc);
+        upsertMerchant("SP0003", "Tạp hóa Xanh", "RETAIL", 16.0471, 108.2068, danang);
+        log.info("Demo merchants and city reference data initialized successfully.");
+    }
+
+    private CityReference upsertCity(String cityCode,
+                                     String cityName,
+                                     String country,
+                                     Integer population,
+                                     Double latitude,
+                                     Double longitude) {
+        CityReference city = cityReferenceRepository.findByCityCode(cityCode).orElseGet(CityReference::new);
+        city.setCityCode(cityCode);
+        city.setCityName(cityName);
+        city.setCountry(country);
+        city.setPopulation(population);
+        city.setLatitude(latitude);
+        city.setLongitude(longitude);
+        return cityReferenceRepository.save(city);
+    }
+
+    private void upsertMerchant(String merchantId,
+                                String name,
+                                String category,
+                                Double latitude,
+                                Double longitude,
+                                CityReference cityReference) {
+        Merchant merchant = merchantRepository.findByMerchantId(merchantId).orElseGet(Merchant::new);
+        merchant.setMerchantId(merchantId);
+        merchant.setName(name);
+        merchant.setCategory(category);
+        merchant.setLatitude(latitude);
+        merchant.setLongitude(longitude);
+        merchant.setCityReference(cityReference);
+        merchant.setStatus(Merchant.MerchantStatus.ACTIVE);
+        merchantRepository.save(merchant);
     }
 }

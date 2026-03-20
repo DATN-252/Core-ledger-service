@@ -70,6 +70,10 @@ public class PaymentController {
             previewData.put("recipientAccount", merchantId);
             previewData.put("recipientName", merchant.getName());
             previewData.put("bankName", DEFAULT_BANK_NAME);
+            previewData.put("latitude", request.getLatitude());
+            previewData.put("longitude", request.getLongitude());
+            previewData.put("merchantLatitude", merchant.getLatitude());
+            previewData.put("merchantLongitude", merchant.getLongitude());
             previewData.put("amount", amount);
             previewData.put("fee", 0);
             previewData.put("totalAmount", amount != null ? amount + fee : null);
@@ -119,7 +123,7 @@ public class PaymentController {
             String merchantName = merchant.getName();
             String inferredNetwork = firstNonBlank(request.getCardNetwork(), inferCardNetwork(request.getCardNumber()));
             String resolvedCardType = firstNonBlank(request.getCardType(), resolveCardTypeFromNetwork(inferredNetwork));
-            Map<String, Object> cmsResponse = cmsClient.authorizePayment(request, merchantName);
+            Map<String, Object> cmsResponse = cmsClient.authorizePayment(request, merchant);
 
             Boolean approved = (Boolean) cmsResponse.get("approved");
             String responseCode = stringValue(cmsResponse.get("responseCode"));
@@ -135,6 +139,10 @@ public class PaymentController {
             cmsResponse.put("recipientAccount", request.getMerchantId());
             cmsResponse.put("recipientName", merchantName);
             cmsResponse.put("bankName", DEFAULT_BANK_NAME);
+            cmsResponse.put("latitude", request.getLatitude());
+            cmsResponse.put("longitude", request.getLongitude());
+            cmsResponse.put("merchantLatitude", merchant.getLatitude());
+            cmsResponse.put("merchantLongitude", merchant.getLongitude());
             cmsResponse.put("amount", request.getAmount());
             cmsResponse.put("fee", 0);
             cmsResponse.put("totalAmount", request.getAmount());
@@ -436,6 +444,9 @@ public class PaymentController {
         }
         if ("43".equals(responseCode)) {
             return "CARD_RESTRICTED";
+        }
+        if ("59".equals(responseCode)) {
+            return "SUSPECTED_FRAUD";
         }
         if ("03".equals(responseCode)) {
             return "MERCHANT_INVALID";

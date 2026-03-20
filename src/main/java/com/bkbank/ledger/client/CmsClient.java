@@ -1,5 +1,6 @@
 package com.bkbank.ledger.client;
 
+import com.bkbank.ledger.entity.Merchant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -67,7 +68,7 @@ public class CmsClient {
         }
     }
 
-    public Map<String, Object> authorizePayment(com.bkbank.ledger.dto.request.PaymentRequest request, String merchantName) {
+    public Map<String, Object> authorizePayment(com.bkbank.ledger.dto.request.PaymentRequest request, Merchant merchant) {
         try {
             String url = UriComponentsBuilder.fromHttpUrl(cmsUrl + "/api/transaction")
                     .toUriString();
@@ -80,7 +81,12 @@ public class CmsClient {
             payload.put("cardNumber", request.getCardNumber());
             payload.put("amount", request.getAmount());
             payload.put("merchantId", request.getMerchantId());
-            payload.put("merchantName", merchantName);
+            payload.put("merchantName", merchant.getName());
+            payload.put("merchantCategory", merchant.getCategory());
+            payload.put("merchantLatitude", merchant.getLatitude());
+            payload.put("merchantLongitude", merchant.getLongitude());
+            payload.put("merchantCityPopulation",
+                    merchant.getCityReference() != null ? merchant.getCityReference().getPopulation() : null);
             payload.put("cvc", request.getCvc());
             payload.put("expirationDate", request.getDateCard());
             payload.put("cardType", request.getCardType());
@@ -88,6 +94,9 @@ public class CmsClient {
             payload.put("cardholderName", request.getCardholderName());
             payload.put("billingAddress", request.getBillingAddress());
             payload.put("zipCode", request.getZipCode());
+            payload.put("location", request.getLocation());
+            payload.put("latitude", request.getLatitude());
+            payload.put("longitude", request.getLongitude());
             payload.put("paymentId", request.getPaymentId());
             payload.put("idempotencyKey", request.getIdempotencyKey());
             payload.put("originalTransactionId", request.getOriginalTransactionId());
