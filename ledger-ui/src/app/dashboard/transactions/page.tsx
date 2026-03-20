@@ -97,7 +97,7 @@ export default function TransactionsPage() {
                     <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Đang tải...</div>
                 ) : (
                     <div className="table-container">
-                        <table>
+                        <table className="transaction-table transaction-table--full">
                             <thead>
                                 <tr>
                                     <th>#ID</th>
@@ -121,8 +121,8 @@ export default function TransactionsPage() {
                                     </tr>
                                 ) : filtered.map((txn: any) => (
                                     <tr key={txn.id}>
-                                        <td style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>#{txn.id}</td>
-                                        <td style={{ fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
+                                        <td className="transaction-cell-id">#{txn.id}</td>
+                                        <td className="transaction-cell-time">
                                             {txn.transactionDate ? new Date(txn.transactionDate).toLocaleString('vi-VN') : '—'}
                                         </td>
                                         <td style={{ fontWeight: 600, color: ['DEPOSIT', 'PAYMENT', 'REFUND', 'REVERSAL'].includes(txn.transactionType) ? 'var(--success)' : 'var(--text-primary)' }}>
@@ -137,7 +137,7 @@ export default function TransactionsPage() {
                                             {txn.merchantId || <span style={{ color: 'var(--text-secondary)' }}>—</span>}
                                         </td>
                                         <td>{txn.merchantName || <span style={{ color: 'var(--text-secondary)' }}>—</span>}</td>
-                                        <td style={{ fontSize: '0.8125rem' }}>
+                                        <td className="transaction-cell-location" title={formatLocation(txn)}>
                                             {formatLocation(txn)}
                                         </td>
                                         <td>
@@ -150,22 +150,14 @@ export default function TransactionsPage() {
                                                 );
                                             })()}
                                         </td>
-                                        <td style={{ fontSize: '0.8125rem' }}>
+                                        <td className="transaction-cell-account">
                                             <div style={{ fontFamily: 'monospace' }}>{txn.accountNumber || '—'}</div>
                                             <div style={{ color: 'var(--text-secondary)', marginTop: '0.125rem' }}>{txn.accountType || ''}</div>
                                         </td>
-                                        <td>
+                                        <td className="transaction-cell-action">
                                             <Link
                                                 href={`/dashboard/transactions/${txn.id}`}
-                                                style={{
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    gap: '0.4rem',
-                                                    color: 'var(--accent)',
-                                                    textDecoration: 'none',
-                                                    fontSize: '0.8125rem',
-                                                    fontWeight: 600,
-                                                }}
+                                                className="transaction-detail-link"
                                             >
                                                 Chi tiết
                                                 <FontAwesomeIcon icon={faArrowRight} />

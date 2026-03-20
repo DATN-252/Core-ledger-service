@@ -193,11 +193,15 @@ body {
 .badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
   gap: 0.25rem;
   padding: 0.25rem 0.75rem;
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
+  white-space: nowrap;
+  min-width: max-content;
 }
 
 .badge-active {
@@ -250,6 +254,136 @@ tbody td {
 
 tbody tr:last-child {
   border-bottom: none;
+}
+
+.transaction-table {
+  table-layout: fixed;
+}
+
+.transaction-table th,
+.transaction-table td {
+  vertical-align: top;
+}
+
+.transaction-table--full th:nth-child(1),
+.transaction-table--full td:nth-child(1),
+.transaction-table--client th:nth-child(1),
+.transaction-table--client td:nth-child(1) {
+  width: 58px;
+}
+
+.transaction-table--full th:nth-child(2),
+.transaction-table--full td:nth-child(2) {
+  width: 170px;
+}
+
+.transaction-table--client th:nth-child(2),
+.transaction-table--client td:nth-child(2) {
+  width: 158px;
+}
+
+.transaction-table--full th:nth-child(3),
+.transaction-table--full td:nth-child(3),
+.transaction-table--client th:nth-child(3),
+.transaction-table--client td:nth-child(3) {
+  width: 120px;
+}
+
+.transaction-table--full th:nth-child(4),
+.transaction-table--full td:nth-child(4),
+.transaction-table--client th:nth-child(6),
+.transaction-table--client td:nth-child(6) {
+  width: 110px;
+}
+
+.transaction-table--full th:nth-child(5),
+.transaction-table--full td:nth-child(5) {
+  width: 112px;
+}
+
+.transaction-table--client th:nth-child(5),
+.transaction-table--client td:nth-child(5) {
+  width: 230px;
+}
+
+.transaction-table--full th:nth-child(7),
+.transaction-table--full td:nth-child(7) {
+  width: 300px;
+}
+
+.transaction-table--client th:nth-child(7),
+.transaction-table--client td:nth-child(7) {
+  width: 120px;
+}
+
+.transaction-table--full th:nth-child(8),
+.transaction-table--full td:nth-child(8),
+.transaction-table--client th:nth-child(8),
+.transaction-table--client td:nth-child(8) {
+  width: 156px;
+}
+
+.transaction-table--full th:nth-child(9),
+.transaction-table--full td:nth-child(9),
+.transaction-table--client th:nth-child(9),
+.transaction-table--client td:nth-child(9) {
+  width: 122px;
+}
+
+.transaction-table--full th:last-child,
+.transaction-table--full td:last-child,
+.transaction-table--client th:last-child,
+.transaction-table--client td:last-child {
+  width: 96px;
+}
+
+.transaction-cell-id {
+  color: var(--text-secondary);
+  font-family: monospace;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.transaction-cell-time {
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.transaction-cell-location {
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+.transaction-location-content {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.transaction-cell-account {
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.transaction-cell-action {
+  white-space: nowrap;
+}
+
+.transaction-detail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.transaction-detail-link:hover {
+  color: var(--accent-hover);
 }
 
 /* Modals */
@@ -470,5 +604,14 @@ tbody tr:last-child {
 
   .info-value {
     text-align: left;
+  }
+
+  .transaction-table {
+    table-layout: auto;
+  }
+
+  .transaction-table th,
+  .transaction-table td {
+    min-width: max-content;
   }
 }

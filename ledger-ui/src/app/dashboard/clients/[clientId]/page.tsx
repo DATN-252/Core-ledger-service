@@ -192,7 +192,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                     </div>
                 ) : (
                     <div className="table-container">
-                        <table>
+                        <table className="transaction-table transaction-table--client">
                             <thead>
                                 <tr>
                                     <th>Mã GD</th>
@@ -209,15 +209,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                             <tbody>
                                 {transactions.map((tx: any) => (
                                     <tr key={tx.id}>
-                                        <td style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>#{tx.id}</td>
-                                        <td>{new Date(tx.transactionDate).toLocaleString('vi-VN')}</td>
-                                        <td>
+                                        <td className="transaction-cell-id">#{tx.id}</td>
+                                        <td className="transaction-cell-time">{new Date(tx.transactionDate).toLocaleString('vi-VN')}</td>
+                                        <td className="transaction-cell-account">
                                             <div style={{ fontWeight: 600 }}>{tx.accountNumber}</div>
                                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.125rem' }}>{tx.accountType || ''}</div>
                                         </td>
                                         <td style={{ color: 'var(--text-secondary)' }}>{tx.merchantName || '—'}</td>
-                                        <td style={{ fontSize: '0.8125rem' }}>
-                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                                        <td className="transaction-cell-location" title={formatLocation(tx)}>
+                                            <span className="transaction-location-content">
                                                 <FontAwesomeIcon icon={faLocationDot} style={{ color: 'var(--text-secondary)' }} />
                                                 {formatLocation(tx)}
                                             </span>
@@ -243,18 +243,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                                                 );
                                             })()}
                                         </td>
-                                        <td>
+                                        <td className="transaction-cell-action">
                                             <Link
                                                 href={`/dashboard/transactions/${tx.id}`}
-                                                style={{
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    gap: '0.4rem',
-                                                    color: 'var(--accent)',
-                                                    textDecoration: 'none',
-                                                    fontSize: '0.8125rem',
-                                                    fontWeight: 600,
-                                                }}
+                                                className="transaction-detail-link"
                                             >
                                                 Chi tiết
                                                 <FontAwesomeIcon icon={faArrowRight} />
