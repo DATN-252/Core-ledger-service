@@ -56,7 +56,7 @@ public class LoanAccountService {
         LoanAccount account = getAccount(accountNumber);
         
         if (!account.isActive()) {
-            Transaction failedTx = Transaction.createFailedCharge(accountNumber, amount, account.getPrincipalOutstanding(), merchantId, merchantName, location, latitude, longitude, "Account inactive");
+            Transaction failedTx = Transaction.createFailedCharge(accountNumber, amount, account.getCurrency(), account.getPrincipalOutstanding(), merchantId, merchantName, location, latitude, longitude, "Account inactive");
             failedTx.setCardNetwork(cardNetwork);
             failedTx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
                     responseCode != null ? responseCode : "96",
@@ -66,7 +66,7 @@ public class LoanAccountService {
         }
         
         if (!account.hasSufficientCredit(amount)) {
-            Transaction failedTx = Transaction.createFailedCharge(accountNumber, amount, account.getPrincipalOutstanding(), merchantId, merchantName, location, latitude, longitude, "Credit limit exceeded");
+            Transaction failedTx = Transaction.createFailedCharge(accountNumber, amount, account.getCurrency(), account.getPrincipalOutstanding(), merchantId, merchantName, location, latitude, longitude, "Credit limit exceeded");
             failedTx.setCardNetwork(cardNetwork);
             failedTx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
                     responseCode != null ? responseCode : "51",
@@ -79,7 +79,7 @@ public class LoanAccountService {
         LoanAccount savedAccount = loanAccountRepository.save(account);
         
         // Log transaction
-        Transaction tx = Transaction.createCharge(accountNumber, amount, savedAccount.getPrincipalOutstanding(), merchantId, merchantName, location, latitude, longitude);
+        Transaction tx = Transaction.createCharge(accountNumber, amount, savedAccount.getCurrency(), savedAccount.getPrincipalOutstanding(), merchantId, merchantName, location, latitude, longitude);
         tx.setCardNetwork(cardNetwork);
         tx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
                 responseCode != null ? responseCode : "00",
@@ -102,7 +102,7 @@ public class LoanAccountService {
         LoanAccount savedAccount = loanAccountRepository.save(account);
         
         // Log transaction
-        Transaction tx = Transaction.createPayment(accountNumber, amount, savedAccount.getPrincipalOutstanding());
+        Transaction tx = Transaction.createPayment(accountNumber, amount, savedAccount.getCurrency(), savedAccount.getPrincipalOutstanding());
         transactionRepository.save(tx);
         
         log.info("Payment processed. New outstanding: {}", savedAccount.getPrincipalOutstanding());

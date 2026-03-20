@@ -54,7 +54,7 @@ public class SavingsAccountService {
         SavingsAccount account = getAccount(accountNumber);
         
         if (!account.isActive()) {
-            Transaction failedTx = Transaction.createFailedWithdrawal(accountNumber, amount, account.getBalance(), merchantId, merchantName, location, latitude, longitude, "Account inactive");
+            Transaction failedTx = Transaction.createFailedWithdrawal(accountNumber, amount, account.getCurrency(), account.getBalance(), merchantId, merchantName, location, latitude, longitude, "Account inactive");
             failedTx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
                     responseCode != null ? responseCode : "96",
                     responseMessage != null ? responseMessage : "Account inactive");
@@ -63,7 +63,7 @@ public class SavingsAccountService {
         }
         
         if (!account.hasSufficientBalance(amount)) {
-            Transaction failedTx = Transaction.createFailedWithdrawal(accountNumber, amount, account.getBalance(), merchantId, merchantName, location, latitude, longitude, "Insufficient balance");
+            Transaction failedTx = Transaction.createFailedWithdrawal(accountNumber, amount, account.getCurrency(), account.getBalance(), merchantId, merchantName, location, latitude, longitude, "Insufficient balance");
             failedTx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
                     responseCode != null ? responseCode : "51",
                     responseMessage != null ? responseMessage : "Insufficient balance");
@@ -75,7 +75,7 @@ public class SavingsAccountService {
         SavingsAccount savedAccount = savingsAccountRepository.save(account);
         
         // Log transaction
-        Transaction tx = Transaction.createWithdrawal(accountNumber, amount, savedAccount.getBalance(), merchantId, merchantName, location, latitude, longitude);
+        Transaction tx = Transaction.createWithdrawal(accountNumber, amount, savedAccount.getCurrency(), savedAccount.getBalance(), merchantId, merchantName, location, latitude, longitude);
         tx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
                 responseCode != null ? responseCode : "00",
                 responseMessage != null ? responseMessage : "Approved");
@@ -97,7 +97,7 @@ public class SavingsAccountService {
         SavingsAccount savedAccount = savingsAccountRepository.save(account);
         
         // Log transaction
-        Transaction tx = Transaction.createDeposit(accountNumber, amount, savedAccount.getBalance());
+        Transaction tx = Transaction.createDeposit(accountNumber, amount, savedAccount.getCurrency(), savedAccount.getBalance());
         transactionRepository.save(tx);
         
         log.info("Deposit successful. New balance: {}", savedAccount.getBalance());

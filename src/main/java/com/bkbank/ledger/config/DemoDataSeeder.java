@@ -178,7 +178,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         createTransactionIfMissing(
                 "DEMO-SAV-DEPOSIT-001",
                 buildTransaction(
-                        Transaction.createDeposit("S0011", 15_000.0, 15_000.0),
+                        Transaction.createDeposit("S0011", 15_000.0, "USD", 15_000.0),
                         "DEMO-SAV-DEPOSIT-001",
                         LocalDateTime.now().minusDays(20).withHour(9).withMinute(0),
                         "M001",
@@ -191,7 +191,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         createTransactionIfMissing(
                 "DEMO-SAV-WITHDRAW-001",
                 buildTransaction(
-                        Transaction.createWithdrawal("S0011", 2_650.0, 12_350.0, "M002", "AEON Mall", "Hanoi", null, null),
+                        Transaction.createWithdrawal("S0011", 2_650.0, "USD", 12_350.0, "M002", "AEON Mall", "Hanoi", null, null),
                         "DEMO-SAV-WITHDRAW-001",
                         LocalDateTime.now().minusDays(5).withHour(15).withMinute(20),
                         "M002",
@@ -212,7 +212,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         createTransactionIfMissing(
                 "DEMO-LOAN-CHARGE-001",
                 buildTransaction(
-                        Transaction.createCharge("C0013", 2_400.0, 2_400.0, "M100", "Apple Store", "Online", null, null),
+                        Transaction.createCharge("C0013", 2_400.0, "USD", 2_400.0, "M100", "Apple Store", "Online", null, null),
                         "DEMO-LOAN-CHARGE-001",
                         statementStart.atTime(10, 15),
                         "M100",
@@ -225,7 +225,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         createTransactionIfMissing(
                 "DEMO-LOAN-CHARGE-002",
                 buildTransaction(
-                        Transaction.createCharge("C0013", 890.0, 3_290.0, "M101", "Amazon", "Online", null, null),
+                        Transaction.createCharge("C0013", 890.0, "USD", 3_290.0, "M101", "Amazon", "Online", null, null),
                         "DEMO-LOAN-CHARGE-002",
                         statementStart.plusDays(6).atTime(13, 45),
                         "M101",
@@ -238,7 +238,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         createTransactionIfMissing(
                 "DEMO-LOAN-PAYMENT-001",
                 buildTransaction(
-                        Transaction.createPayment("C0013", 600.0, 2_690.0),
+                        Transaction.createPayment("C0013", 600.0, "USD", 2_690.0),
                         "DEMO-LOAN-PAYMENT-001",
                         statementStart.plusDays(12).atTime(9, 30),
                         null,
@@ -251,7 +251,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         createTransactionIfMissing(
                 "DEMO-LOAN-FAILED-001",
                 buildTransaction(
-                        Transaction.createFailedCharge("C0013", 900.0, 2_690.0, "M102", "Steam", "Online", null, null, "Credit limit exceeded"),
+                        Transaction.createFailedCharge("C0013", 900.0, "USD", 2_690.0, "M102", "Steam", "Online", null, null, "Credit limit exceeded"),
                         "DEMO-LOAN-FAILED-001",
                         statementStart.plusDays(17).atTime(21, 10),
                         "M102",
@@ -264,7 +264,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         createTransactionIfMissing(
                 "DEMO-LOAN-CHARGE-003",
                 buildTransaction(
-                        Transaction.createCharge("C0013", 1_820.0, 4_510.0, "M103", "Booking.com", "Online", null, null),
+                        Transaction.createCharge("C0013", 1_820.0, "USD", 4_510.0, "M103", "Booking.com", "Online", null, null),
                         "DEMO-LOAN-CHARGE-003",
                         statementStart.plusDays(24).atTime(18, 0),
                         "M103",
@@ -277,7 +277,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         createTransactionIfMissing(
                 "DEMO-LOAN-PAYMENT-AFTER-001",
                 buildTransaction(
-                        Transaction.createPayment("C0013", 100.0, 4_410.0),
+                        Transaction.createPayment("C0013", 100.0, "USD", 4_410.0),
                         "DEMO-LOAN-PAYMENT-AFTER-001",
                         latestBillingDate.plusDays(5).atTime(8, 45),
                         null,

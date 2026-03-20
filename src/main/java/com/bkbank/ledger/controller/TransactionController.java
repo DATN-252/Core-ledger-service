@@ -1,6 +1,8 @@
 package com.bkbank.ledger.controller;
 
 import com.bkbank.ledger.entity.Transaction;
+import com.bkbank.ledger.repository.LoanAccountRepository;
+import com.bkbank.ledger.repository.SavingsAccountRepository;
 import com.bkbank.ledger.repository.TransactionRepository;
 import com.bkbank.ledger.service.TransactionLoggingService;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,8 @@ import java.util.Map;
 public class TransactionController {
 
     private final TransactionRepository transactionRepository;
+    private final SavingsAccountRepository savingsAccountRepository;
+    private final LoanAccountRepository loanAccountRepository;
     private final TransactionLoggingService transactionLoggingService;
 
     @Value("${system.api-key}")
@@ -144,12 +148,13 @@ public class TransactionController {
         String externalReference = (String) body.getOrDefault("externalReference", null);
         String responseCode = (String) body.getOrDefault("responseCode", "96");
         String responseMessage = (String) body.getOrDefault("responseMessage", failureReason);
+        String currency = (String) body.getOrDefault("currency", resolveAccountCurrency(accountNumber, accountType));
 
         Transaction tx;
         if ("SAVINGS".equalsIgnoreCase(accountType)) {
-            tx = Transaction.createFailedWithdrawal(accountNumber, amount, currentBalance, merchantId, merchantName, location, latitude, longitude, failureReason);
+            tx = Transaction.createFailedWithdrawal(accountNumber, amount, currency, currentBalance, merchantId, merchantName, location, latitude, longitude, failureReason);
         } else {
-            tx = Transaction.createFailedCharge(accountNumber, amount, currentBalance, merchantId, merchantName, location, latitude, longitude, failureReason);
+            tx = Transaction.createFailedCharge(accountNumber, amount, currency, currentBalance, merchantId, merchantName, location, latitude, longitude, failureReason);
         }
         tx.setCardNetwork(cardNetwork);
         tx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference, responseCode, responseMessage);
@@ -157,5 +162,16 @@ public class TransactionController {
         transactionLoggingService.logTransaction(tx);
         log.info("Logged failed transaction for account {} - reason: {}", accountNumber, failureReason);
         return ResponseEntity.ok(Map.of("status", "logged"));
+    }
+
+    private String resolveAccountCurrency(String accountNumber, String accountType) {
+        if ("SAVINGS".equalsIgnoreCase(accountType)) {
+            return savingsAccountRepository.findByAccountNumber(accountNumber)
+                    .map(account -> account.getCurrency())
+                    .orElse("USD");
+        }
+        return loanAccountRepository.findByAccountNumber(accountNumber)
+                .map(account -> account.getCurrency())
+                .orElse("USD");
     }
 }
