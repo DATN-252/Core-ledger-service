@@ -154,11 +154,15 @@ export async function savingsCommand(id: string, command: 'activate' | 'lock') {
 }
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
-export async function getTransactions(accountId?: string, page = 0, size = 10) {
+export async function getTransactions(accountId?: string, page = 0, size = 50) {
   const path = accountId
     ? `/transactions?accountId=${accountId}&page=${page}&size=${size}`
     : `/transactions?page=${page}&size=${size}`;
   return request<any>(path);
+}
+
+export async function getTransactionDetail(id: string | number) {
+  return request<any>(`/transactions/${id}`);
 }
 
 // ─── Clients ──────────────────────────────────────────────────────────────────

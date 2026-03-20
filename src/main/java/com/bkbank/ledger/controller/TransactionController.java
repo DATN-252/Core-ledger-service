@@ -53,12 +53,28 @@ public class TransactionController {
     public ResponseEntity<Page<Transaction>> getByAccount(
             @RequestParam String accountId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "50") int size
     ) {
         Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(
                 transactionRepository.findByAccountNumberOrderByTransactionDateDesc(accountId, pageable)
         );
+    }
+
+    /**
+     * Get transaction by internal id
+     * GET /transactions/{id}
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> getById(@PathVariable Long id) {
+        return transactionRepository.findById(id)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(404)
+                        .body(Map.of(
+                                "error", "Transaction not found",
+                                "id", id
+                        )));
     }
 
     /**

@@ -2,8 +2,9 @@
 import { useEffect, useState } from 'react';
 import { getTransactions } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faListUl } from '@fortawesome/free-solid-svg-icons';
+import { faArrowRight, faListUl } from '@fortawesome/free-solid-svg-icons';
 import { Pagination } from '@/components/Pagination';
+import Link from 'next/link';
 
 export default function TransactionsPage() {
     const [txns, setTxns] = useState<any[]>([]);
@@ -11,13 +12,15 @@ export default function TransactionsPage() {
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
+    const [totalElements, setTotalElements] = useState(0);
 
     useEffect(() => {
         setLoading(true);
-        getTransactions(undefined, page, 10)
+        getTransactions(undefined, page, 50)
             .then(data => {
                 setTxns(data?.content || []);
                 setTotalPages(data?.totalPages || 1);
+                setTotalElements(data?.totalElements || 0);
             })
             .catch(() => setTxns([]))
             .finally(() => setLoading(false));
@@ -30,6 +33,43 @@ export default function TransactionsPage() {
         String(t.id).includes(search)
     );
 
+    const formatAmount = (txn: any) => {
+        const negativeTypes = ['WITHDRAWAL', 'CHARGE', 'FEE'];
+        const isNegative = negativeTypes.includes(txn.transactionType);
+        return `${isNegative ? '-' : '+'}${Number(txn.amount || 0).toLocaleString('en-US')} ${txn.currency || 'USD'}`;
+    };
+
+    const formatLocation = (txn: any) => {
+        if (txn.location) return txn.location;
+        if (txn.latitude != null && txn.longitude != null) {
+            return `${txn.latitude.toFixed(4)}, ${txn.longitude.toFixed(4)}`;
+        }
+        return '—';
+    };
+
+    const formatTransactionType = (txn: any) => {
+        if (txn.transactionType === 'CHARGE') return 'CHARGE';
+        if (txn.transactionType === 'PAYMENT') return 'PAYMENT';
+        if (txn.transactionType === 'WITHDRAWAL') return 'WITHDRAWAL';
+        if (txn.transactionType === 'DEPOSIT') return 'DEPOSIT';
+        if (txn.transactionType === 'REFUND') return 'REFUND';
+        if (txn.transactionType === 'REVERSAL') return 'REVERSAL';
+        return txn.transactionType || 'UNKNOWN';
+    };
+
+    const formatStatus = (status: string) => {
+        switch (status) {
+            case 'FAILED':
+                return { label: 'THẤT BẠI', className: '', style: { backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)' } };
+            case 'REVERSED':
+                return { label: 'ĐÃ ĐẢO', className: 'badge-pending', style: {} };
+            case 'REFUNDED':
+                return { label: 'ĐÃ HOÀN', className: 'badge-pending', style: {} };
+            default:
+                return { label: 'THÀNH CÔNG', className: 'badge-active', style: {} };
+        }
+    };
+
     return (
         <div className="animate-fade-in">
             <div style={{ marginBottom: '2rem' }}>
@@ -38,7 +78,7 @@ export default function TransactionsPage() {
                     Lịch sử giao dịch
                 </h1>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                    {txns.length} giao dịch tổng cộng
+                    {totalElements} giao dịch tổng cộng
                 </p>
             </div>
 
@@ -61,6 +101,7 @@ export default function TransactionsPage() {
                             <thead>
                                 <tr>
                                     <th>#ID</th>
+                                    <th>Thời gian</th>
                                     <th>Số tiền</th>
                                     <th>Loại</th>
                                     <th>Merchant ID</th>
@@ -68,48 +109,68 @@ export default function TransactionsPage() {
                                     <th>Vị trí</th>
                                     <th>Trạng thái</th>
                                     <th>Tài khoản</th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filtered.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                                        <td colSpan={10} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                                             Không có giao dịch
                                         </td>
                                     </tr>
                                 ) : filtered.map((txn: any) => (
                                     <tr key={txn.id}>
                                         <td style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>#{txn.id}</td>
-                                        <td style={{ fontWeight: 600, color: txn.transactionType === 'CREDIT' || txn.transactionType === 'DEPOSIT' ? 'var(--success)' : 'var(--text-primary)' }}>
-                                            {txn.transactionType === 'CREDIT' || txn.transactionType === 'DEPOSIT' ? '+' : '-'}
-                                            {Number(txn.amount).toLocaleString('en-US')} {txn.currency || 'USD'}
+                                        <td style={{ fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
+                                            {txn.transactionDate ? new Date(txn.transactionDate).toLocaleString('vi-VN') : '—'}
+                                        </td>
+                                        <td style={{ fontWeight: 600, color: ['DEPOSIT', 'PAYMENT', 'REFUND', 'REVERSAL'].includes(txn.transactionType) ? 'var(--success)' : 'var(--text-primary)' }}>
+                                            {formatAmount(txn)}
                                         </td>
                                         <td>
-                                            <span className={`badge ${txn.transactionType === 'CREDIT' || txn.transactionType === 'DEPOSIT' ? 'badge-active' : 'badge-pending'}`}>
-                                                {txn.transactionType === 'CHARGE' ? (txn.merchantName ? 'CREDIT' : 'CHARGE/FEE') : (txn.transactionType || 'UNKNOWN')}
+                                            <span className={`badge ${['DEPOSIT', 'PAYMENT', 'REFUND', 'REVERSAL'].includes(txn.transactionType) ? 'badge-active' : 'badge-pending'}`}>
+                                                {formatTransactionType(txn)}
                                             </span>
                                         </td>
                                         <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>
                                             {txn.merchantId || <span style={{ color: 'var(--text-secondary)' }}>—</span>}
                                         </td>
                                         <td>{txn.merchantName || <span style={{ color: 'var(--text-secondary)' }}>—</span>}</td>
-                                        <td>
-                                            {txn.location ? (
-                                                <span title={`Tọa độ: ${txn.latitude}, ${txn.longitude}`}>
-                                                    📍 {txn.location}
-                                                </span>
-                                            ) : (
-                                                <span style={{ color: 'var(--text-secondary)' }}>—</span>
-                                            )}
+                                        <td style={{ fontSize: '0.8125rem' }}>
+                                            {formatLocation(txn)}
                                         </td>
                                         <td>
-                                            {txn.status === 'FAILED' ? (
-                                                <span className="badge" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)' }}>THẤT BẠI</span>
-                                            ) : (
-                                                <span className="badge badge-active">THÀNH CÔNG</span>
-                                            )}
+                                            {(() => {
+                                                const badge = formatStatus(txn.status);
+                                                return (
+                                                    <span className={`badge ${badge.className}`} style={badge.style}>
+                                                        {badge.label}
+                                                    </span>
+                                                );
+                                            })()}
                                         </td>
-                                        <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{txn.accountId || txn.loanId || '—'}</td>
+                                        <td style={{ fontSize: '0.8125rem' }}>
+                                            <div style={{ fontFamily: 'monospace' }}>{txn.accountNumber || '—'}</div>
+                                            <div style={{ color: 'var(--text-secondary)', marginTop: '0.125rem' }}>{txn.accountType || ''}</div>
+                                        </td>
+                                        <td>
+                                            <Link
+                                                href={`/dashboard/transactions/${txn.id}`}
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.4rem',
+                                                    color: 'var(--accent)',
+                                                    textDecoration: 'none',
+                                                    fontSize: '0.8125rem',
+                                                    fontWeight: 600,
+                                                }}
+                                            >
+                                                Chi tiết
+                                                <FontAwesomeIcon icon={faArrowRight} />
+                                            </Link>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>

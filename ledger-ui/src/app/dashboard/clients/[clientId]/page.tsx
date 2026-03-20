@@ -1,14 +1,12 @@
 'use client';
 import { useEffect, useState, use } from 'react';
-import { useRouter } from 'next/navigation';
-import { getClientAccounts, getTransactions, registerCustomer } from '@/lib/api';
+import { getClientAccounts, getTransactions } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faUser, faCreditCard, faPiggyBank, faHistory, faMobileAlt } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faArrowRight, faUser, faCreditCard, faPiggyBank, faHistory, faLocationDot, faMobileAlt } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
 
 export default function ClientDetailPage({ params }: { params: Promise<{ clientId: string }> }) {
     const { clientId } = use(params);
-    const router = useRouter();
     const [clientData, setClientData] = useState<any>(null);
     const [transactions, setTransactions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -25,13 +23,13 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                     ...(data.loanAccounts || [])
                 ];
 
-                const txPromises = allAccounts.map((acc: any) => getTransactions(acc.accountNumber, 0, 10000));
+                const txPromises = allAccounts.map((acc: any) => getTransactions(acc.accountNumber, 0, 50));
                 const txResults = await Promise.all(txPromises);
 
                 // Extract content and Flatten
                 let allTx = txResults.map((res: any) => res?.content || []).flat();
                 allTx.sort((a: any, b: any) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime());
-                setTransactions(allTx);
+                setTransactions(allTx.slice(0, 50));
             } catch (err) {
                 console.error(err);
                 alert('Không tìm thấy thông tin khách hàng');
@@ -46,6 +44,35 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
     if (!clientData) return <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Không có dữ liệu</div>;
 
     const { clientName, savingsAccounts = [], loanAccounts = [] } = clientData;
+
+    const formatAmount = (tx: any) => {
+        const negativeTypes = ['WITHDRAWAL', 'CHARGE', 'FEE'];
+        const isNegative = negativeTypes.includes(tx.transactionType);
+        return `${isNegative ? '-' : '+'}${Number(tx.amount || 0).toLocaleString('en-US')} ${tx.currency || 'USD'}`;
+    };
+
+    const formatType = (tx: any) => tx.transactionType || 'UNKNOWN';
+
+    const formatStatus = (status: string) => {
+        switch (status) {
+            case 'FAILED':
+                return { label: 'THẤT BẠI', className: '', style: { backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)' } };
+            case 'REVERSED':
+                return { label: 'ĐÃ ĐẢO', className: 'badge-pending', style: {} };
+            case 'REFUNDED':
+                return { label: 'ĐÃ HOÀN', className: 'badge-pending', style: {} };
+            default:
+                return { label: 'THÀNH CÔNG', className: 'badge-active', style: {} };
+        }
+    };
+
+    const formatLocation = (tx: any) => {
+        if (tx.location) return tx.location;
+        if (tx.latitude != null && tx.longitude != null) {
+            return `${tx.latitude.toFixed(4)}, ${tx.longitude.toFixed(4)}`;
+        }
+        return '—';
+    };
 
     return (
         <div className="animate-fade-in">
@@ -155,6 +182,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                     <FontAwesomeIcon icon={faHistory} style={{ marginRight: '0.5rem', color: 'var(--accent)' }} />
                     Lịch sử giao dịch
                 </h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                    Hiển thị 50 giao dịch mới nhất của toàn bộ tài khoản thuộc khách hàng này.
+                </p>
 
                 {transactions.length === 0 ? (
                     <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -169,9 +199,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                                     <th>Ngày giờ</th>
                                     <th>Tài khoản</th>
                                     <th>Thương hiệu</th>
+                                    <th>Vị trí</th>
                                     <th>Loại</th>
                                     <th>Số tiền</th>
                                     <th>Trạng thái</th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -179,26 +211,54 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                                     <tr key={tx.id}>
                                         <td style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>#{tx.id}</td>
                                         <td>{new Date(tx.transactionDate).toLocaleString('vi-VN')}</td>
-                                        <td style={{ fontWeight: 600 }}>{tx.accountNumber}</td>
-                                        <td style={{ color: 'var(--text-secondary)' }}>{tx.merchantName || '—'}</td>
                                         <td>
-                                            <span className={`badge ${tx.transactionType === 'DEPOSIT' || tx.transactionType === 'PAYMENT' ? 'badge-active' : 'badge-pending'}`}>
-                                                {tx.transactionType === 'CHARGE' ? (tx.merchantName ? 'CREDIT' : 'CHARGE/FEE') : tx.transactionType}
+                                            <div style={{ fontWeight: 600 }}>{tx.accountNumber}</div>
+                                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.125rem' }}>{tx.accountType || ''}</div>
+                                        </td>
+                                        <td style={{ color: 'var(--text-secondary)' }}>{tx.merchantName || '—'}</td>
+                                        <td style={{ fontSize: '0.8125rem' }}>
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                                                <FontAwesomeIcon icon={faLocationDot} style={{ color: 'var(--text-secondary)' }} />
+                                                {formatLocation(tx)}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span className={`badge ${['DEPOSIT', 'PAYMENT', 'REFUND', 'REVERSAL'].includes(tx.transactionType) ? 'badge-active' : 'badge-pending'}`}>
+                                                {formatType(tx)}
                                             </span>
                                         </td>
                                         <td style={{
                                             fontWeight: 700,
-                                            color: tx.transactionType === 'WITHDRAWAL' || tx.transactionType === 'CHARGE' ? 'var(--warning)' : 'var(--success)'
+                                            color: ['WITHDRAWAL', 'CHARGE'].includes(tx.transactionType) ? 'var(--warning)' : 'var(--success)'
                                         }}>
-                                            {tx.transactionType === 'WITHDRAWAL' || tx.transactionType === 'CHARGE' ? '-' : '+'}
-                                            {tx.amount?.toLocaleString('en-US')} {tx.currency}
+                                            {formatAmount(tx)}
                                         </td>
                                         <td>
-                                            {tx.status === 'FAILED' ? (
-                                                <span className="badge" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)' }}>THẤT BẠI</span>
-                                            ) : (
-                                                <span className="badge badge-active">THÀNH CÔNG</span>
-                                            )}
+                                            {(() => {
+                                                const badge = formatStatus(tx.status);
+                                                return (
+                                                    <span className={`badge ${badge.className}`} style={badge.style}>
+                                                        {badge.label}
+                                                    </span>
+                                                );
+                                            })()}
+                                        </td>
+                                        <td>
+                                            <Link
+                                                href={`/dashboard/transactions/${tx.id}`}
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.4rem',
+                                                    color: 'var(--accent)',
+                                                    textDecoration: 'none',
+                                                    fontSize: '0.8125rem',
+                                                    fontWeight: 600,
+                                                }}
+                                            >
+                                                Chi tiết
+                                                <FontAwesomeIcon icon={faArrowRight} />
+                                            </Link>
                                         </td>
                                     </tr>
                                 ))}
