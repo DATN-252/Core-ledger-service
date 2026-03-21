@@ -56,6 +56,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/merchants").permitAll()
                 // All other requests must be authenticated
                 // Role-based checks are done via @PreAuthorize on controller methods
+
+                // thông báo không cần auth
+                .requestMatchers(HttpMethod.POST, "/customer/push-token").permitAll()
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
