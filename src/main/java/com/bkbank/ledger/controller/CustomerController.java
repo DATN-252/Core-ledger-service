@@ -27,10 +27,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.net.URI;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,6 +41,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 
 @RestController
 @RequestMapping("/customer")
@@ -56,7 +63,7 @@ public class CustomerController {
         if (authentication == null) {
             throw new RuntimeException("Not authenticated");
         }
-        
+
         String username = authentication.getName();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Tài khoản không tồn tại"));
@@ -98,7 +105,7 @@ public class CustomerController {
             response.put("city", client.getCity());
             response.put("country", client.getCountry());
             response.put("status", client.getStatus());
-            
+
             // Masked ID number for security
             String idNum = client.getIdNumber();
             if (idNum != null && idNum.length() > 4) {
@@ -122,12 +129,11 @@ public class CustomerController {
     public ResponseEntity<ApiResponse<Page<Map<String, Object>>>> getMySavingsAccounts(
             Authentication authentication,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
+            @RequestParam(defaultValue = "10") int size) {
         try {
             Client client = getAuthenticatedClient(authentication);
             List<SavingsAccount> accounts = clientService.getClientSavingsAccounts(client.getClientId());
-            
+
             List<Map<String, Object>> result = accounts.stream().map(acc -> {
                 Map<String, Object> map = new HashMap<>();
                 map.put("accountNumber", acc.getAccountNumber());
@@ -138,7 +144,7 @@ public class CustomerController {
             }).collect(Collectors.toList());
 
             Pageable pageable = PageRequest.of(page, size);
-            int start = Math.min((int)pageable.getOffset(), result.size());
+            int start = Math.min((int) pageable.getOffset(), result.size());
             int end = Math.min((start + pageable.getPageSize()), result.size());
             Page<Map<String, Object>> pagedResult = new PageImpl<>(result.subList(start, end), pageable, result.size());
 
@@ -158,12 +164,11 @@ public class CustomerController {
     public ResponseEntity<ApiResponse<Page<Map<String, Object>>>> getMyLoanAccounts(
             Authentication authentication,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
+            @RequestParam(defaultValue = "10") int size) {
         try {
             Client client = getAuthenticatedClient(authentication);
             List<LoanAccount> accounts = clientService.getClientLoanAccounts(client.getClientId());
-            
+
             List<Map<String, Object>> result = accounts.stream().map(acc -> {
                 Map<String, Object> map = new HashMap<>();
                 map.put("accountNumber", acc.getAccountNumber());
@@ -175,7 +180,7 @@ public class CustomerController {
             }).collect(Collectors.toList());
 
             Pageable pageable = PageRequest.of(page, size);
-            int start = Math.min((int)pageable.getOffset(), result.size());
+            int start = Math.min((int) pageable.getOffset(), result.size());
             int end = Math.min((start + pageable.getPageSize()), result.size());
             Page<Map<String, Object>> pagedResult = new PageImpl<>(result.subList(start, end), pageable, result.size());
 
@@ -192,8 +197,7 @@ public class CustomerController {
             Authentication authentication,
             @PathVariable String loanId,
             @RequestParam LocalDate fromDate,
-            @RequestParam LocalDate toDate
-    ) {
+            @RequestParam LocalDate toDate) {
         try {
             Client client = getAuthenticatedClient(authentication);
             ensureLoanBelongsToClient(client, loanId);
@@ -210,13 +214,12 @@ public class CustomerController {
     public ResponseEntity<ApiResponse<CreditCardMonthlyStatementResponse>> generateMyMonthlyStatement(
             Authentication authentication,
             @PathVariable String loanId,
-            @RequestParam LocalDate billingDate
-    ) {
+            @RequestParam LocalDate billingDate) {
         try {
             Client client = getAuthenticatedClient(authentication);
             ensureLoanBelongsToClient(client, loanId);
-            CreditCardMonthlyStatementResponse statement =
-                    creditCardStatementService.generateMonthlyStatement(loanId, billingDate);
+            CreditCardMonthlyStatementResponse statement = creditCardStatementService.generateMonthlyStatement(loanId,
+                    billingDate);
             return ResponseEntity.ok(ApiResponse.success(statement));
         } catch (Exception e) {
             log.error("Error generating monthly statement: {}", e.getMessage());
@@ -228,13 +231,12 @@ public class CustomerController {
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<ApiResponse<List<CreditCardStatementSummaryResponse>>> getMyMonthlyStatementHistory(
             Authentication authentication,
-            @PathVariable String loanId
-    ) {
+            @PathVariable String loanId) {
         try {
             Client client = getAuthenticatedClient(authentication);
             ensureLoanBelongsToClient(client, loanId);
-            List<CreditCardStatementSummaryResponse> statements =
-                    creditCardStatementService.getStatementHistory(loanId);
+            List<CreditCardStatementSummaryResponse> statements = creditCardStatementService
+                    .getStatementHistory(loanId);
             return ResponseEntity.ok(ApiResponse.success(statements));
         } catch (Exception e) {
             log.error("Error getting monthly statement history: {}", e.getMessage());
@@ -247,13 +249,12 @@ public class CustomerController {
     public ResponseEntity<ApiResponse<CreditCardMonthlyStatementResponse>> getMyMonthlyStatementDetail(
             Authentication authentication,
             @PathVariable String loanId,
-            @PathVariable LocalDate billingDate
-    ) {
+            @PathVariable LocalDate billingDate) {
         try {
             Client client = getAuthenticatedClient(authentication);
             ensureLoanBelongsToClient(client, loanId);
-            CreditCardMonthlyStatementResponse statement =
-                    creditCardStatementService.getStatementDetail(loanId, billingDate);
+            CreditCardMonthlyStatementResponse statement = creditCardStatementService.getStatementDetail(loanId,
+                    billingDate);
             return ResponseEntity.ok(ApiResponse.success(statement));
         } catch (Exception e) {
             log.error("Error getting monthly statement detail: {}", e.getMessage());
@@ -270,8 +271,7 @@ public class CustomerController {
     public ResponseEntity<ApiResponse<Page<Map<String, Object>>>> getMyCards(
             Authentication authentication,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
+            @RequestParam(defaultValue = "10") int size) {
         try {
             Client client = getAuthenticatedClient(authentication);
 
@@ -296,7 +296,7 @@ public class CustomerController {
             }
 
             Pageable pageable = PageRequest.of(page, size);
-            int start = Math.min((int)pageable.getOffset(), cards.size());
+            int start = Math.min((int) pageable.getOffset(), cards.size());
             int end = Math.min((start + pageable.getPageSize()), cards.size());
             Page<Map<String, Object>> pagedResult = new PageImpl<>(cards.subList(start, end), pageable, cards.size());
 
@@ -336,8 +336,7 @@ public class CustomerController {
     public ResponseEntity<ApiResponse<Page<Transaction>>> getMyTransactions(
             Authentication authentication,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
+            @RequestParam(defaultValue = "10") int size) {
         try {
             Client client = getAuthenticatedClient(authentication);
 
@@ -350,12 +349,51 @@ public class CustomerController {
 
             // 2. Fetch transactions for these accounts
             Pageable pageable = PageRequest.of(page, size, Sort.by("transactionDate").descending());
-            Page<Transaction> transactions = transactionRepository.findByAccountNumberInOrderByTransactionDateDesc(accountIds, pageable);
+            Page<Transaction> transactions = transactionRepository
+                    .findByAccountNumberInOrderByTransactionDateDesc(accountIds, pageable);
 
             return ResponseEntity.ok(ApiResponse.success(transactions));
         } catch (Exception e) {
             log.error("Error getting transactions: {}", e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
+    }
+
+    // docs: https://docs.expo.dev/push-notifications/sending-notifications/
+    @PostMapping("/push-token")
+    public ResponseEntity<?> savePushToken(@RequestBody Map<String, String> body) throws Exception {
+        // client gửi token-message của device
+        String expoPushToken = body.get("token");
+        if (expoPushToken == null || expoPushToken.isBlank()) {
+            return ResponseEntity.badRequest().body("Token is required");
+        }
+
+        // TODO: lưu token-message vào DB ở đây
+
+        // Todo: format payload theo định dạng của Expo push notification service.
+        String payload = """
+                {
+                  "to": "%s",
+                  "title": "Thông báo từ BK-Bank",
+                  "body": "Backend đã nhận được token!",
+                  "data": {
+                    "id": "123",
+                    "message": "Trong đây là dữ liệu chi tiết để người dùng bấm vào xem"
+                  }
+                }
+                """.formatted(expoPushToken);
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://exp.host/--/api/v2/push/send"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(payload))
+                .build();
+
+        HttpResponse<String> response = HttpClient.newHttpClient()
+                .send(request, HttpResponse.BodyHandlers.ofString());
+
+        System.out.println("Expo response: " + response.body());
+
+        return ResponseEntity.ok(response.body());
     }
 }
