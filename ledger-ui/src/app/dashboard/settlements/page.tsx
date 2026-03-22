@@ -45,6 +45,21 @@ type SettlementBatch = {
   executionReference?: string | null;
   note?: string | null;
   createdAt?: string | null;
+  items?: SettlementBatchItem[] | null;
+};
+
+type SettlementBatchItem = {
+  id: number;
+  transactionId: number;
+  paymentId?: string | null;
+  transactionType: string;
+  signedAmount: number;
+  currency?: string | null;
+  accountNumber: string;
+  accountType: string;
+  transactionDate?: string | null;
+  status: string;
+  description?: string | null;
 };
 
 function formatMoney(value?: number | null, currency = 'USD') {
@@ -359,16 +374,55 @@ export default function SettlementsPage() {
           </div>
 
           {selectedBatch ? (
-            <div className="info-list">
-              <div className="info-row"><span className="info-label">Batch</span><span className="info-value">#{selectedBatch.id}</span></div>
-              <div className="info-row"><span className="info-label">Merchant</span><span className="info-value">{selectedBatch.merchantName}</span></div>
-              <div className="info-row"><span className="info-label">Settlement account</span><span className="info-value">{selectedBatch.settlementAccountNumber}</span></div>
-              <div className="info-row"><span className="info-label">Current balance</span><span className="info-value">{formatMoney(selectedBatch.settlementAccountBalance, selectedBatch.currency)}</span></div>
-              <div className="info-row"><span className="info-label">Status</span><span className="info-value">{selectedBatch.status}</span></div>
-              <div className="info-row"><span className="info-label">Execution ref</span><span className="info-value">{selectedBatch.executionReference || '—'}</span></div>
-              <div className="info-row"><span className="info-label">Created at</span><span className="info-value">{formatDateTime(selectedBatch.createdAt)}</span></div>
-              <div className="info-row"><span className="info-label">Executed at</span><span className="info-value">{formatDateTime(selectedBatch.executedAt)}</span></div>
-              <div className="info-row"><span className="info-label">Note</span><span className="info-value">{selectedBatch.note || '—'}</span></div>
+            <div style={{ display: 'grid', gap: '1rem' }}>
+              <div className="info-list">
+                <div className="info-row"><span className="info-label">Batch</span><span className="info-value">#{selectedBatch.id}</span></div>
+                <div className="info-row"><span className="info-label">Merchant</span><span className="info-value">{selectedBatch.merchantName}</span></div>
+                <div className="info-row"><span className="info-label">Settlement account</span><span className="info-value">{selectedBatch.settlementAccountNumber}</span></div>
+                <div className="info-row"><span className="info-label">Current balance</span><span className="info-value">{formatMoney(selectedBatch.settlementAccountBalance, selectedBatch.currency)}</span></div>
+                <div className="info-row"><span className="info-label">Status</span><span className="info-value">{selectedBatch.status}</span></div>
+                <div className="info-row"><span className="info-label">Execution ref</span><span className="info-value">{selectedBatch.executionReference || '—'}</span></div>
+                <div className="info-row"><span className="info-label">Created at</span><span className="info-value">{formatDateTime(selectedBatch.createdAt)}</span></div>
+                <div className="info-row"><span className="info-label">Executed at</span><span className="info-value">{formatDateTime(selectedBatch.executedAt)}</span></div>
+                <div className="info-row"><span className="info-label">Note</span><span className="info-value">{selectedBatch.note || '—'}</span></div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.75rem' }}>Batch items</div>
+                {selectedBatch.items && selectedBatch.items.length > 0 ? (
+                  <div className="table-container">
+                    <table className="settlement-table">
+                      <thead>
+                        <tr>
+                          <th>Txn ID</th>
+                          <th>Thoi gian</th>
+                          <th>Loai</th>
+                          <th>Tai khoan</th>
+                          <th>So tien</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedBatch.items.map((item) => (
+                          <tr key={item.id}>
+                            <td>#{item.transactionId}</td>
+                            <td>{formatDateTime(item.transactionDate)}</td>
+                            <td>{item.transactionType}</td>
+                            <td>
+                              <div>{item.accountNumber}</div>
+                              <div className="page-subtitle">{item.accountType}</div>
+                            </td>
+                            <td style={{ fontWeight: 700 }}>{formatMoney(item.signedAmount, item.currency || selectedBatch.currency)}</td>
+                            <td>{item.status}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="empty-state">Batch nay chua co item detail.</div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="empty-state">Chua chon batch nao.</div>

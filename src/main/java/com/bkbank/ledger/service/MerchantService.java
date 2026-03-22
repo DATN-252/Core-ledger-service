@@ -54,6 +54,8 @@ public class MerchantService {
         CityReference hanoi = upsertCity("VN_HAN", "Hanoi", "Vietnam", 8_400_000, 21.0285, 105.8542);
         CityReference hcmc = upsertCity("VN_HCM", "Ho Chi Minh City", "Vietnam", 9_300_000, 10.8231, 106.6297);
         CityReference danang = upsertCity("VN_DAD", "Da Nang", "Vietnam", 1_250_000, 16.0471, 108.2068);
+        CityReference haiphong = upsertCity("VN_HPH", "Hai Phong", "Vietnam", 2_050_000, 20.8449, 106.6881);
+        CityReference cantho = upsertCity("VN_CTH", "Can Tho", "Vietnam", 1_240_000, 10.0452, 105.7469);
 
         upsertMerchant("SP0001", "Điện lực EVN", "UTILITY",
                 "11 Cua Bac", "Truc Bach", "Ba Dinh", "100000",
@@ -64,6 +66,21 @@ public class MerchantService {
         upsertMerchant("SP0003", "Tạp hóa Xanh", "RETAIL",
                 "09 Tran Phu", "Hai Chau I", "Hai Chau", "550000",
                 16.0471, 108.2068, danang, "1100000003");
+        upsertMerchant("SPD001", "Metro Fresh", "grocery_pos",
+                "120 Nguyen Hue", "Ben Nghe", "District 1", "700000",
+                10.7768, 106.7002, hcmc, "1200000001");
+        upsertMerchant("SPD002", "City Pharmacy", "health_fitness",
+                "88 Ba Trieu", "Le Dai Hanh", "Hai Ba Trung", "100000",
+                21.0129, 105.8493, hanoi, "1200000002");
+        upsertMerchant("SPD003", "Blue Cinema", "entertainment",
+                "25 Tran Phu", "Hai Chau 1", "Hai Chau", "550000",
+                16.0678, 108.2213, danang, "1200000003");
+        upsertMerchant("SPD004", "Harbor Cafe", "food_dining",
+                "9 Tran Hung Dao", "Hoang Van Thu", "Hong Bang", "180000",
+                20.8611, 106.6823, haiphong, "1200000004");
+        upsertMerchant("SPD005", "River Bookstore", "shopping_net",
+                "14 Hoa Binh", "Tan An", "Ninh Kieu", "900000",
+                10.0358, 105.7806, cantho, "1200000005");
         log.info("Demo merchants and city reference data initialized successfully.");
     }
 

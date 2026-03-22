@@ -28,7 +28,7 @@ public class Transaction {
     private String accountType; // SAVINGS or LOAN
 
     @Column(nullable = false)
-    private String transactionType; // WITHDRAWAL, DEPOSIT, CHARGE, PAYMENT, REVERSAL, REFUND
+    private String transactionType; // WITHDRAWAL, DEPOSIT, SETTLEMENT, CHARGE, PAYMENT, REVERSAL, REFUND
 
     @Column(nullable = false)
     private Double amount;
@@ -159,6 +159,7 @@ public class Transaction {
                                                       String settlementReference,
                                                       String note) {
         Transaction tx = createDeposit(accountNumber, amount, currency, balanceAfter);
+        tx.transactionType = "SETTLEMENT";
         tx.merchantId = merchantId;
         tx.merchantName = merchantName;
         tx.description = "Merchant settlement"

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -18,4 +19,7 @@ public interface MerchantRepository extends JpaRepository<Merchant, Long> {
 
     @EntityGraph(attributePaths = {"settlementAccount", "settlementAccount.client"})
     Page<Merchant> findByStatus(Merchant.MerchantStatus status, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"settlementAccount", "settlementAccount.client"})
+    List<Merchant> findByStatusOrderByMerchantIdAsc(Merchant.MerchantStatus status);
 }

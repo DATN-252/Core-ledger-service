@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowRight, faListUl } from '@fortawesome/free-solid-svg-icons';
 import { Pagination } from '@/components/Pagination';
 import Link from 'next/link';
+import { getDisplayTransactionType, isNegativeTransaction, isPositiveTransaction } from '@/lib/transactionDisplay';
 
 export default function TransactionsPage() {
     const [txns, setTxns] = useState<any[]>([]);
@@ -34,8 +35,7 @@ export default function TransactionsPage() {
     );
 
     const formatAmount = (txn: any) => {
-        const negativeTypes = ['WITHDRAWAL', 'CHARGE', 'FEE'];
-        const isNegative = negativeTypes.includes(txn.transactionType);
+        const isNegative = isNegativeTransaction(txn);
         return `${isNegative ? '-' : '+'}${Number(txn.amount || 0).toLocaleString('en-US')} ${txn.currency || 'USD'}`;
     };
 
@@ -48,13 +48,7 @@ export default function TransactionsPage() {
     };
 
     const formatTransactionType = (txn: any) => {
-        if (txn.transactionType === 'CHARGE') return 'CHARGE';
-        if (txn.transactionType === 'PAYMENT') return 'PAYMENT';
-        if (txn.transactionType === 'WITHDRAWAL') return 'WITHDRAWAL';
-        if (txn.transactionType === 'DEPOSIT') return 'DEPOSIT';
-        if (txn.transactionType === 'REFUND') return 'REFUND';
-        if (txn.transactionType === 'REVERSAL') return 'REVERSAL';
-        return txn.transactionType || 'UNKNOWN';
+        return getDisplayTransactionType(txn);
     };
 
     const formatStatus = (status: string) => {
@@ -125,11 +119,11 @@ export default function TransactionsPage() {
                                         <td className="transaction-cell-time">
                                             {txn.transactionDate ? new Date(txn.transactionDate).toLocaleString('vi-VN') : '—'}
                                         </td>
-                                        <td style={{ fontWeight: 600, color: ['DEPOSIT', 'PAYMENT', 'REFUND', 'REVERSAL'].includes(txn.transactionType) ? 'var(--success)' : 'var(--text-primary)' }}>
+                                        <td style={{ fontWeight: 600, color: isPositiveTransaction(txn) ? 'var(--success)' : 'var(--text-primary)' }}>
                                             {formatAmount(txn)}
                                         </td>
                                         <td>
-                                            <span className={`badge ${['DEPOSIT', 'PAYMENT', 'REFUND', 'REVERSAL'].includes(txn.transactionType) ? 'badge-active' : 'badge-pending'}`}>
+                                            <span className={`badge ${isPositiveTransaction(txn) ? 'badge-active' : 'badge-pending'}`}>
                                                 {formatTransactionType(txn)}
                                             </span>
                                         </td>

@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -32,4 +33,5 @@ public class MerchantSettlementBatchResponse {
     private String executionReference;
     private String note;
     private LocalDateTime createdAt;
+    private List<MerchantSettlementBatchItemResponse> items;
 }

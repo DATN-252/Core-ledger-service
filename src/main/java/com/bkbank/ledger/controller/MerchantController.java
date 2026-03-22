@@ -1,5 +1,6 @@
 package com.bkbank.ledger.controller;
 
+import com.bkbank.ledger.dto.response.AutoSettlementRunResponse;
 import com.bkbank.ledger.dto.response.MerchantSettlementBatchResponse;
 import com.bkbank.ledger.dto.response.MerchantSettlementPreviewResponse;
 import com.bkbank.ledger.entity.Merchant;
@@ -11,7 +12,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -138,6 +138,21 @@ public class MerchantController {
     ) {
         try {
             return ResponseEntity.ok(settlementService.getSettlementBatch(merchantId, batchId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/settlements/auto-run")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> runAutoSettlement(
+            @RequestParam(required = false) LocalDate settlementDate,
+            @RequestParam(defaultValue = "1.5") Double feeRate,
+            @RequestParam(defaultValue = "true") boolean execute
+    ) {
+        try {
+            AutoSettlementRunResponse response = settlementService.runAutomaticSettlement(settlementDate, feeRate, execute);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

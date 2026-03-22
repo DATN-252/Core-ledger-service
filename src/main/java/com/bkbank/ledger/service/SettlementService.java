@@ -1,11 +1,17 @@
 package com.bkbank.ledger.service;
 
+import com.bkbank.ledger.dto.response.AutoSettlementMerchantResultResponse;
+import com.bkbank.ledger.dto.response.AutoSettlementRunResponse;
+import com.bkbank.ledger.dto.response.MerchantSettlementBatchItemResponse;
 import com.bkbank.ledger.dto.response.MerchantSettlementBatchResponse;
 import com.bkbank.ledger.dto.response.MerchantSettlementPreviewResponse;
 import com.bkbank.ledger.entity.Merchant;
 import com.bkbank.ledger.entity.MerchantSettlementBatch;
+import com.bkbank.ledger.entity.MerchantSettlementBatchItem;
 import com.bkbank.ledger.entity.SavingsAccount;
 import com.bkbank.ledger.entity.Transaction;
+import com.bkbank.ledger.repository.MerchantRepository;
+import com.bkbank.ledger.repository.MerchantSettlementBatchItemRepository;
 import com.bkbank.ledger.repository.MerchantSettlementBatchRepository;
 import com.bkbank.ledger.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,8 +32,10 @@ import java.util.UUID;
 public class SettlementService {
 
     private final MerchantService merchantService;
+    private final MerchantRepository merchantRepository;
     private final TransactionRepository transactionRepository;
     private final MerchantSettlementBatchRepository merchantSettlementBatchRepository;
+    private final MerchantSettlementBatchItemRepository merchantSettlementBatchItemRepository;
     private final SavingsAccountService savingsAccountService;
 
     public MerchantSettlementPreviewResponse previewSettlement(String merchantId,
@@ -48,6 +57,8 @@ public class SettlementService {
         if (preview.getTransactionCount() == null || preview.getTransactionCount() <= 0) {
             throw new IllegalArgumentException("No eligible transactions found for settlement");
         }
+
+        List<Transaction> eligibleTransactions = findEligibleTransactions(merchantId, fromDate, toDate);
 
         boolean duplicateExists = merchantSettlementBatchRepository.existsByMerchantIdAndFromDateAndToDateAndStatusIn(
                 merchantId,
@@ -80,7 +91,10 @@ public class SettlementService {
         batch.setNote(note);
         batch.setExecutionReference("SET-" + UUID.randomUUID().toString().replace("-", "").substring(0, 20).toUpperCase());
 
-        return toBatchResponse(merchantSettlementBatchRepository.save(batch), preview.getSettlementAccountBalance());
+        batch = merchantSettlementBatchRepository.save(batch);
+        merchantSettlementBatchItemRepository.saveAll(buildBatchItems(batch, eligibleTransactions));
+
+        return toBatchResponse(batch, preview.getSettlementAccountBalance(), true);
     }
 
     @Transactional
@@ -120,19 +134,133 @@ public class SettlementService {
         }
         batch = merchantSettlementBatchRepository.save(batch);
 
-        return toBatchResponse(batch, settlementAccount.getBalance());
+        return toBatchResponse(batch, settlementAccount.getBalance(), true);
     }
 
     public Page<MerchantSettlementBatchResponse> getSettlementBatches(String merchantId, Pageable pageable) {
         merchantService.getActiveMerchant(merchantId);
         return merchantSettlementBatchRepository.findByMerchantIdOrderByCreatedAtDesc(merchantId, pageable)
-                .map(batch -> toBatchResponse(batch, resolveCurrentSettlementBalance(merchantId, batch.getSettlementAccountNumber())));
+                .map(batch -> toBatchResponse(batch, resolveCurrentSettlementBalance(merchantId, batch.getSettlementAccountNumber()), false));
     }
 
     public MerchantSettlementBatchResponse getSettlementBatch(String merchantId, Long batchId) {
         MerchantSettlementBatch batch = merchantSettlementBatchRepository.findByIdAndMerchantId(batchId, merchantId)
                 .orElseThrow(() -> new RuntimeException("Settlement batch not found"));
-        return toBatchResponse(batch, resolveCurrentSettlementBalance(merchantId, batch.getSettlementAccountNumber()));
+        return toBatchResponse(batch, resolveCurrentSettlementBalance(merchantId, batch.getSettlementAccountNumber()), true);
+    }
+
+    @Transactional
+    public AutoSettlementRunResponse runAutomaticSettlement(LocalDate settlementDate,
+                                                            Double feeRate,
+                                                            boolean executeBatches) {
+        LocalDate effectiveDate = settlementDate != null ? settlementDate : LocalDate.now().minusDays(1);
+        double appliedFeeRate = feeRate != null ? feeRate : 0.0;
+
+        List<Merchant> merchants = merchantRepository.findByStatusOrderByMerchantIdAsc(Merchant.MerchantStatus.ACTIVE);
+        List<AutoSettlementMerchantResultResponse> results = new ArrayList<>();
+        int generatedCount = 0;
+        int executedCount = 0;
+        int skippedCount = 0;
+        int failedCount = 0;
+
+        for (Merchant merchant : merchants) {
+            try {
+                List<Transaction> eligibleTransactions = findEligibleTransactions(
+                        merchant.getMerchantId(),
+                        effectiveDate,
+                        effectiveDate
+                );
+                if (eligibleTransactions.isEmpty()) {
+                    skippedCount++;
+                    results.add(new AutoSettlementMerchantResultResponse(
+                            merchant.getMerchantId(),
+                            merchant.getName(),
+                            "SKIPPED",
+                            "No eligible transactions found",
+                            null,
+                            null
+                    ));
+                    continue;
+                }
+
+                boolean duplicateExists = merchantSettlementBatchRepository.existsByMerchantIdAndFromDateAndToDateAndStatusIn(
+                        merchant.getMerchantId(),
+                        effectiveDate,
+                        effectiveDate,
+                        List.of(
+                                MerchantSettlementBatch.SettlementStatus.PENDING,
+                                MerchantSettlementBatch.SettlementStatus.SETTLED
+                        )
+                );
+                if (duplicateExists) {
+                    skippedCount++;
+                    results.add(new AutoSettlementMerchantResultResponse(
+                            merchant.getMerchantId(),
+                            merchant.getName(),
+                            "SKIPPED",
+                            "Settlement batch already exists for this merchant and date",
+                            null,
+                            null
+                    ));
+                    continue;
+                }
+
+                MerchantSettlementBatchResponse generatedBatch = generateSettlementBatch(
+                        merchant.getMerchantId(),
+                        effectiveDate,
+                        effectiveDate,
+                        appliedFeeRate,
+                        "AUTO T+1 settlement for " + effectiveDate
+                );
+                generatedCount++;
+
+                MerchantSettlementBatchResponse finalBatch = generatedBatch;
+                String status = "GENERATED";
+                String message = "Batch generated";
+
+                if (executeBatches) {
+                    finalBatch = executeSettlementBatch(
+                            merchant.getMerchantId(),
+                            generatedBatch.getId(),
+                            "AUTO T+1 settlement executed for " + effectiveDate
+                    );
+                    executedCount++;
+                    status = "EXECUTED";
+                    message = "Batch executed successfully";
+                }
+
+                results.add(new AutoSettlementMerchantResultResponse(
+                        merchant.getMerchantId(),
+                        merchant.getName(),
+                        status,
+                        message,
+                        finalBatch.getId(),
+                        finalBatch.getExecutionReference()
+                ));
+            } catch (Exception ex) {
+                failedCount++;
+                results.add(new AutoSettlementMerchantResultResponse(
+                        merchant.getMerchantId(),
+                        merchant.getName(),
+                        "FAILED",
+                        ex.getMessage(),
+                        null,
+                        null
+                ));
+            }
+        }
+
+        return new AutoSettlementRunResponse(
+                effectiveDate,
+                appliedFeeRate,
+                executeBatches,
+                generatedCount,
+                executedCount,
+                skippedCount,
+                failedCount,
+                LocalDateTime.now(),
+                results
+        );
     }
 
     private MerchantSettlementPreviewResponse buildPreview(String merchantId,
@@ -147,25 +275,13 @@ public class SettlementService {
             throw new IllegalArgumentException("feeRate must be greater than or equal to 0");
         }
 
-        LocalDateTime from = fromDate.atStartOfDay();
-        LocalDateTime to = toDate.atTime(LocalTime.MAX);
-
-        List<Transaction> transactions = transactionRepository
-                .findByMerchantIdAndStatusAndTransactionDateBetweenOrderByTransactionDateAsc(
-                        merchantId,
-                        "SUCCESS",
-                        from,
-                        to
-                );
+        List<Transaction> transactions = findEligibleTransactions(merchantId, fromDate, toDate);
 
         double grossAmount = transactions.stream()
-                .filter(this::affectsSettlement)
                 .mapToDouble(this::signedSettlementAmount)
                 .sum();
 
-        int transactionCount = (int) transactions.stream()
-                .filter(this::affectsSettlement)
-                .count();
+        int transactionCount = transactions.size();
 
         double feeAmount = grossAmount * appliedFeeRate / 100.0;
         double netAmount = grossAmount - feeAmount;
@@ -186,6 +302,22 @@ public class SettlementService {
                 feeAmount,
                 netAmount
         );
+    }
+
+    private List<Transaction> findEligibleTransactions(String merchantId, LocalDate fromDate, LocalDate toDate) {
+        LocalDateTime from = fromDate.atStartOfDay();
+        LocalDateTime to = toDate.atTime(LocalTime.MAX);
+
+        return transactionRepository
+                .findByMerchantIdAndStatusAndTransactionDateBetweenOrderByTransactionDateAsc(
+                        merchantId,
+                        "SUCCESS",
+                        from,
+                        to
+                )
+                .stream()
+                .filter(this::affectsSettlement)
+                .toList();
     }
 
     private void validateSettlementRange(LocalDate fromDate, LocalDate toDate) {
@@ -224,7 +356,47 @@ public class SettlementService {
         return savingsAccountService.getBalance(settlementAccountNumber);
     }
 
-    private MerchantSettlementBatchResponse toBatchResponse(MerchantSettlementBatch batch, Double settlementAccountBalance) {
+    private List<MerchantSettlementBatchItem> buildBatchItems(MerchantSettlementBatch batch, List<Transaction> transactions) {
+        return transactions.stream()
+                .map(tx -> {
+                    MerchantSettlementBatchItem item = new MerchantSettlementBatchItem();
+                    item.setBatch(batch);
+                    item.setTransactionId(tx.getId());
+                    item.setPaymentId(tx.getPaymentId());
+                    item.setTransactionType(tx.getTransactionType());
+                    item.setSignedAmount(signedSettlementAmount(tx));
+                    item.setCurrency(tx.getCurrency());
+                    item.setAccountNumber(tx.getAccountNumber());
+                    item.setAccountType(tx.getAccountType());
+                    item.setTransactionDate(tx.getTransactionDate());
+                    item.setStatus(tx.getStatus());
+                    item.setDescription(tx.getDescription());
+                    return item;
+                })
+                .toList();
+    }
+
+    private MerchantSettlementBatchResponse toBatchResponse(MerchantSettlementBatch batch,
+                                                            Double settlementAccountBalance,
+                                                            boolean includeItems) {
+        List<MerchantSettlementBatchItemResponse> items = includeItems
+                ? merchantSettlementBatchItemRepository.findByBatchIdOrderByTransactionDateAsc(batch.getId()).stream()
+                .map(item -> new MerchantSettlementBatchItemResponse(
+                        item.getId(),
+                        item.getTransactionId(),
+                        item.getPaymentId(),
+                        item.getTransactionType(),
+                        item.getSignedAmount(),
+                        item.getCurrency(),
+                        item.getAccountNumber(),
+                        item.getAccountType(),
+                        item.getTransactionDate(),
+                        item.getStatus(),
+                        item.getDescription()
+                ))
+                .toList()
+                : null;
+
         return new MerchantSettlementBatchResponse(
                 batch.getId(),
                 batch.getMerchantId(),
@@ -245,7 +417,8 @@ public class SettlementService {
                 batch.getExecutedAt(),
                 batch.getExecutionReference(),
                 batch.getNote(),
-                batch.getCreatedAt()
+                batch.getCreatedAt(),
+                items
         );
     }
 }

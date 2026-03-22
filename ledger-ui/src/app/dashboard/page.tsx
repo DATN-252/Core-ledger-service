@@ -7,6 +7,7 @@ import {
     faArrowTrendUp, faArrowTrendDown, faBuildingColumns, faChartBar, faArrowRight
 } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
+import { getDisplayTransactionType, isNegativeTransaction, isPositiveTransaction } from '@/lib/transactionDisplay';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, Legend, BarChart, Bar
@@ -130,19 +131,12 @@ export default function DashboardPage() {
 
     const recentTxns = summary?.recentTransactions || [];
     const formatAmount = (txn: any) => {
-        const negativeTypes = ['WITHDRAWAL', 'CHARGE', 'FEE'];
-        const isNegative = negativeTypes.includes(txn.transactionType);
+        const isNegative = isNegativeTransaction(txn);
         return `${isNegative ? '-' : '+'}${Number(txn.amount || 0).toLocaleString('en-US')} ${txn.currency || 'USD'}`;
     };
 
     const formatTransactionType = (txn: any) => {
-        if (txn.transactionType === 'CHARGE') return 'CHARGE';
-        if (txn.transactionType === 'PAYMENT') return 'PAYMENT';
-        if (txn.transactionType === 'WITHDRAWAL') return 'WITHDRAWAL';
-        if (txn.transactionType === 'DEPOSIT') return 'DEPOSIT';
-        if (txn.transactionType === 'REFUND') return 'REFUND';
-        if (txn.transactionType === 'REVERSAL') return 'REVERSAL';
-        return txn.transactionType || 'UNKNOWN';
+        return getDisplayTransactionType(txn);
     };
 
     const formatStatus = (status: string) => {
@@ -400,13 +394,13 @@ export default function DashboardPage() {
                                         </td>
                                         <td style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{txn.merchantName || '—'}</td>
                                         <td>
-                                            <span className={`badge ${['DEPOSIT', 'PAYMENT', 'REFUND', 'REVERSAL'].includes(txn.transactionType) ? 'badge-active' : 'badge-pending'}`}>
+                                            <span className={`badge ${isPositiveTransaction(txn) ? 'badge-active' : 'badge-pending'}`}>
                                                 {formatTransactionType(txn)}
                                             </span>
                                         </td>
                                         <td style={{
                                             fontWeight: 700,
-                                            color: ['DEPOSIT', 'PAYMENT', 'REFUND', 'REVERSAL'].includes(txn.transactionType) ? 'var(--success)' : 'var(--warning)'
+                                            color: isPositiveTransaction(txn) ? 'var(--success)' : 'var(--warning)'
                                         }}>
                                             {formatAmount(txn)}
                                         </td>

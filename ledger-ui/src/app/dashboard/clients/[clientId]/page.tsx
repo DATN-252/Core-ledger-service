@@ -4,6 +4,7 @@ import { getClientAccounts, getTransactions } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faArrowRight, faUser, faCreditCard, faPiggyBank, faHistory, faLocationDot, faMobileAlt } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
+import { getDisplayTransactionType, isNegativeTransaction, isPositiveTransaction } from '@/lib/transactionDisplay';
 
 export default function ClientDetailPage({ params }: { params: Promise<{ clientId: string }> }) {
     const { clientId } = use(params);
@@ -46,12 +47,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
     const { clientName, savingsAccounts = [], loanAccounts = [] } = clientData;
 
     const formatAmount = (tx: any) => {
-        const negativeTypes = ['WITHDRAWAL', 'CHARGE', 'FEE'];
-        const isNegative = negativeTypes.includes(tx.transactionType);
+        const isNegative = isNegativeTransaction(tx);
         return `${isNegative ? '-' : '+'}${Number(tx.amount || 0).toLocaleString('en-US')} ${tx.currency || 'USD'}`;
     };
 
-    const formatType = (tx: any) => tx.transactionType || 'UNKNOWN';
+    const formatType = (tx: any) => getDisplayTransactionType(tx);
 
     const formatStatus = (status: string) => {
         switch (status) {
@@ -223,13 +223,13 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                                             </span>
                                         </td>
                                         <td>
-                                            <span className={`badge ${['DEPOSIT', 'PAYMENT', 'REFUND', 'REVERSAL'].includes(tx.transactionType) ? 'badge-active' : 'badge-pending'}`}>
+                                            <span className={`badge ${isPositiveTransaction(tx) ? 'badge-active' : 'badge-pending'}`}>
                                                 {formatType(tx)}
                                             </span>
                                         </td>
                                         <td style={{
                                             fontWeight: 700,
-                                            color: ['WITHDRAWAL', 'CHARGE'].includes(tx.transactionType) ? 'var(--warning)' : 'var(--success)'
+                                            color: isNegativeTransaction(tx) ? 'var(--warning)' : 'var(--success)'
                                         }}>
                                             {formatAmount(tx)}
                                         </td>

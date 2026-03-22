@@ -31,7 +31,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     List<Transaction> findByTransactionDateGreaterThanEqualOrderByTransactionDateAsc(LocalDateTime from);
 
-    @Query("select t.transactionType, count(t) from Transaction t group by t.transactionType")
+    @Query("""
+            select case when t.channel = 'SETTLEMENT' then 'SETTLEMENT' else t.transactionType end, count(t)
+            from Transaction t
+            group by case when t.channel = 'SETTLEMENT' then 'SETTLEMENT' else t.transactionType end
+            """)
     List<Object[]> countGroupedByTransactionType();
 
     List<Transaction> findByAccountNumberAndAccountTypeAndTransactionDateBetweenOrderByTransactionDateAsc(

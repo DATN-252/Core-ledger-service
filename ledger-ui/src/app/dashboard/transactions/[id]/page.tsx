@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { getTransactionDetail } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faLocationDot, faReceipt } from '@fortawesome/free-solid-svg-icons';
+import { getDisplayTransactionType } from '@/lib/transactionDisplay';
 
 type TransactionDetailPageProps = {
     params: Promise<{ id: string }>;
@@ -37,7 +38,7 @@ export default function TransactionDetailPage({ params }: TransactionDetailPageP
         ['Idempotency Key', txn.idempotencyKey || '—'],
         ['Giao dịch gốc', txn.originalTransactionId || '—'],
         ['Thời gian', txn.transactionDate ? new Date(txn.transactionDate).toLocaleString('vi-VN') : '—'],
-        ['Loại giao dịch', txn.transactionType || '—'],
+        ['Loại giao dịch', getDisplayTransactionType(txn)],
         ['Trạng thái', txn.status || '—'],
         ['Số tiền', `${Number(txn.amount || 0).toLocaleString('en-US')} ${txn.currency || 'USD'}`],
         ['Dư sau giao dịch', txn.balanceAfter != null ? `${Number(txn.balanceAfter).toLocaleString('en-US')} ${txn.currency || 'USD'}` : '—'],
@@ -89,7 +90,7 @@ export default function TransactionDetailPage({ params }: TransactionDetailPageP
                         </div>
                         <div className="stat-card">
                             <div className="stat-label">Loại giao dịch</div>
-                            <div className="stat-value">{txn.transactionType || '—'}</div>
+                            <div className="stat-value">{getDisplayTransactionType(txn)}</div>
                         </div>
                         <div className="stat-card">
                             <div className="stat-label">Trạng thái</div>

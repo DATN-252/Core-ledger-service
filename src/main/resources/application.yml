@@ -45,3 +45,11 @@ system:
 cms:
   url: ${CMS_URL:http://localhost:8082}
   internal-api-key: ${CMS_INTERNAL_API_KEY:jpos-to-cms-secret-key-2025}
+
+settlement:
+  auto:
+    enabled: ${SETTLEMENT_AUTO_ENABLED:false}
+    cron: ${SETTLEMENT_AUTO_CRON:0 0 1 * * *}
+    days-offset: ${SETTLEMENT_AUTO_DAYS_OFFSET:1}
+    fee-rate: ${SETTLEMENT_AUTO_FEE_RATE:1.5}
+    execute: ${SETTLEMENT_AUTO_EXECUTE:true}
