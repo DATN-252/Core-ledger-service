@@ -444,6 +444,37 @@ tbody tr:last-child {
   color: var(--text-secondary);
 }
 
+.settlement-table th:nth-child(1),
+.settlement-table td:nth-child(1) {
+  width: 90px;
+  white-space: nowrap;
+}
+
+.settlement-table th:nth-child(2),
+.settlement-table td:nth-child(2) {
+  width: 170px;
+}
+
+.settlement-table th:nth-child(3),
+.settlement-table td:nth-child(3),
+.settlement-table th:nth-child(4),
+.settlement-table td:nth-child(4),
+.settlement-table th:nth-child(5),
+.settlement-table td:nth-child(5) {
+  width: 130px;
+  white-space: nowrap;
+}
+
+.settlement-table th:nth-child(6),
+.settlement-table td:nth-child(6) {
+  width: 110px;
+}
+
+.settlement-table th:nth-child(7),
+.settlement-table td:nth-child(7) {
+  width: 180px;
+}
+
 @media (max-width: 960px) {
   .panel-grid {
     grid-template-columns: 1fr;

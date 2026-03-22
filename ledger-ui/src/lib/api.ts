@@ -161,6 +161,48 @@ export async function getTransactions(accountId?: string, page = 0, size = 10) {
   return request<any>(path);
 }
 
+// ─── Merchants / Settlements ─────────────────────────────────────────────────
+export async function getMerchants(page = 0, size = 100) {
+  return request<any>(`/merchants?page=${page}&size=${size}`);
+}
+
+export async function getSettlementPreview(merchantId: string, fromDate: string, toDate: string, feeRate = 0) {
+  return request<any>(
+    `/merchants/${merchantId}/settlement/preview?fromDate=${encodeURIComponent(fromDate)}&toDate=${encodeURIComponent(toDate)}&feeRate=${feeRate}`
+  );
+}
+
+export async function generateSettlementBatch(
+  merchantId: string,
+  fromDate: string,
+  toDate: string,
+  feeRate = 0,
+  note?: string,
+) {
+  return request<any>(
+    `/merchants/${merchantId}/settlements/generate?fromDate=${encodeURIComponent(fromDate)}&toDate=${encodeURIComponent(toDate)}&feeRate=${feeRate}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ note: note || '' }),
+    },
+  );
+}
+
+export async function executeSettlementBatch(merchantId: string, batchId: number, note?: string) {
+  return request<any>(`/merchants/${merchantId}/settlements/${batchId}/execute`, {
+    method: 'POST',
+    body: JSON.stringify({ note: note || '' }),
+  });
+}
+
+export async function getSettlementBatches(merchantId: string, page = 0, size = 20) {
+  return request<any>(`/merchants/${merchantId}/settlements?page=${page}&size=${size}`);
+}
+
+export async function getSettlementBatchDetail(merchantId: string, batchId: number) {
+  return request<any>(`/merchants/${merchantId}/settlements/${batchId}`);
+}
+
 // ─── Clients ──────────────────────────────────────────────────────────────────
 export async function getAllClients(page = 0, size = 10) {
   return request<any>(`/clients?page=${page}&size=${size}`);
