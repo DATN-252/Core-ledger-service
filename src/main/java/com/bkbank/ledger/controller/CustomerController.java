@@ -17,6 +17,7 @@ import com.bkbank.ledger.service.CreditCardStatementService;
 import com.bkbank.ledger.service.StatementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -360,28 +361,19 @@ public class CustomerController {
     }
 
     // docs: https://docs.expo.dev/push-notifications/sending-notifications/
-    @PostMapping("/push-token")
-    public ResponseEntity<?> savePushToken(@RequestBody Map<String, String> body) throws Exception {
-        // client gửi token-message của device
-        String expoPushToken = body.get("token");
-        if (expoPushToken == null || expoPushToken.isBlank()) {
-            return ResponseEntity.badRequest().body("Token is required");
-        }
-
-        // TODO: lưu token-message vào DB ở đây
-
+    public ResponseEntity<String> sendPushNotification(String expoPushToken, String title, String body,
+            Map<String, Object> data) throws Exception {
         // Todo: format payload theo định dạng của Expo push notification service.
+        // to: có thể gửi cho nhiều client [expoPushToken1, expoPushToken2, ...]
         String payload = """
                 {
                   "to": "%s",
-                  "title": "Thông báo từ BK-Bank",
-                  "body": "Backend đã nhận được token!",
-                  "data": {
-                    "id": "123",
-                    "message": "Trong đây là dữ liệu chi tiết để người dùng bấm vào xem"
-                  }
+                  "title": "%s",
+                  "body": "%s",
+                  "data": %s
                 }
-                """.formatted(expoPushToken);
+                """.formatted(expoPushToken, title, body,
+                new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(data));
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://exp.host/--/api/v2/push/send"))
@@ -389,11 +381,30 @@ public class CustomerController {
                 .POST(HttpRequest.BodyPublishers.ofString(payload))
                 .build();
 
-        HttpResponse<String> response = HttpClient.newHttpClient()
-                .send(request, HttpResponse.BodyHandlers.ofString());
+        HttpClient client = HttpClient.newHttpClient();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-        System.out.println("Expo response: " + response.body());
+        if (response.statusCode() != 200) {
+            throw new RuntimeException("Failed to send push notification: " + response.body());
+        }
 
-        return ResponseEntity.ok(response.body());
+        return ResponseEntity.ok("Notification sent successfully");
+    }
+
+    @PostMapping("/push-token")
+    public void savePushToken(@RequestBody Map<String, String> body) throws Exception {
+        // client gửi token-message của device
+        String expoPushToken = body.get("token");
+        if (expoPushToken == null || expoPushToken.isBlank()) {
+            throw new IllegalArgumentException("Missing 'token' in request body");
+        }
+
+        // TODO: lưu token-message vào DB ở đây
+
+        // todo: xóa 4 dòng dưới vì chỉ test client gửi token thành công hay không
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", "123");
+        data.put("message", "Trong đây là dữ liệu chi tiết để người dùng bấm vào xem");
+        sendPushNotification(expoPushToken, "Thông báo từ BK-Bank", "Backend đã nhận được token ^^", data);
     }
 }
