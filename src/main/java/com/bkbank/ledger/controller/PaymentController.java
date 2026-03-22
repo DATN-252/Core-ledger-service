@@ -34,7 +34,6 @@ public class PaymentController {
     private final CmsClient cmsClient;
     private final MerchantService merchantService;
     private final PaymentAdjustmentService paymentAdjustmentService;
-    private static final String DEFAULT_BANK_NAME = "BKBank Merchant Network";
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @PostMapping("/preview")
@@ -56,9 +55,9 @@ public class PaymentController {
             Map<String, Object> previewData = new HashMap<>();
             previewData.put("merchantId", merchantId);
             previewData.put("merchantName", merchant.getName());
-            previewData.put("recipientAccount", merchantId);
-            previewData.put("recipientName", merchant.getName());
-            previewData.put("bankName", DEFAULT_BANK_NAME);
+            previewData.put("recipientAccount", merchant.getResolvedSettlementAccountNumber());
+            previewData.put("recipientName", merchant.getResolvedSettlementAccountName());
+            previewData.put("bankName", merchant.getResolvedSettlementBankName());
             previewData.put("amount", amount);
             previewData.put("fee", 0);
             previewData.put("totalAmount", amount != null ? amount + fee : null);
@@ -106,9 +105,9 @@ public class PaymentController {
             cmsResponse.putIfAbsent("paymentId", request.getPaymentId());
             cmsResponse.put("merchantId", request.getMerchantId());
             cmsResponse.put("merchantName", merchantName);
-            cmsResponse.put("recipientAccount", request.getMerchantId());
-            cmsResponse.put("recipientName", merchantName);
-            cmsResponse.put("bankName", DEFAULT_BANK_NAME);
+            cmsResponse.put("recipientAccount", merchant.getResolvedSettlementAccountNumber());
+            cmsResponse.put("recipientName", merchant.getResolvedSettlementAccountName());
+            cmsResponse.put("bankName", merchant.getResolvedSettlementBankName());
             cmsResponse.put("amount", request.getAmount());
             cmsResponse.put("fee", 0);
             cmsResponse.put("totalAmount", request.getAmount());

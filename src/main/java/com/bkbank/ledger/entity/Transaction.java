@@ -144,6 +144,24 @@ public class Transaction {
         return tx;
     }
 
+    public static Transaction createSettlementDeposit(String accountNumber,
+                                                      Double amount,
+                                                      Double balanceAfter,
+                                                      String merchantId,
+                                                      String merchantName,
+                                                      String settlementReference,
+                                                      String note) {
+        Transaction tx = createDeposit(accountNumber, amount, balanceAfter);
+        tx.merchantId = merchantId;
+        tx.merchantName = merchantName;
+        tx.description = "Merchant settlement"
+                + (settlementReference != null && !settlementReference.isBlank() ? " " + settlementReference : "")
+                + (note != null && !note.isBlank() ? " - " + note : "");
+        tx.channel = "SETTLEMENT";
+        tx.externalReference = settlementReference;
+        return tx;
+    }
+
     public static Transaction createCharge(String accountNumber, Double amount, Double outstandingAfter, String merchantId, String merchantName, String location, Double latitude, Double longitude) {
         Transaction tx = new Transaction();
         initializeDefaults(tx);
