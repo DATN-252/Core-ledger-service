@@ -1,5 +1,6 @@
 package com.bkbank.ledger.controller;
 
+import com.bkbank.ledger.dto.response.MerchantSettlementBatchResponse;
 import com.bkbank.ledger.dto.response.MerchantSettlementPreviewResponse;
 import com.bkbank.ledger.entity.Merchant;
 import com.bkbank.ledger.repository.MerchantRepository;
@@ -12,11 +13,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -28,13 +33,25 @@ public class MerchantController {
     private final SettlementService settlementService;
 
     @GetMapping
-    public ResponseEntity<Page<Merchant>> getAllActiveMerchants(
+    public ResponseEntity<Page<Map<String, Object>>> getAllActiveMerchants(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
         Pageable pageable = PageRequest.of(page, size);
         Page<Merchant> merchants = merchantRepository.findByStatus(Merchant.MerchantStatus.ACTIVE, pageable);
-        return ResponseEntity.ok(merchants);
+        Page<Map<String, Object>> result = merchants.map(merchant -> {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("merchantId", merchant.getMerchantId());
+            item.put("name", merchant.getName());
+            item.put("category", merchant.getCategory());
+            item.put("status", merchant.getStatus());
+            item.put("settlementAccountNumber", merchant.getResolvedSettlementAccountNumber());
+            item.put("settlementAccountName", merchant.getResolvedSettlementAccountName());
+            item.put("settlementBankName", merchant.getResolvedSettlementBankName());
+            item.put("settlementAccountBalance", merchant.getResolvedSettlementAccountBalance());
+            return item;
+        });
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/{merchantId}/settlement/preview")
@@ -53,6 +70,74 @@ public class MerchantController {
                     feeRate
             );
             return ResponseEntity.ok(preview);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{merchantId}/settlements/generate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> generateSettlementBatch(
+            @PathVariable String merchantId,
+            @RequestParam LocalDate fromDate,
+            @RequestParam LocalDate toDate,
+            @RequestParam(defaultValue = "0") Double feeRate,
+            @RequestBody(required = false) Map<String, Object> body
+    ) {
+        try {
+            String note = body != null ? (String) body.get("note") : null;
+            MerchantSettlementBatchResponse batch = settlementService.generateSettlementBatch(
+                    merchantId,
+                    fromDate,
+                    toDate,
+                    feeRate,
+                    note
+            );
+            return ResponseEntity.ok(batch);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{merchantId}/settlements/{batchId}/execute")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> executeSettlementBatch(
+            @PathVariable String merchantId,
+            @PathVariable Long batchId,
+            @RequestBody(required = false) Map<String, Object> body
+    ) {
+        try {
+            String note = body != null ? (String) body.get("note") : null;
+            MerchantSettlementBatchResponse batch = settlementService.executeSettlementBatch(merchantId, batchId, note);
+            return ResponseEntity.ok(batch);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{merchantId}/settlements")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> getSettlementBatches(
+            @PathVariable String merchantId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        try {
+            Pageable pageable = PageRequest.of(page, size);
+            return ResponseEntity.ok(settlementService.getSettlementBatches(merchantId, pageable));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{merchantId}/settlements/{batchId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> getSettlementBatch(
+            @PathVariable String merchantId,
+            @PathVariable Long batchId
+    ) {
+        try {
+            return ResponseEntity.ok(settlementService.getSettlementBatch(merchantId, batchId));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

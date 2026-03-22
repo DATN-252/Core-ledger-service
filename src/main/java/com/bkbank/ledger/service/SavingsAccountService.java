@@ -104,6 +104,34 @@ public class SavingsAccountService {
         return savedAccount;
     }
 
+    @Transactional
+    public SavingsAccount depositSettlement(String accountNumber,
+                                            Double amount,
+                                            String merchantId,
+                                            String merchantName,
+                                            String settlementReference,
+                                            String note) {
+        log.info("Depositing settlement {} to account {} for merchant {}", amount, accountNumber, merchantId);
+
+        SavingsAccount account = getAccount(accountNumber);
+        account.deposit(amount);
+        SavingsAccount savedAccount = savingsAccountRepository.save(account);
+
+        Transaction tx = Transaction.createSettlementDeposit(
+                accountNumber,
+                amount,
+                savedAccount.getCurrency(),
+                savedAccount.getBalance(),
+                merchantId,
+                merchantName,
+                settlementReference,
+                note
+        );
+        transactionRepository.save(tx);
+
+        return savedAccount;
+    }
+
     /**
      * Apply a refund/reversal credit to a debit account and log it as a dedicated transaction type.
      */

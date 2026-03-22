@@ -18,6 +18,8 @@ import java.time.LocalDateTime;
 @EntityListeners(AuditingEntityListener.class)
 public class Merchant {
 
+    public static final String DEFAULT_SETTLEMENT_BANK_NAME = "BKBank Merchant Network";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -40,6 +42,19 @@ public class Merchant {
     @JoinColumn(name = "city_reference_id")
     private CityReference cityReference;
 
+    @Column(name = "settlement_account_number")
+    private String settlementAccountNumber;
+
+    @Column(name = "settlement_account_name")
+    private String settlementAccountName;
+
+    @Column(name = "settlement_bank_name")
+    private String settlementBankName = DEFAULT_SETTLEMENT_BANK_NAME;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "settlement_account_id")
+    private SavingsAccount settlementAccount;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private MerchantStatus status = MerchantStatus.ACTIVE;
@@ -50,6 +65,34 @@ public class Merchant {
 
     @LastModifiedDate
     private LocalDateTime updatedAt;
+
+    public String getResolvedSettlementAccountNumber() {
+        if (settlementAccount != null && settlementAccount.getAccountNumber() != null && !settlementAccount.getAccountNumber().isBlank()) {
+            return settlementAccount.getAccountNumber();
+        }
+        return settlementAccountNumber != null && !settlementAccountNumber.isBlank()
+                ? settlementAccountNumber
+                : merchantId;
+    }
+
+    public String getResolvedSettlementAccountName() {
+        if (settlementAccount != null && settlementAccount.getClientName() != null && !settlementAccount.getClientName().isBlank()) {
+            return settlementAccount.getClientName();
+        }
+        return settlementAccountName != null && !settlementAccountName.isBlank()
+                ? settlementAccountName
+                : name;
+    }
+
+    public String getResolvedSettlementBankName() {
+        return settlementBankName != null && !settlementBankName.isBlank()
+                ? settlementBankName
+                : DEFAULT_SETTLEMENT_BANK_NAME;
+    }
+
+    public Double getResolvedSettlementAccountBalance() {
+        return settlementAccount != null ? settlementAccount.getBalance() : null;
+    }
 
     public enum MerchantStatus {
         ACTIVE, INACTIVE
