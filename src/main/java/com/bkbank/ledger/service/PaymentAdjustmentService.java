@@ -16,6 +16,7 @@ public class PaymentAdjustmentService {
     private final TransactionRepository transactionRepository;
     private final SavingsAccountService savingsAccountService;
     private final LoanAccountService loanAccountService;
+    private final SettlementAdjustmentService settlementAdjustmentService;
 
     @Transactional
     public Transaction applyAdjustment(String adjustmentType, PaymentAdjustmentRequest request) {
@@ -73,6 +74,13 @@ public class PaymentAdjustmentService {
                         : normalizedAdjustmentType + " applied"
         );
         transactionRepository.save(originalTransaction);
+
+        settlementAdjustmentService.createPostSettlementAdjustmentIfNeeded(
+                originalTransaction,
+                adjustmentTransaction,
+                normalizedAdjustmentType,
+                request.getReason()
+        );
 
         log.info("{} applied successfully for original paymentId={} adjustmentPaymentId={}",
                 normalizedAdjustmentType,

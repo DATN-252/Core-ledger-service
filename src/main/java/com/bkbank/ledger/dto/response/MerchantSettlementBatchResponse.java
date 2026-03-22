@@ -24,7 +24,9 @@ public class MerchantSettlementBatchResponse {
     private LocalDate fromDate;
     private LocalDate toDate;
     private Integer transactionCount;
+    private Integer adjustmentCount;
     private Double grossAmount;
+    private Double adjustmentAmount;
     private Double feeRate;
     private Double feeAmount;
     private Double netAmount;
@@ -34,4 +36,5 @@ public class MerchantSettlementBatchResponse {
     private String note;
     private LocalDateTime createdAt;
     private List<MerchantSettlementBatchItemResponse> items;
+    private List<MerchantSettlementAdjustmentResponse> adjustments;
 }

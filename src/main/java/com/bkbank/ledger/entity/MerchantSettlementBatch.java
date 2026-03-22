@@ -50,8 +50,14 @@ public class MerchantSettlementBatch {
     @Column(name = "transaction_count", nullable = false)
     private Integer transactionCount = 0;
 
+    @Column(name = "adjustment_count", nullable = false)
+    private Integer adjustmentCount = 0;
+
     @Column(name = "gross_amount", nullable = false)
     private Double grossAmount = 0.0;
+
+    @Column(name = "adjustment_amount", nullable = false)
+    private Double adjustmentAmount = 0.0;
 
     @Column(name = "fee_rate", nullable = false)
     private Double feeRate = 0.0;

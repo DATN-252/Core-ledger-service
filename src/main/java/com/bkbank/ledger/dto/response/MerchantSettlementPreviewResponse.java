@@ -20,7 +20,9 @@ public class MerchantSettlementPreviewResponse {
     private LocalDate fromDate;
     private LocalDate toDate;
     private Integer transactionCount;
+    private Integer adjustmentCount;
     private Double grossAmount;
+    private Double adjustmentAmount;
     private Double feeRate;
     private Double feeAmount;
     private Double netAmount;

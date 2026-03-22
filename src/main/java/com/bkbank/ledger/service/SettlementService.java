@@ -2,10 +2,12 @@ package com.bkbank.ledger.service;
 
 import com.bkbank.ledger.dto.response.AutoSettlementMerchantResultResponse;
 import com.bkbank.ledger.dto.response.AutoSettlementRunResponse;
+import com.bkbank.ledger.dto.response.MerchantSettlementAdjustmentResponse;
 import com.bkbank.ledger.dto.response.MerchantSettlementBatchItemResponse;
 import com.bkbank.ledger.dto.response.MerchantSettlementBatchResponse;
 import com.bkbank.ledger.dto.response.MerchantSettlementPreviewResponse;
 import com.bkbank.ledger.entity.Merchant;
+import com.bkbank.ledger.entity.MerchantSettlementAdjustment;
 import com.bkbank.ledger.entity.MerchantSettlementBatch;
 import com.bkbank.ledger.entity.MerchantSettlementBatchItem;
 import com.bkbank.ledger.entity.SavingsAccount;
@@ -37,6 +39,7 @@ public class SettlementService {
     private final MerchantSettlementBatchRepository merchantSettlementBatchRepository;
     private final MerchantSettlementBatchItemRepository merchantSettlementBatchItemRepository;
     private final SavingsAccountService savingsAccountService;
+    private final SettlementAdjustmentService settlementAdjustmentService;
 
     public MerchantSettlementPreviewResponse previewSettlement(String merchantId,
                                                               LocalDate fromDate,
@@ -55,10 +58,13 @@ public class SettlementService {
                                                                    String note) {
         MerchantSettlementPreviewResponse preview = buildPreview(merchantId, fromDate, toDate, feeRate);
         if (preview.getTransactionCount() == null || preview.getTransactionCount() <= 0) {
-            throw new IllegalArgumentException("No eligible transactions found for settlement");
+            if (preview.getAdjustmentCount() == null || preview.getAdjustmentCount() <= 0) {
+                throw new IllegalArgumentException("No eligible transactions found for settlement");
+            }
         }
 
         List<Transaction> eligibleTransactions = findEligibleTransactions(merchantId, fromDate, toDate);
+        List<MerchantSettlementAdjustment> pendingAdjustments = settlementAdjustmentService.getPendingAdjustments(merchantId);
 
         boolean duplicateExists = merchantSettlementBatchRepository.existsByMerchantIdAndFromDateAndToDateAndStatusIn(
                 merchantId,
@@ -83,7 +89,9 @@ public class SettlementService {
         batch.setFromDate(preview.getFromDate());
         batch.setToDate(preview.getToDate());
         batch.setTransactionCount(preview.getTransactionCount());
+        batch.setAdjustmentCount(preview.getAdjustmentCount());
         batch.setGrossAmount(preview.getGrossAmount());
+        batch.setAdjustmentAmount(preview.getAdjustmentAmount());
         batch.setFeeRate(preview.getFeeRate());
         batch.setFeeAmount(preview.getFeeAmount());
         batch.setNetAmount(preview.getNetAmount());
@@ -93,6 +101,7 @@ public class SettlementService {
 
         batch = merchantSettlementBatchRepository.save(batch);
         merchantSettlementBatchItemRepository.saveAll(buildBatchItems(batch, eligibleTransactions));
+        settlementAdjustmentService.reserveAdjustments(batch.getId(), pendingAdjustments);
 
         return toBatchResponse(batch, preview.getSettlementAccountBalance(), true);
     }
@@ -133,6 +142,7 @@ public class SettlementService {
             batch.setNote(note);
         }
         batch = merchantSettlementBatchRepository.save(batch);
+        settlementAdjustmentService.applyReservedAdjustments(merchantId, batch.getId());
 
         return toBatchResponse(batch, settlementAccount.getBalance(), true);
     }
@@ -276,15 +286,21 @@ public class SettlementService {
         }
 
         List<Transaction> transactions = findEligibleTransactions(merchantId, fromDate, toDate);
+        List<MerchantSettlementAdjustment> pendingAdjustments = settlementAdjustmentService.getPendingAdjustments(merchantId);
+        double adjustmentAmount = pendingAdjustments.stream()
+                .mapToDouble(adjustment -> adjustment.getAmount() != null ? adjustment.getAmount() : 0.0)
+                .sum();
 
         double grossAmount = transactions.stream()
                 .mapToDouble(this::signedSettlementAmount)
                 .sum();
 
         int transactionCount = transactions.size();
+        int adjustmentCount = pendingAdjustments.size();
+        double adjustedGrossAmount = grossAmount - adjustmentAmount;
 
-        double feeAmount = grossAmount * appliedFeeRate / 100.0;
-        double netAmount = grossAmount - feeAmount;
+        double feeAmount = adjustedGrossAmount * appliedFeeRate / 100.0;
+        double netAmount = adjustedGrossAmount - feeAmount;
 
         return new MerchantSettlementPreviewResponse(
                 merchant.getMerchantId(),
@@ -297,7 +313,9 @@ public class SettlementService {
                 fromDate,
                 toDate,
                 transactionCount,
+                adjustmentCount,
                 grossAmount,
+                adjustmentAmount,
                 appliedFeeRate,
                 feeAmount,
                 netAmount
@@ -397,6 +415,12 @@ public class SettlementService {
                 .toList()
                 : null;
 
+        List<MerchantSettlementAdjustmentResponse> adjustments = includeItems
+                ? settlementAdjustmentService.toResponses(
+                settlementAdjustmentService.getAdjustmentsReservedForBatch(batch.getMerchantId(), batch.getId())
+        )
+                : null;
+
         return new MerchantSettlementBatchResponse(
                 batch.getId(),
                 batch.getMerchantId(),
@@ -409,7 +433,9 @@ public class SettlementService {
                 batch.getFromDate(),
                 batch.getToDate(),
                 batch.getTransactionCount(),
+                batch.getAdjustmentCount(),
                 batch.getGrossAmount(),
+                batch.getAdjustmentAmount(),
                 batch.getFeeRate(),
                 batch.getFeeAmount(),
                 batch.getNetAmount(),
@@ -418,7 +444,8 @@ public class SettlementService {
                 batch.getExecutionReference(),
                 batch.getNote(),
                 batch.getCreatedAt(),
-                items
+                items,
+                adjustments
         );
     }
 }

@@ -22,6 +22,12 @@ export function logout() {
   window.location.href = '/login';
 }
 
+function getApiErrorMessage(err: any, fallbackStatus: string) {
+  if (!err) return fallbackStatus;
+  if (typeof err === 'string') return err;
+  return err.message || err.error || err.detail || fallbackStatus;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers: HeadersInit = {
@@ -39,7 +45,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || `HTTP ${res.status}`);
+    throw new Error(getApiErrorMessage(err, `HTTP ${res.status}`));
   }
 
   const json = await res.json();
@@ -67,7 +73,7 @@ async function cmsRequest<T>(path: string, options: RequestInit = {}): Promise<T
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || `HTTP ${res.status}`);
+    throw new Error(getApiErrorMessage(err, `HTTP ${res.status}`));
   }
 
   return res.json();
@@ -217,6 +223,10 @@ export async function getSettlementBatches(merchantId: string, page = 0, size = 
 
 export async function getSettlementBatchDetail(merchantId: string, batchId: number) {
   return request<any>(`/merchants/${merchantId}/settlements/${batchId}`);
+}
+
+export async function getSettlementAdjustments(merchantId: string, page = 0, size = 10) {
+  return request<any>(`/merchants/${merchantId}/settlement-adjustments?page=${page}&size=${size}`);
 }
 
 export async function runAutoSettlement(settlementDate: string, feeRate = 1.5, execute = true) {

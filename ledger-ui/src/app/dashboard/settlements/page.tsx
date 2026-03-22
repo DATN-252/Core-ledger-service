@@ -6,6 +6,7 @@ import {
   generateSettlementBatch,
   getMerchants,
   getSettlementBatchDetail,
+  getSettlementAdjustments,
   getSettlementBatches,
   getSettlementPreview,
   runAutoSettlement,
@@ -47,6 +48,9 @@ type SettlementBatch = {
   note?: string | null;
   createdAt?: string | null;
   items?: SettlementBatchItem[] | null;
+  adjustmentCount?: number | null;
+  adjustmentAmount?: number | null;
+  adjustments?: SettlementAdjustment[] | null;
 };
 
 type SettlementBatchItem = {
@@ -84,6 +88,24 @@ type AutoSettlementRunResult = {
   results: AutoSettlementMerchantResult[];
 };
 
+type SettlementAdjustment = {
+  id: number;
+  merchantId: string;
+  merchantName: string;
+  originalTransactionId: number;
+  originalPaymentId?: string | null;
+  adjustmentTransactionId: number;
+  originalBatchId: number;
+  adjustmentType: string;
+  amount: number;
+  currency?: string | null;
+  status: string;
+  reason?: string | null;
+  reservedBatchId?: number | null;
+  appliedBatchId?: number | null;
+  createdAt?: string | null;
+};
+
 function formatMoney(value?: number | null, currency = 'USD') {
   return `${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })} ${currency}`;
 }
@@ -114,8 +136,11 @@ export default function SettlementsPage() {
   const [preview, setPreview] = useState<any | null>(null);
   const [selectedBatch, setSelectedBatch] = useState<SettlementBatch | null>(null);
   const [batches, setBatches] = useState<SettlementBatch[]>([]);
+  const [adjustments, setAdjustments] = useState<SettlementAdjustment[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [adjustmentPage, setAdjustmentPage] = useState(0);
+  const [adjustmentTotalPages, setAdjustmentTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
@@ -156,6 +181,16 @@ export default function SettlementsPage() {
       .catch((err) => setError(err.message || 'Không thể tải settlement batches'))
       .finally(() => setBatchLoading(false));
   }, [selectedMerchantId, page]);
+
+  useEffect(() => {
+    if (!selectedMerchantId) return;
+    getSettlementAdjustments(selectedMerchantId, adjustmentPage, 10)
+      .then((data) => {
+        setAdjustments(data?.content || []);
+        setAdjustmentTotalPages(data?.totalPages || 1);
+      })
+      .catch(() => setAdjustments([]));
+  }, [selectedMerchantId, adjustmentPage]);
 
   async function handlePreview() {
     if (!selectedMerchantId) return;
@@ -432,7 +467,9 @@ export default function SettlementsPage() {
           {preview ? (
             <div className="info-list">
               <div className="info-row"><span className="info-label">Transactions</span><span className="info-value">{preview.transactionCount}</span></div>
+              <div className="info-row"><span className="info-label">Pending adjustments</span><span className="info-value">{preview.adjustmentCount || 0}</span></div>
               <div className="info-row"><span className="info-label">Gross amount</span><span className="info-value">{formatMoney(preview.grossAmount, preview.currency)}</span></div>
+              <div className="info-row"><span className="info-label">Adjustment amount</span><span className="info-value">{formatMoney(preview.adjustmentAmount, preview.currency)}</span></div>
               <div className="info-row"><span className="info-label">Fee amount</span><span className="info-value">{formatMoney(preview.feeAmount, preview.currency)}</span></div>
               <div className="info-row"><span className="info-label">Net amount</span><span className="info-value">{formatMoney(preview.netAmount, preview.currency)}</span></div>
               <div className="info-row"><span className="info-label">Current balance</span><span className="info-value">{formatMoney(preview.settlementAccountBalance, preview.currency)}</span></div>
@@ -528,6 +565,8 @@ export default function SettlementsPage() {
                 <div className="info-row"><span className="info-label">Settlement account</span><span className="info-value">{selectedBatch.settlementAccountNumber}</span></div>
                 <div className="info-row"><span className="info-label">Current balance</span><span className="info-value">{formatMoney(selectedBatch.settlementAccountBalance, selectedBatch.currency)}</span></div>
                 <div className="info-row"><span className="info-label">Status</span><span className="info-value">{selectedBatch.status}</span></div>
+                <div className="info-row"><span className="info-label">Adjustment count</span><span className="info-value">{selectedBatch.adjustmentCount || 0}</span></div>
+                <div className="info-row"><span className="info-label">Adjustment amount</span><span className="info-value">{formatMoney(selectedBatch.adjustmentAmount, selectedBatch.currency)}</span></div>
                 <div className="info-row"><span className="info-label">Execution ref</span><span className="info-value">{selectedBatch.executionReference || '—'}</span></div>
                 <div className="info-row"><span className="info-label">Created at</span><span className="info-value">{formatDateTime(selectedBatch.createdAt)}</span></div>
                 <div className="info-row"><span className="info-label">Executed at</span><span className="info-value">{formatDateTime(selectedBatch.executedAt)}</span></div>
@@ -570,11 +609,89 @@ export default function SettlementsPage() {
                   <div className="empty-state">Batch nay chua co item detail.</div>
                 )}
               </div>
+
+              <div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.75rem' }}>Applied adjustments</div>
+                {selectedBatch.adjustments && selectedBatch.adjustments.length > 0 ? (
+                  <div className="table-container">
+                    <table className="settlement-table">
+                      <thead>
+                        <tr>
+                          <th>ID</th>
+                          <th>Loai</th>
+                          <th>Original txn</th>
+                          <th>So tien</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedBatch.adjustments.map((adjustment) => (
+                          <tr key={adjustment.id}>
+                            <td>#{adjustment.id}</td>
+                            <td>{adjustment.adjustmentType}</td>
+                            <td>#{adjustment.originalTransactionId}</td>
+                            <td style={{ fontWeight: 700 }}>{formatMoney(adjustment.amount, adjustment.currency || selectedBatch.currency)}</td>
+                            <td>{adjustment.status}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="empty-state">Batch nay khong co adjustment nao.</div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="empty-state">Chua chon batch nao.</div>
           )}
         </div>
+      </div>
+
+      <div className="card" style={{ marginTop: '1rem' }}>
+        <div style={{ marginBottom: '1rem' }}>
+          <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.35rem' }}>Settlement adjustments</h2>
+          <p className="page-subtitle">Refund/Reversal sau khi batch da settle se duoc khau tru vao ky settlement tiep theo.</p>
+        </div>
+        <div className="table-container">
+          <table className="settlement-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Loai</th>
+                <th>Original txn</th>
+                <th>Original batch</th>
+                <th>So tien</th>
+                <th>Status</th>
+                <th>Applied batch</th>
+                <th>Created at</th>
+              </tr>
+            </thead>
+            <tbody>
+              {adjustments.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="empty-state">Chua co settlement adjustment nao.</td>
+                </tr>
+              ) : adjustments.map((adjustment) => (
+                <tr key={adjustment.id}>
+                  <td>#{adjustment.id}</td>
+                  <td>{adjustment.adjustmentType}</td>
+                  <td>#{adjustment.originalTransactionId}</td>
+                  <td>#{adjustment.originalBatchId}</td>
+                  <td style={{ fontWeight: 700 }}>{formatMoney(adjustment.amount, adjustment.currency || 'USD')}</td>
+                  <td>
+                    <span className={`badge ${adjustment.status === 'APPLIED' ? 'badge-active' : adjustment.status === 'RESERVED' ? 'badge-pending' : 'badge-locked'}`}>
+                      {adjustment.status}
+                    </span>
+                  </td>
+                  <td>{adjustment.appliedBatchId ? `#${adjustment.appliedBatchId}` : adjustment.reservedBatchId ? `Reserved #${adjustment.reservedBatchId}` : '—'}</td>
+                  <td>{formatDateTime(adjustment.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <Pagination page={adjustmentPage} totalPages={adjustmentTotalPages} onPageChange={setAdjustmentPage} />
       </div>
     </div>
   );

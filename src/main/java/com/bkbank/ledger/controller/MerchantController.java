@@ -1,12 +1,14 @@
 package com.bkbank.ledger.controller;
 
 import com.bkbank.ledger.dto.response.AutoSettlementRunResponse;
+import com.bkbank.ledger.dto.response.MerchantSettlementAdjustmentResponse;
 import com.bkbank.ledger.dto.response.MerchantSettlementBatchResponse;
 import com.bkbank.ledger.dto.response.MerchantSettlementPreviewResponse;
 import com.bkbank.ledger.entity.Merchant;
 import com.bkbank.ledger.entity.Transaction;
 import com.bkbank.ledger.repository.MerchantRepository;
 import com.bkbank.ledger.repository.TransactionRepository;
+import com.bkbank.ledger.service.SettlementAdjustmentService;
 import com.bkbank.ledger.service.SettlementService;
 import com.bkbank.ledger.service.MerchantService;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,7 @@ public class MerchantController {
     private final MerchantRepository merchantRepository;
     private final MerchantService merchantService;
     private final TransactionRepository transactionRepository;
+    private final SettlementAdjustmentService settlementAdjustmentService;
     private final SettlementService settlementService;
 
     @GetMapping
@@ -197,6 +200,36 @@ public class MerchantController {
     ) {
         try {
             return ResponseEntity.ok(settlementService.getSettlementBatch(merchantId, batchId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{merchantId}/settlement-adjustments")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> getSettlementAdjustments(
+            @PathVariable String merchantId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        try {
+            merchantService.getActiveMerchant(merchantId);
+            Pageable pageable = PageRequest.of(page, size);
+            return ResponseEntity.ok(settlementAdjustmentService.getAdjustments(merchantId, pageable));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{merchantId}/settlement-adjustments/{adjustmentId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> getSettlementAdjustment(
+            @PathVariable String merchantId,
+            @PathVariable Long adjustmentId
+    ) {
+        try {
+            MerchantSettlementAdjustmentResponse adjustment = settlementAdjustmentService.getAdjustment(merchantId, adjustmentId);
+            return ResponseEntity.ok(adjustment);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
