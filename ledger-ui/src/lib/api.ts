@@ -174,6 +174,14 @@ export async function getMerchants(page = 0, size = 100) {
   return request<any>(`/merchants?page=${page}&size=${size}`);
 }
 
+export async function getMerchantDetail(merchantId: string) {
+  return request<any>(`/merchants/${merchantId}`);
+}
+
+export async function getMerchantTransactions(merchantId: string, page = 0, size = 20) {
+  return request<any>(`/merchants/${merchantId}/transactions?page=${page}&size=${size}`);
+}
+
 export async function getSettlementPreview(merchantId: string, fromDate: string, toDate: string, feeRate = 0) {
   return request<any>(
     `/merchants/${merchantId}/settlement/preview?fromDate=${encodeURIComponent(fromDate)}&toDate=${encodeURIComponent(toDate)}&feeRate=${feeRate}`
@@ -209,6 +217,16 @@ export async function getSettlementBatches(merchantId: string, page = 0, size = 
 
 export async function getSettlementBatchDetail(merchantId: string, batchId: number) {
   return request<any>(`/merchants/${merchantId}/settlements/${batchId}`);
+}
+
+export async function runAutoSettlement(settlementDate: string, feeRate = 1.5, execute = true) {
+  return request<any>(
+    `/merchants/settlements/auto-run?settlementDate=${encodeURIComponent(settlementDate)}&feeRate=${feeRate}&execute=${execute}`,
+    {
+      method: 'POST',
+      body: '{}',
+    },
+  );
 }
 
 // ─── Clients ──────────────────────────────────────────────────────────────────

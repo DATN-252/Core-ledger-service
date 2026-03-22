@@ -58,6 +58,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             LocalDateTime to
     );
 
+    Page<Transaction> findByMerchantIdOrderByTransactionDateDesc(String merchantId, Pageable pageable);
+
     List<Transaction> findByAccountNumberAndAccountTypeAndTransactionDateAfterOrderByTransactionDateAsc(
             String accountNumber,
             String accountType,

@@ -8,9 +8,10 @@ import {
   getSettlementBatchDetail,
   getSettlementBatches,
   getSettlementPreview,
+  runAutoSettlement,
 } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faMoneyCheckDollar, faRotate, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
+import { faClockRotateLeft, faMoneyCheckDollar, faRotate, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
 import { Pagination } from '@/components/Pagination';
 
 type MerchantItem = {
@@ -62,6 +63,27 @@ type SettlementBatchItem = {
   description?: string | null;
 };
 
+type AutoSettlementMerchantResult = {
+  merchantId: string;
+  merchantName: string;
+  status: string;
+  message: string;
+  batchId?: number | null;
+  executionReference?: string | null;
+};
+
+type AutoSettlementRunResult = {
+  settlementDate: string;
+  feeRate: number;
+  autoExecuted: boolean;
+  generatedCount: number;
+  executedCount: number;
+  skippedCount: number;
+  failedCount: number;
+  runAt?: string | null;
+  results: AutoSettlementMerchantResult[];
+};
+
 function formatMoney(value?: number | null, currency = 'USD') {
   return `${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })} ${currency}`;
 }
@@ -98,6 +120,10 @@ export default function SettlementsPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
   const [executingId, setExecutingId] = useState<number | null>(null);
+  const [autoSettlementDate, setAutoSettlementDate] = useState(todayIso());
+  const [autoExecute, setAutoExecute] = useState(true);
+  const [autoRunning, setAutoRunning] = useState(false);
+  const [autoRunResult, setAutoRunResult] = useState<AutoSettlementRunResult | null>(null);
   const [error, setError] = useState('');
 
   const selectedMerchant = useMemo(
@@ -194,6 +220,28 @@ export default function SettlementsPage() {
     }
   }
 
+  async function handleAutoRun() {
+    setAutoRunning(true);
+    setError('');
+    try {
+      const result = await runAutoSettlement(autoSettlementDate, Number(feeRate || 0), autoExecute);
+      setAutoRunResult(result);
+
+      const merchantsData = await getMerchants(0, 200);
+      setMerchants(merchantsData?.content || []);
+
+      if (selectedMerchantId) {
+        const batchesData = await getSettlementBatches(selectedMerchantId, page, 20);
+        setBatches(batchesData?.content || []);
+        setTotalPages(batchesData?.totalPages || 1);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Không thể chạy auto settlement');
+    } finally {
+      setAutoRunning(false);
+    }
+  }
+
   return (
     <div className="animate-fade-in">
       <div className="page-header">
@@ -226,6 +274,105 @@ export default function SettlementsPage() {
           <div className="stat-value" style={{ fontSize: '1rem' }}>{selectedMerchant?.settlementBankName || '—'}</div>
           <div className="stat-note">So du hien tai: {formatMoney(selectedMerchant?.settlementAccountBalance)}</div>
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: '1rem' }}>
+        <div style={{ marginBottom: '1rem' }}>
+          <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+            <FontAwesomeIcon icon={faClockRotateLeft} style={{ marginRight: '0.5rem' }} />
+            Auto Settlement Run
+          </h2>
+          <p className="page-subtitle">
+            Chạy settlement tự động cho toàn bộ merchant active theo một ngày đối soát.
+          </p>
+        </div>
+
+        <div className="form-inline" style={{ marginBottom: '1rem' }}>
+          <div className="form-field">
+            <label className="info-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Settlement date</label>
+            <input className="input" type="date" value={autoSettlementDate} onChange={(e) => setAutoSettlementDate(e.target.value)} />
+          </div>
+          <div className="form-field" style={{ minWidth: '120px', maxWidth: '140px' }}>
+            <label className="info-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Fee rate (%)</label>
+            <input className="input" type="number" min="0" step="0.1" value={feeRate} onChange={(e) => setFeeRate(e.target.value)} />
+          </div>
+          <div className="form-field" style={{ display: 'flex', alignItems: 'end' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)', fontSize: '0.875rem', paddingBottom: '0.75rem' }}>
+              <input type="checkbox" checked={autoExecute} onChange={(e) => setAutoExecute(e.target.checked)} />
+              Execute ngay sau khi generate
+            </label>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: autoRunResult ? '1rem' : 0 }}>
+          <button className="btn-primary" onClick={handleAutoRun} disabled={autoRunning}>
+            <FontAwesomeIcon icon={faClockRotateLeft} />
+            {autoRunning ? 'Đang chạy auto settlement...' : 'Run Auto Settlement'}
+          </button>
+        </div>
+
+        {autoRunResult ? (
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-label">Settlement date</div>
+                <div className="stat-value" style={{ fontSize: '1.1rem' }}>{autoRunResult.settlementDate}</div>
+                <div className="stat-note">Run at: {formatDateTime(autoRunResult.runAt)}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">Generated / Executed</div>
+                <div className="stat-value" style={{ fontSize: '1.1rem' }}>{autoRunResult.generatedCount} / {autoRunResult.executedCount}</div>
+                <div className="stat-note">Execute mode: {autoRunResult.autoExecuted ? 'Generate + Execute' : 'Generate only'}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">Skipped</div>
+                <div className="stat-value" style={{ fontSize: '1.1rem' }}>{autoRunResult.skippedCount}</div>
+                <div className="stat-note">Fee rate: {autoRunResult.feeRate}%</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">Failed</div>
+                <div className="stat-value" style={{ fontSize: '1.1rem' }}>{autoRunResult.failedCount}</div>
+                <div className="stat-note">{autoRunResult.results?.length || 0} merchant processed</div>
+              </div>
+            </div>
+
+            <div className="table-container">
+              <table className="settlement-table">
+                <thead>
+                  <tr>
+                    <th>Merchant</th>
+                    <th>Status</th>
+                    <th>Message</th>
+                    <th>Batch</th>
+                    <th>Execution ref</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {autoRunResult.results.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="empty-state">Không có merchant nào được xử lý.</td>
+                    </tr>
+                  ) : autoRunResult.results.map((item) => (
+                    <tr key={`${item.merchantId}-${item.batchId ?? 'none'}`}>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>{item.merchantName}</div>
+                        <div className="page-subtitle">{item.merchantId}</div>
+                      </td>
+                      <td>
+                        <span className={`badge ${item.status === 'EXECUTED' ? 'badge-active' : item.status === 'GENERATED' || item.status === 'SKIPPED' ? 'badge-pending' : 'badge-locked'}`}>
+                          {item.status}
+                        </span>
+                      </td>
+                      <td>{item.message || '—'}</td>
+                      <td>{item.batchId ? `#${item.batchId}` : '—'}</td>
+                      <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>{item.executionReference || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="panel-grid" style={{ marginBottom: '1rem' }}>

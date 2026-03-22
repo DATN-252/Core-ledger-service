@@ -4,12 +4,16 @@ import com.bkbank.ledger.dto.response.AutoSettlementRunResponse;
 import com.bkbank.ledger.dto.response.MerchantSettlementBatchResponse;
 import com.bkbank.ledger.dto.response.MerchantSettlementPreviewResponse;
 import com.bkbank.ledger.entity.Merchant;
+import com.bkbank.ledger.entity.Transaction;
 import com.bkbank.ledger.repository.MerchantRepository;
+import com.bkbank.ledger.repository.TransactionRepository;
 import com.bkbank.ledger.service.SettlementService;
+import com.bkbank.ledger.service.MerchantService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,9 +34,12 @@ import java.util.Map;
 public class MerchantController {
 
     private final MerchantRepository merchantRepository;
+    private final MerchantService merchantService;
+    private final TransactionRepository transactionRepository;
     private final SettlementService settlementService;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
     public ResponseEntity<Page<Map<String, Object>>> getAllActiveMerchants(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
@@ -45,6 +52,9 @@ public class MerchantController {
             item.put("name", merchant.getName());
             item.put("category", merchant.getCategory());
             item.put("status", merchant.getStatus());
+            item.put("address", merchant.getDisplayAddress());
+            item.put("latitude", merchant.getLatitude());
+            item.put("longitude", merchant.getLongitude());
             item.put("settlementAccountNumber", merchant.getResolvedSettlementAccountNumber());
             item.put("settlementAccountName", merchant.getResolvedSettlementAccountName());
             item.put("settlementBankName", merchant.getResolvedSettlementBankName());
@@ -52,6 +62,55 @@ public class MerchantController {
             return item;
         });
         return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/{merchantId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> getMerchantDetail(@PathVariable String merchantId) {
+        try {
+            Merchant merchant = merchantService.getActiveMerchant(merchantId);
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("merchantId", merchant.getMerchantId());
+            detail.put("name", merchant.getName());
+            detail.put("category", merchant.getCategory());
+            detail.put("status", merchant.getStatus());
+            detail.put("addressLine", merchant.getAddressLine());
+            detail.put("ward", merchant.getWard());
+            detail.put("district", merchant.getDistrict());
+            detail.put("postalCode", merchant.getPostalCode());
+            detail.put("address", merchant.getDisplayAddress());
+            detail.put("latitude", merchant.getLatitude());
+            detail.put("longitude", merchant.getLongitude());
+            detail.put("cityName", merchant.getCityReference() != null ? merchant.getCityReference().getCityName() : null);
+            detail.put("country", merchant.getCityReference() != null ? merchant.getCityReference().getCountry() : null);
+            detail.put("cityPopulation", merchant.getCityReference() != null ? merchant.getCityReference().getPopulation() : null);
+            detail.put("settlementAccountNumber", merchant.getResolvedSettlementAccountNumber());
+            detail.put("settlementAccountName", merchant.getResolvedSettlementAccountName());
+            detail.put("settlementBankName", merchant.getResolvedSettlementBankName());
+            detail.put("settlementAccountBalance", merchant.getResolvedSettlementAccountBalance());
+            detail.put("createdAt", merchant.getCreatedAt());
+            detail.put("updatedAt", merchant.getUpdatedAt());
+            return ResponseEntity.ok(detail);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{merchantId}/transactions")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> getMerchantTransactions(
+            @PathVariable String merchantId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        try {
+            merchantService.getActiveMerchant(merchantId);
+            Pageable pageable = PageRequest.of(page, size, Sort.by("transactionDate").descending());
+            Page<Transaction> transactions = transactionRepository.findByMerchantIdOrderByTransactionDateDesc(merchantId, pageable);
+            return ResponseEntity.ok(transactions);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @GetMapping("/{merchantId}/settlement/preview")

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { isLoggedIn, getUser, logout } from '@/lib/api';
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChartLine, faCreditCard, faPiggyBank, faListUl, faUsers, faSignOutAlt, faIdCard, faMoneyCheckDollar } from '@fortawesome/free-solid-svg-icons';
+import { faChartLine, faCreditCard, faPiggyBank, faListUl, faUsers, faSignOutAlt, faIdCard, faMoneyCheckDollar, faStore } from '@fortawesome/free-solid-svg-icons';
 
 const navItems = [
     { href: '/dashboard', icon: faChartLine, label: 'Dashboard' },
@@ -14,6 +14,7 @@ const navItems = [
     { href: '/dashboard/savings', icon: faPiggyBank, label: 'Tài khoản ghi nợ' },
     { href: '/dashboard/transactions', icon: faListUl, label: 'Giao dịch' },
     { href: '/dashboard/cards', icon: faIdCard, label: 'Quản lý thẻ' },
+    { href: '/dashboard/merchants', icon: faStore, label: 'Merchants' },
     { href: '/dashboard/settlements', icon: faMoneyCheckDollar, label: 'Settlement' },
 ];
 
