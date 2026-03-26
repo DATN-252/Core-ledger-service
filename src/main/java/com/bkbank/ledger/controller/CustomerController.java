@@ -1,6 +1,8 @@
 package com.bkbank.ledger.controller;
 
 import com.bkbank.ledger.client.CmsClient;
+import com.bkbank.ledger.dto.request.PushTokenRegistrationRequest;
+import com.bkbank.ledger.dto.request.PushTokenUnregisterRequest;
 import com.bkbank.ledger.dto.response.ApiResponse;
 import com.bkbank.ledger.dto.response.CreditCardMonthlyStatementResponse;
 import com.bkbank.ledger.dto.response.CreditCardStatementSummaryResponse;
@@ -14,6 +16,8 @@ import com.bkbank.ledger.repository.UserRepository;
 import com.bkbank.ledger.repository.TransactionRepository;
 import com.bkbank.ledger.service.ClientService;
 import com.bkbank.ledger.service.CreditCardStatementService;
+import com.bkbank.ledger.service.PushDeviceTokenService;
+import com.bkbank.ledger.service.PushNotificationService;
 import com.bkbank.ledger.service.StatementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +31,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,18 +39,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.net.URI;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 
 @RestController
 @RequestMapping("/customer")
@@ -59,6 +58,8 @@ public class CustomerController {
     private final TransactionRepository transactionRepository;
     private final StatementService statementService;
     private final CreditCardStatementService creditCardStatementService;
+    private final PushDeviceTokenService pushDeviceTokenService;
+    private final PushNotificationService pushNotificationService;
 
     private Client getAuthenticatedClient(Authentication authentication) {
         if (authentication == null) {
@@ -383,52 +384,49 @@ public class CustomerController {
         }
     }
 
-    // docs: https://docs.expo.dev/push-notifications/sending-notifications/
-    public ResponseEntity<String> sendPushNotification(String expoPushToken, String title, String body,
-            Map<String, Object> data) throws Exception {
-        // Todo: format payload theo định dạng của Expo push notification service.
-        // to: có thể gửi cho nhiều client [expoPushToken1, expoPushToken2, ...]
-        String payload = """
-                {
-                  "to": "%s",
-                  "title": "%s",
-                  "body": "%s",
-                  "data": %s
-                }
-                """.formatted(expoPushToken, title, body,
-                new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(data));
+    @PostMapping("/push-token")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> savePushToken(
+            Authentication authentication,
+            @RequestBody PushTokenRegistrationRequest request) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+            var token = pushDeviceTokenService.registerToken(client, request);
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://exp.host/--/api/v2/push/send"))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(payload))
-                .build();
-
-        HttpClient client = HttpClient.newHttpClient();
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() != 200) {
-            throw new RuntimeException("Failed to send push notification: " + response.body());
+            Map<String, Object> response = new HashMap<>();
+            response.put("id", token.getId());
+            response.put("expoPushToken", token.getExpoPushToken());
+            response.put("deviceId", token.getDeviceId());
+            response.put("platform", token.getPlatform());
+            response.put("status", token.getStatus().name());
+            return ResponseEntity.ok(ApiResponse.success("Luu push token thanh cong", response));
+        } catch (Exception e) {
+            log.error("Error saving push token: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
+    }
 
+    public ResponseEntity<String> sendPushNotification(String expoPushToken,
+                                                       String title,
+                                                       String body,
+                                                       Map<String, Object> data) throws Exception {
+        pushNotificationService.sendToSingleToken(expoPushToken, title, body, data);
         return ResponseEntity.ok("Notification sent successfully");
     }
 
-    @PostMapping("/push-token")
-    public void savePushToken(@RequestBody Map<String, String> body) throws Exception {
-        // client gửi token-message của device
-        String expoPushToken = body.get("token");
-        if (expoPushToken == null || expoPushToken.isBlank()) {
-            throw new IllegalArgumentException("Missing 'token' in request body");
+    @DeleteMapping("/push-token")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<String>> deletePushToken(
+            Authentication authentication,
+            @RequestBody PushTokenUnregisterRequest request) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+            pushDeviceTokenService.unregisterToken(client, request);
+            return ResponseEntity.ok(ApiResponse.success("Xoa push token thanh cong", "OK"));
+        } catch (Exception e) {
+            log.error("Error deleting push token: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
-
-        // TODO: lưu token-message vào DB ở đây
-
-        // todo: xóa 4 dòng dưới vì chỉ test client gửi token thành công hay không
-        Map<String, Object> data = new HashMap<>();
-        data.put("id", "123");
-        data.put("message", "Trong đây là dữ liệu chi tiết để người dùng bấm vào xem");
-        sendPushNotification(expoPushToken, "Thông báo từ BK-Bank", "Backend đã nhận được token ^^", data);
     }
 }
 

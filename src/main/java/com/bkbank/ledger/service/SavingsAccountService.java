@@ -23,6 +23,7 @@ public class SavingsAccountService {
     private final ClientRepository clientRepository;
     private final TransactionRepository transactionRepository;
     private final TransactionLoggingService transactionLoggingService;
+    private final TransactionNotificationEventPublisher transactionNotificationEventPublisher;
 
     /**
      * Get account by account number
@@ -79,7 +80,8 @@ public class SavingsAccountService {
         tx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
                 responseCode != null ? responseCode : "00",
                 responseMessage != null ? responseMessage : "Approved");
-        transactionRepository.save(tx);
+        Transaction savedTx = transactionRepository.save(tx);
+        transactionNotificationEventPublisher.publish(savedTx.getId());
         
         log.info("Withdrawal successful. New balance: {}", savedAccount.getBalance());
         return savedAccount;
@@ -98,7 +100,8 @@ public class SavingsAccountService {
         
         // Log transaction
         Transaction tx = Transaction.createDeposit(accountNumber, amount, savedAccount.getCurrency(), savedAccount.getBalance());
-        transactionRepository.save(tx);
+        Transaction savedTx = transactionRepository.save(tx);
+        transactionNotificationEventPublisher.publish(savedTx.getId());
         
         log.info("Deposit successful. New balance: {}", savedAccount.getBalance());
         return savedAccount;
@@ -127,7 +130,8 @@ public class SavingsAccountService {
                 settlementReference,
                 note
         );
-        transactionRepository.save(tx);
+        Transaction savedTx = transactionRepository.save(tx);
+        transactionNotificationEventPublisher.publish(savedTx.getId());
 
         return savedAccount;
     }
@@ -163,7 +167,9 @@ public class SavingsAccountService {
                 "00",
                 reason != null && !reason.isBlank() ? reason : adjustmentType + " successful"
         );
-        return transactionRepository.save(adjustmentTx);
+        Transaction savedTx = transactionRepository.save(adjustmentTx);
+        transactionNotificationEventPublisher.publish(savedTx.getId());
+        return savedTx;
     }
 
     /**

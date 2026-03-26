@@ -53,4 +53,10 @@ settlement:
     days-offset: ${SETTLEMENT_AUTO_DAYS_OFFSET:1}
     fee-rate: ${SETTLEMENT_AUTO_FEE_RATE:1.5}
     execute: ${SETTLEMENT_AUTO_EXECUTE:true}
+
+push:
+  expo:
+    enabled: ${PUSH_EXPO_ENABLED:true}
+    url: ${PUSH_EXPO_URL:https://exp.host/--/api/v2/push/send}
+    access-token: ${PUSH_EXPO_ACCESS_TOKEN:}
   

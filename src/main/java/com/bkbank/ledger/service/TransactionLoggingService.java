@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class TransactionLoggingService {
 
     private final TransactionRepository transactionRepository;
+    private final TransactionNotificationEventPublisher transactionNotificationEventPublisher;
 
     /**
      * Saves a transaction in a NEW transaction boundary.
@@ -29,6 +30,8 @@ public class TransactionLoggingService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Transaction logTransaction(Transaction transaction) {
         log.debug("Persisting transaction log independently: {}", transaction.getDescription());
-        return transactionRepository.save(transaction);
+        Transaction saved = transactionRepository.save(transaction);
+        transactionNotificationEventPublisher.publish(saved.getId());
+        return saved;
     }
 }

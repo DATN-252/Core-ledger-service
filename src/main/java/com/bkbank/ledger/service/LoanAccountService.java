@@ -23,6 +23,7 @@ public class LoanAccountService {
     private final ClientRepository clientRepository;
     private final TransactionRepository transactionRepository;
     private final TransactionLoggingService transactionLoggingService;
+    private final TransactionNotificationEventPublisher transactionNotificationEventPublisher;
 
     /**
      * Get loan account by account number
@@ -84,7 +85,8 @@ public class LoanAccountService {
         tx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
                 responseCode != null ? responseCode : "00",
                 responseMessage != null ? responseMessage : "Approved");
-        transactionRepository.save(tx);
+        Transaction savedTx = transactionRepository.save(tx);
+        transactionNotificationEventPublisher.publish(savedTx.getId());
         
         log.info("Charge added successfully. New outstanding: {}", savedAccount.getPrincipalOutstanding());
         return savedAccount;
@@ -103,7 +105,8 @@ public class LoanAccountService {
         
         // Log transaction
         Transaction tx = Transaction.createPayment(accountNumber, amount, savedAccount.getCurrency(), savedAccount.getPrincipalOutstanding());
-        transactionRepository.save(tx);
+        Transaction savedTx = transactionRepository.save(tx);
+        transactionNotificationEventPublisher.publish(savedTx.getId());
         
         log.info("Payment processed. New outstanding: {}", savedAccount.getPrincipalOutstanding());
         return savedAccount;
@@ -141,7 +144,9 @@ public class LoanAccountService {
                 "00",
                 reason != null && !reason.isBlank() ? reason : adjustmentType + " successful"
         );
-        return transactionRepository.save(adjustmentTx);
+        Transaction savedTx = transactionRepository.save(adjustmentTx);
+        transactionNotificationEventPublisher.publish(savedTx.getId());
+        return savedTx;
     }
 
     /**
