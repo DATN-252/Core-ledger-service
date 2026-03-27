@@ -1,12 +1,14 @@
 package com.bkbank.ledger.controller;
 
 import com.bkbank.ledger.client.CmsClient;
+import com.bkbank.ledger.dto.request.StatementPaymentRequest;
 import com.bkbank.ledger.dto.request.PushTokenRegistrationRequest;
 import com.bkbank.ledger.dto.request.PushTokenUnregisterRequest;
 import com.bkbank.ledger.dto.response.ApiResponse;
 import com.bkbank.ledger.dto.response.CreditCardMonthlyStatementResponse;
 import com.bkbank.ledger.dto.response.CreditCardStatementSummaryResponse;
 import com.bkbank.ledger.dto.response.LoanStatementResponse;
+import com.bkbank.ledger.dto.response.StatementPaymentResponse;
 import com.bkbank.ledger.entity.Client;
 import com.bkbank.ledger.entity.LoanAccount;
 import com.bkbank.ledger.entity.SavingsAccount;
@@ -260,6 +262,28 @@ public class CustomerController {
             return ResponseEntity.ok(ApiResponse.success(statement));
         } catch (Exception e) {
             log.error("Error getting monthly statement detail: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @PostMapping("/me/loans/{loanId}/monthly-statements/{billingDate}/payments")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<StatementPaymentResponse>> payMyMonthlyStatement(
+            Authentication authentication,
+            @PathVariable String loanId,
+            @PathVariable LocalDate billingDate,
+            @RequestBody StatementPaymentRequest request) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+            ensureLoanBelongsToClient(client, loanId);
+            if (request.getPaymentSource() != null && !"INTERNAL_SAVINGS".equalsIgnoreCase(request.getPaymentSource())) {
+                throw new RuntimeException("Khach hang chi duoc thanh toan sao ke tu tai khoan noi bo");
+            }
+            request.setPaymentSource("INTERNAL_SAVINGS");
+            StatementPaymentResponse response = creditCardStatementService.payStatement(loanId, billingDate, request);
+            return ResponseEntity.ok(ApiResponse.success("Thanh toan sao ke thanh cong", response));
+        } catch (Exception e) {
+            log.error("Error paying monthly statement: {}", e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
     }

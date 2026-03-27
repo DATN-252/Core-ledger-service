@@ -1,10 +1,13 @@
 package com.bkbank.ledger.service;
 
+import com.bkbank.ledger.dto.request.StatementPaymentRequest;
 import com.bkbank.ledger.dto.response.CreditCardMonthlyStatementResponse;
 import com.bkbank.ledger.dto.response.CreditCardStatementSummaryResponse;
 import com.bkbank.ledger.dto.response.LoanStatementItemResponse;
+import com.bkbank.ledger.dto.response.StatementPaymentResponse;
 import com.bkbank.ledger.entity.CreditCardStatement;
 import com.bkbank.ledger.entity.LoanAccount;
+import com.bkbank.ledger.entity.SavingsAccount;
 import com.bkbank.ledger.entity.Transaction;
 import com.bkbank.ledger.repository.CreditCardStatementRepository;
 import com.bkbank.ledger.repository.LoanAccountRepository;
@@ -26,6 +29,8 @@ public class CreditCardStatementService {
     private final LoanAccountRepository loanAccountRepository;
     private final TransactionRepository transactionRepository;
     private final CreditCardStatementRepository creditCardStatementRepository;
+    private final SavingsAccountService savingsAccountService;
+    private final LoanAccountService loanAccountService;
 
     @Transactional
     public CreditCardMonthlyStatementResponse generateMonthlyStatement(String accountNumber, LocalDate billingDate) {
@@ -154,6 +159,89 @@ public class CreditCardStatementService {
         snapshot = syncSnapshotFromTransactions(account, snapshot);
         snapshot = refreshStatementPaymentStatus(account, snapshot);
         return buildStatementDetailResponse(account, snapshot);
+    }
+
+    @Transactional
+    public StatementPaymentResponse payStatement(String accountNumber, LocalDate billingDate, StatementPaymentRequest request) {
+        LoanAccount account = loanAccountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
+
+        CreditCardStatement snapshot = creditCardStatementRepository.findByAccountNumberAndBillingDate(accountNumber, billingDate)
+                .orElseThrow(() -> new RuntimeException("Statement not found for billingDate: " + billingDate));
+
+        snapshot = syncSnapshotFromTransactions(account, snapshot);
+        snapshot = refreshStatementPaymentStatus(account, snapshot);
+
+        double remainingMinimumDueBefore = roundMoney(safe(snapshot.getRemainingMinimumDue()));
+        double remainingBalanceBefore = roundMoney(safe(snapshot.getRemainingBalance()));
+        String statementStatusBefore = snapshot.getStatementStatus();
+
+        if (remainingBalanceBefore <= 0) {
+            throw new IllegalArgumentException("Statement is already fully paid");
+        }
+
+        String paymentOption = normalizeUpper(request.getPaymentOption(), "CUSTOM");
+        String paymentSource = normalizeUpper(request.getPaymentSource(), "INTERNAL_SAVINGS");
+        double paymentAmount = resolvePaymentAmount(paymentOption, request.getAmount(), remainingMinimumDueBefore, remainingBalanceBefore);
+
+        Double sourceAccountBalanceAfter = null;
+        String sourceAccountNumber = blankToNull(request.getSourceAccountNumber());
+
+        if ("INTERNAL_SAVINGS".equals(paymentSource)) {
+            if (sourceAccountNumber == null) {
+                throw new IllegalArgumentException("sourceAccountNumber is required for INTERNAL_SAVINGS payments");
+            }
+            SavingsAccount sourceAccount = savingsAccountService.getAccount(sourceAccountNumber);
+            if (sourceAccount.getClient() == null
+                    || account.getClient() == null
+                    || !sourceAccount.getClient().getClientId().equals(account.getClient().getClientId())) {
+                throw new IllegalArgumentException("Source account does not belong to the same client");
+            }
+
+            sourceAccountBalanceAfter = savingsAccountService.withdrawStatementPayment(
+                    sourceAccountNumber,
+                    paymentAmount,
+                    accountNumber,
+                    billingDate.toString(),
+                    request.getNote()
+            ).getBalance();
+        } else if (!"CASH_COUNTER".equals(paymentSource)) {
+            throw new IllegalArgumentException("Unsupported paymentSource: " + paymentSource);
+        }
+
+        Transaction paymentTx = loanAccountService.makeStatementPayment(
+                accountNumber,
+                paymentAmount,
+                billingDate.toString(),
+                paymentSource,
+                sourceAccountNumber,
+                request.getNote()
+        );
+
+        snapshot = creditCardStatementRepository.findByAccountNumberAndBillingDate(accountNumber, billingDate)
+                .orElseThrow(() -> new RuntimeException("Statement not found for billingDate: " + billingDate));
+        snapshot = syncSnapshotFromTransactions(account, snapshot);
+        snapshot = refreshStatementPaymentStatus(account, snapshot);
+
+        return new StatementPaymentResponse(
+                accountNumber,
+                billingDate,
+                paymentOption,
+                paymentSource,
+                sourceAccountNumber,
+                paymentAmount,
+                account.getCurrency(),
+                statementStatusBefore,
+                snapshot.getStatementStatus(),
+                remainingMinimumDueBefore,
+                roundMoney(safe(snapshot.getRemainingMinimumDue())),
+                remainingBalanceBefore,
+                roundMoney(safe(snapshot.getRemainingBalance())),
+                sourceAccountBalanceAfter,
+                paymentTx.getPaymentId(),
+                paymentTx.getTransactionDate(),
+                request.getNote()
+        );
     }
 
     private LocalDate normalizeBillingDate(LocalDate referenceDate, Integer billingDayOfMonth) {
@@ -360,6 +448,41 @@ public class CreditCardStatementService {
             return "PARTIALLY_PAID";
         }
         return "OPEN";
+    }
+
+    private double resolvePaymentAmount(String paymentOption,
+                                        Double requestedAmount,
+                                        double remainingMinimumDue,
+                                        double remainingBalance) {
+        return switch (paymentOption) {
+            case "MINIMUM_DUE" -> {
+                if (remainingMinimumDue <= 0) {
+                    throw new IllegalArgumentException("Minimum due is already fully paid");
+                }
+                yield remainingMinimumDue;
+            }
+            case "STATEMENT_BALANCE" -> remainingBalance;
+            case "CUSTOM" -> {
+                double amount = safe(requestedAmount);
+                if (amount <= 0) {
+                    throw new IllegalArgumentException("Custom payment amount must be greater than 0");
+                }
+                if (amount > remainingBalance) {
+                    throw new IllegalArgumentException("Payment exceeds remaining statement balance");
+                }
+                yield roundMoney(amount);
+            }
+            default -> throw new IllegalArgumentException("Unsupported paymentOption: " + paymentOption);
+        };
+    }
+
+    private String normalizeUpper(String value, String fallback) {
+        String normalized = blankToNull(value);
+        return normalized != null ? normalized.trim().toUpperCase() : fallback;
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     private double calculateMinimumDue(double newBalance, double minimumPaymentRate, double minimumPaymentFloor) {

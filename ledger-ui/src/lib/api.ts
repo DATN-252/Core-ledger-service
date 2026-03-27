@@ -158,6 +158,23 @@ export async function generateLoanMonthlyStatement(loanId: string, billingDate: 
   });
 }
 
+export async function payLoanMonthlyStatement(
+  loanId: string,
+  billingDate: string,
+  data: {
+    paymentOption: string;
+    amount?: number | null;
+    paymentSource: string;
+    sourceAccountNumber?: string | null;
+    note?: string;
+  },
+) {
+  return request<any>(`/loans/${loanId}/monthly-statements/${encodeURIComponent(billingDate)}/payments`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
 // ─── Savings Accounts ────────────────────────────────────────────────────────
 export async function getSavingsAccount(id: string) {
   return request<any>(`/savingsaccounts/${id}`);
@@ -289,6 +306,10 @@ export async function getClient(clientId: string) {
 
 export async function getClientAccounts(clientId: string) {
   return request<any>(`/clients/${clientId}/accounts`);
+}
+
+export async function getClientSavingsAccounts(clientId: string) {
+  return request<any>(`/clients/${clientId}/savings`);
 }
 
 export async function createClient(data: any) {

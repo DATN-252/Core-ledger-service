@@ -7,7 +7,7 @@ import {
     faArrowTrendUp, faArrowTrendDown, faBuildingColumns, faChartBar, faArrowRight
 } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
-import { getDisplayTransactionType, isNegativeTransaction, isPositiveTransaction } from '@/lib/transactionDisplay';
+import { getDisplayCounterpartyName, getDisplayTransactionType, isNegativeTransaction, isPositiveTransaction } from '@/lib/transactionDisplay';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, Legend, BarChart, Bar
@@ -395,7 +395,7 @@ export default function DashboardPage() {
                                             <div style={{ fontFamily: 'monospace' }}>{txn.accountNumber || '—'}</div>
                                             <div style={{ color: 'var(--text-secondary)', marginTop: '0.125rem' }}>{txn.accountType || ''}</div>
                                         </td>
-                                        <td style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{txn.merchantName || '—'}</td>
+                                        <td style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{getDisplayCounterpartyName(txn)}</td>
                                         <td>
                                             <span className={`badge ${isPositiveTransaction(txn) ? 'badge-active' : 'badge-pending'}`}>
                                                 {formatTransactionType(txn)}

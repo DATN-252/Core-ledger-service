@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faFileInvoiceDollar } from '@fortawesome/free-solid-svg-icons';
-import { getLoanMonthlyStatementDetail } from '@/lib/api';
+import { getClientSavingsAccounts, getLoan, getLoanMonthlyStatementDetail, payLoanMonthlyStatement } from '@/lib/api';
+import { getDisplayCounterpartyId, getDisplayCounterpartyName } from '@/lib/transactionDisplay';
 
 const STATEMENT_STATUS_BADGE: Record<string, string> = {
     OPEN: 'badge-pending',
@@ -45,8 +46,18 @@ export default function LoanStatementDetailPage() {
     const billingDate = decodeURIComponent(params.billingDate);
 
     const [statement, setStatement] = useState<any>(null);
+    const [loan, setLoan] = useState<any>(null);
+    const [savingsAccounts, setSavingsAccounts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [paymentLoading, setPaymentLoading] = useState(false);
+    const [paymentMessage, setPaymentMessage] = useState('');
+    const [paymentError, setPaymentError] = useState('');
+    const [paymentOption, setPaymentOption] = useState('MINIMUM_DUE');
+    const [paymentSource, setPaymentSource] = useState('INTERNAL_SAVINGS');
+    const [sourceAccountNumber, setSourceAccountNumber] = useState('');
+    const [customAmount, setCustomAmount] = useState('');
+    const [paymentNote, setPaymentNote] = useState('Thanh toán sao kê');
 
     useEffect(() => {
         loadDetail();
@@ -56,18 +67,73 @@ export default function LoanStatementDetailPage() {
         setLoading(true);
         setError('');
         try {
-            const data = await getLoanMonthlyStatementDetail(loanId, billingDate);
+            const [data, loanData] = await Promise.all([
+                getLoanMonthlyStatementDetail(loanId, billingDate),
+                getLoan(loanId),
+            ]);
             setStatement(data);
+            setLoan(loanData);
+            const clientId = loanData?.clientId;
+            if (clientId) {
+                const savingsData = await getClientSavingsAccounts(clientId);
+                const activeAccounts = (savingsData?.accounts || []).filter((account: any) => account.status === 'ACTIVE');
+                setSavingsAccounts(activeAccounts);
+                setSourceAccountNumber((current) => current || activeAccounts[0]?.accountNumber || '');
+            } else {
+                setSavingsAccounts([]);
+                setSourceAccountNumber('');
+            }
         } catch (e: any) {
             setError(e.message || 'Không thể tải chi tiết sao kê');
             setStatement(null);
+            setLoan(null);
+            setSavingsAccounts([]);
         } finally {
             setLoading(false);
         }
     }
 
+    async function handlePayStatement() {
+        if (!statement) return;
+
+        setPaymentLoading(true);
+        setPaymentError('');
+        setPaymentMessage('');
+
+        try {
+            const amount =
+                paymentOption === 'CUSTOM'
+                    ? Number(customAmount || 0)
+                    : null;
+
+            const response = await payLoanMonthlyStatement(loanId, billingDate, {
+                paymentOption,
+                amount,
+                paymentSource,
+                sourceAccountNumber: paymentSource === 'INTERNAL_SAVINGS' ? sourceAccountNumber : null,
+                note: paymentNote,
+            });
+
+            setPaymentMessage(
+                `Đã thanh toán ${formatMoney(response.paymentAmount, response.currency)}. Trạng thái mới: ${
+                    STATEMENT_STATUS_LABEL[response.statementStatusAfter] || response.statementStatusAfter
+                }`,
+            );
+            if (paymentOption === 'CUSTOM') {
+                setCustomAmount('');
+            }
+            await loadDetail();
+        } catch (e: any) {
+            setPaymentError(e.message || 'Không thể thanh toán sao kê');
+        } finally {
+            setPaymentLoading(false);
+        }
+    }
+
     const currency = statement?.currency || 'USD';
     const items = statement?.items || [];
+    const isPaid = (statement?.remainingBalance ?? statement?.newBalance ?? 0) <= 0;
+    const canUseInternalSavings = savingsAccounts.length > 0;
 
     return (
         <div className="animate-fade-in">
@@ -89,6 +155,8 @@ export default function LoanStatementDetailPage() {
             </div>
 
             {error && <div className="error-banner">{error}</div>}
+            {paymentError && <div className="error-banner">{paymentError}</div>}
+            {paymentMessage && <div className="success-banner">{paymentMessage}</div>}
 
             {loading ? (
                 <div className="card">
@@ -122,6 +190,116 @@ export default function LoanStatementDetailPage() {
                                     </span>
                                 </div>
                             </div>
+                        </div>
+
+                        <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--border)', marginTop: '1rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                                <div>
+                                    <div style={{ fontSize: '1rem', fontWeight: 600 }}>Thanh toán sao kê</div>
+                                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                                        Trả tối thiểu, toàn bộ sao kê hoặc nhập số tiền tùy chỉnh.
+                                    </div>
+                                </div>
+                                {loan?.clientId && (
+                                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
+                                        Khách hàng: {loan.clientName || loan.clientId}
+                                    </div>
+                                )}
+                            </div>
+
+                            {isPaid ? (
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+                                    Kỳ sao kê này đã được thanh toán đủ.
+                                </div>
+                            ) : (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.9rem' }}>
+                                    <div>
+                                        <label className="label">Tuỳ chọn thanh toán</label>
+                                        <select className="input" value={paymentOption} onChange={(e) => setPaymentOption(e.target.value)}>
+                                            <option value="MINIMUM_DUE">Thanh toán tối thiểu</option>
+                                            <option value="STATEMENT_BALANCE">Thanh toán toàn bộ sao kê</option>
+                                            <option value="CUSTOM">Thanh toán số khác</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="label">Nguồn thanh toán</label>
+                                        <select className="input" value={paymentSource} onChange={(e) => setPaymentSource(e.target.value)}>
+                                            <option value="INTERNAL_SAVINGS">Tài khoản debit nội bộ</option>
+                                            <option value="CASH_COUNTER">Thu tiền tại quầy</option>
+                                        </select>
+                                    </div>
+
+                                    {paymentOption === 'CUSTOM' && (
+                                        <div>
+                                            <label className="label">Số tiền</label>
+                                            <input
+                                                className="input"
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={customAmount}
+                                                onChange={(e) => setCustomAmount(e.target.value)}
+                                                placeholder="Nhập số tiền cần trả"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {paymentSource === 'INTERNAL_SAVINGS' && (
+                                        <div>
+                                            <label className="label">Tài khoản debit</label>
+                                            <select
+                                                className="input"
+                                                value={sourceAccountNumber}
+                                                onChange={(e) => setSourceAccountNumber(e.target.value)}
+                                                disabled={!canUseInternalSavings}
+                                            >
+                                                {!canUseInternalSavings ? (
+                                                    <option value="">Không có tài khoản ACTIVE</option>
+                                                ) : (
+                                                    savingsAccounts.map((account: any) => (
+                                                        <option key={account.accountNumber} value={account.accountNumber}>
+                                                            {account.accountNumber} • {formatMoney(account.balance, currency)}
+                                                        </option>
+                                                    ))
+                                                )}
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    <div style={{ gridColumn: '1 / -1' }}>
+                                        <label className="label">Ghi chú</label>
+                                        <input
+                                            className="input"
+                                            value={paymentNote}
+                                            onChange={(e) => setPaymentNote(e.target.value)}
+                                            placeholder="Ghi chú thanh toán"
+                                        />
+                                    </div>
+
+                                    <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                                        <button
+                                            className="btn-primary"
+                                            onClick={handlePayStatement}
+                                            disabled={
+                                                paymentLoading
+                                                || (paymentSource === 'INTERNAL_SAVINGS' && !sourceAccountNumber)
+                                                || (paymentSource === 'INTERNAL_SAVINGS' && !canUseInternalSavings)
+                                                || (paymentOption === 'CUSTOM' && !(Number(customAmount || 0) > 0))
+                                            }
+                                        >
+                                            {paymentLoading ? 'Đang thanh toán...' : 'Xác nhận thanh toán'}
+                                        </button>
+                                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
+                                            {paymentOption === 'MINIMUM_DUE'
+                                                ? `Sẽ trả ${formatMoney(statement.remainingMinimumDue ?? statement.minimumDue, currency)}`
+                                                : paymentOption === 'STATEMENT_BALANCE'
+                                                    ? `Sẽ trả ${formatMoney(statement.remainingBalance ?? statement.newBalance, currency)}`
+                                                    : 'Nhập số tiền tùy chỉnh'}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
@@ -191,8 +369,8 @@ export default function LoanStatementDetailPage() {
                                             <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>{item.paymentId || '—'}</td>
                                             <td>{item.transactionType || '—'}</td>
                                             <td>
-                                                <div style={{ fontWeight: 500 }}>{item.merchantName || '—'}</div>
-                                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{item.merchantId || '—'}</div>
+                                                <div style={{ fontWeight: 500 }}>{getDisplayCounterpartyName(item)}</div>
+                                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{getDisplayCounterpartyId(item)}</div>
                                             </td>
                                             <td>{formatMoney(item.amount, currency)}</td>
                                             <td>{formatMoney(item.balanceAfter, currency)}</td>

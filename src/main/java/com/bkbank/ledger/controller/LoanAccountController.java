@@ -1,9 +1,11 @@
 package com.bkbank.ledger.controller;
 
 import com.bkbank.ledger.dto.ChargeRequest;
+import com.bkbank.ledger.dto.request.StatementPaymentRequest;
 import com.bkbank.ledger.dto.response.CreditCardMonthlyStatementResponse;
 import com.bkbank.ledger.dto.response.CreditCardStatementSummaryResponse;
 import com.bkbank.ledger.dto.response.LoanStatementResponse;
+import com.bkbank.ledger.dto.response.StatementPaymentResponse;
 import com.bkbank.ledger.entity.LoanAccount;
 import com.bkbank.ledger.repository.spec.LedgerListSpecifications;
 import com.bkbank.ledger.repository.LoanAccountRepository;
@@ -103,6 +105,7 @@ public class LoanAccountController {
             response.put("principalOutstanding", account.getPrincipalOutstanding());
             response.put("currency", Map.of("code", account.getCurrency()));
             response.put("status", Map.of("value", account.getStatus().name()));
+            response.put("clientId", account.getClient() != null ? account.getClient().getClientId() : null);
             response.put("clientName", account.getClientName());
             response.put("billingDayOfMonth", account.getBillingDayOfMonth());
             response.put("paymentDueDays", account.getPaymentDueDays());
@@ -189,6 +192,22 @@ public class LoanAccountController {
             return ResponseEntity.ok(statement);
         } catch (Exception e) {
             log.error("Get monthly statement detail failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/loans/{loanId}/monthly-statements/{billingDate}/payments")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> payMonthlyStatement(
+            @PathVariable String loanId,
+            @PathVariable LocalDate billingDate,
+            @RequestBody StatementPaymentRequest request
+    ) {
+        try {
+            StatementPaymentResponse response = creditCardStatementService.payStatement(loanId, billingDate, request);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Pay monthly statement failed: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }

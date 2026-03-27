@@ -112,6 +112,34 @@ public class LoanAccountService {
         return savedAccount;
     }
 
+    @Transactional
+    public Transaction makeStatementPayment(String accountNumber,
+                                            Double amount,
+                                            String billingDate,
+                                            String paymentSource,
+                                            String sourceAccountNumber,
+                                            String note) {
+        log.info("Processing statement payment of {} to loan account {} for billing date {}", amount, accountNumber, billingDate);
+
+        LoanAccount account = getAccount(accountNumber);
+        account.makePayment(amount);
+        LoanAccount savedAccount = loanAccountRepository.save(account);
+
+        Transaction tx = Transaction.createPayment(accountNumber, amount, savedAccount.getCurrency(), savedAccount.getPrincipalOutstanding());
+        tx.setChannel("STATEMENT_PAYMENT");
+        tx.setDescription("Statement payment"
+                + (billingDate != null && !billingDate.isBlank() ? " for " + billingDate : "")
+                + (paymentSource != null && !paymentSource.isBlank() ? " via " + paymentSource : "")
+                + (sourceAccountNumber != null && !sourceAccountNumber.isBlank() ? " from " + sourceAccountNumber : "")
+                + (note != null && !note.isBlank() ? " - " + note : ""));
+        tx.setExternalReference(billingDate);
+        Transaction savedTx = transactionRepository.save(tx);
+        transactionNotificationEventPublisher.publish(savedTx.getId());
+
+        log.info("Statement payment processed. New outstanding: {}", savedAccount.getPrincipalOutstanding());
+        return savedTx;
+    }
+
     /**
      * Apply a refund/reversal against a credit card charge and log it as a dedicated transaction type.
      */

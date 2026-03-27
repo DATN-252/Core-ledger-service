@@ -5,7 +5,14 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowRight, faListUl } from '@fortawesome/free-solid-svg-icons';
 import { Pagination } from '@/components/Pagination';
 import Link from 'next/link';
-import { getDisplayTransactionType, isNegativeTransaction, isPositiveTransaction } from '@/lib/transactionDisplay';
+import {
+    getCounterpartyColumnTitle,
+    getDisplayCounterpartyId,
+    getDisplayCounterpartyName,
+    getDisplayTransactionType,
+    isNegativeTransaction,
+    isPositiveTransaction,
+} from '@/lib/transactionDisplay';
 
 export default function TransactionsPage() {
     const [txns, setTxns] = useState<any[]>([]);
@@ -136,8 +143,8 @@ export default function TransactionsPage() {
                                     <th>Thời gian</th>
                                     <th>Số tiền</th>
                                     <th>Loại</th>
-                                    <th>Merchant ID</th>
-                                    <th>Merchant Name</th>
+                                    <th>Đối tác ID</th>
+                                    <th>Đối tác</th>
                                     <th>Vị trí</th>
                                     <th>Trạng thái</th>
                                     <th>Tài khoản</th>
@@ -165,10 +172,10 @@ export default function TransactionsPage() {
                                                 {formatTransactionType(txn)}
                                             </span>
                                         </td>
-                                        <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>
-                                            {txn.merchantId || <span style={{ color: 'var(--text-secondary)' }}>—</span>}
+                                        <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }} title={getCounterpartyColumnTitle(txn)}>
+                                            {getDisplayCounterpartyId(txn) || <span style={{ color: 'var(--text-secondary)' }}>—</span>}
                                         </td>
-                                        <td>{txn.merchantName || <span style={{ color: 'var(--text-secondary)' }}>—</span>}</td>
+                                        <td title={getCounterpartyColumnTitle(txn)}>{getDisplayCounterpartyName(txn) || <span style={{ color: 'var(--text-secondary)' }}>—</span>}</td>
                                         <td className="transaction-cell-location" title={formatLocation(txn)}>
                                             {formatLocation(txn)}
                                         </td>

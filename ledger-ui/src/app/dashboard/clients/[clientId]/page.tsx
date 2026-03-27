@@ -4,7 +4,7 @@ import { depositToSavingsAccount, getClientAccounts, getTransactions } from '@/l
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faArrowRight, faUser, faCreditCard, faPiggyBank, faHistory, faLocationDot, faMobileAlt, faMoneyBillTransfer } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
-import { getDisplayTransactionType, isNegativeTransaction, isPositiveTransaction } from '@/lib/transactionDisplay';
+import { getDisplayCounterpartyName, getDisplayTransactionType, isNegativeTransaction, isPositiveTransaction } from '@/lib/transactionDisplay';
 
 export default function ClientDetailPage({ params }: { params: Promise<{ clientId: string }> }) {
     const { clientId } = use(params);
@@ -285,7 +285,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                                             <div style={{ fontWeight: 600 }}>{tx.accountNumber}</div>
                                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.125rem' }}>{tx.accountType || ''}</div>
                                         </td>
-                                        <td style={{ color: 'var(--text-secondary)' }}>{tx.merchantName || '—'}</td>
+                                        <td style={{ color: 'var(--text-secondary)' }}>{getDisplayCounterpartyName(tx)}</td>
                                         <td className="transaction-cell-location" title={formatLocation(tx)}>
                                             <span className="transaction-location-content">
                                                 <FontAwesomeIcon icon={faLocationDot} style={{ color: 'var(--text-secondary)' }} />

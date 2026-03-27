@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { getTransactionDetail } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faLocationDot, faReceipt } from '@fortawesome/free-solid-svg-icons';
-import { getDisplayTransactionType } from '@/lib/transactionDisplay';
+import { getDisplayCounterpartyId, getDisplayCounterpartyName, getDisplayTransactionType, isStatementPaymentTransaction } from '@/lib/transactionDisplay';
 
 type TransactionDetailPageProps = {
     params: Promise<{ id: string }>;
@@ -32,6 +32,9 @@ export default function TransactionDetailPage({ params }: TransactionDetailPageP
             .finally(() => setLoading(false));
     }, [id]);
 
+    const counterpartyIdLabel = txn && isStatementPaymentTransaction(txn) ? 'Đích thanh toán' : 'Merchant ID';
+    const counterpartyNameLabel = txn && isStatementPaymentTransaction(txn) ? 'Loại đối tác' : 'Merchant name';
+
     const detailRows = txn ? [
         ['Mã nội bộ', `#${txn.id}`],
         ['Payment ID', txn.paymentId || '—'],
@@ -44,8 +47,8 @@ export default function TransactionDetailPage({ params }: TransactionDetailPageP
         ['Dư sau giao dịch', txn.balanceAfter != null ? `${Number(txn.balanceAfter).toLocaleString('en-US')} ${txn.currency || 'USD'}` : '—'],
         ['Tài khoản', txn.accountNumber || '—'],
         ['Loại tài khoản', txn.accountType || '—'],
-        ['Merchant ID', txn.merchantId || '—'],
-        ['Merchant name', txn.merchantName || '—'],
+        [counterpartyIdLabel, getDisplayCounterpartyId(txn)],
+        [counterpartyNameLabel, getDisplayCounterpartyName(txn)],
         ['Kênh', txn.channel || '—'],
         ['Card network', txn.cardNetwork || '—'],
         ['Auth code', txn.authCode || '—'],

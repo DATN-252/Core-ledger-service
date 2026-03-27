@@ -112,6 +112,55 @@ public class SavingsAccountService {
     }
 
     @Transactional
+    public SavingsAccount withdrawStatementPayment(String accountNumber,
+                                                   Double amount,
+                                                   String loanAccountNumber,
+                                                   String billingDate,
+                                                   String note) {
+        log.info("Withdrawing {} from savings account {} for statement payment to {}", amount, accountNumber, loanAccountNumber);
+
+        if (amount == null || amount <= 0) {
+            throw new IllegalArgumentException("Payment amount must be greater than 0");
+        }
+
+        SavingsAccount account = getAccount(accountNumber);
+
+        if (!account.isActive()) {
+            throw new RuntimeException("Source savings account is not active");
+        }
+
+        if (!account.hasSufficientBalance(amount)) {
+            throw new RuntimeException("Insufficient balance");
+        }
+
+        account.withdraw(amount);
+        SavingsAccount savedAccount = savingsAccountRepository.save(account);
+
+        Transaction tx = Transaction.createWithdrawal(
+                accountNumber,
+                amount,
+                savedAccount.getCurrency(),
+                savedAccount.getBalance(),
+                loanAccountNumber,
+                "BKBank Credit Card",
+                "Statement " + billingDate,
+                null,
+                null
+        );
+        tx.setDescription("Statement payment"
+                + (loanAccountNumber != null && !loanAccountNumber.isBlank() ? " to " + loanAccountNumber : "")
+                + (billingDate != null && !billingDate.isBlank() ? " for " + billingDate : "")
+                + (note != null && !note.isBlank() ? " - " + note : ""));
+        tx.setChannel("STATEMENT_PAYMENT");
+        tx.setResponseCode("00");
+        tx.setResponseMessage("Approved");
+        Transaction savedTx = transactionRepository.save(tx);
+        transactionNotificationEventPublisher.publish(savedTx.getId());
+
+        return savedAccount;
+    }
+
+    @Transactional
     public SavingsAccount depositSettlement(String accountNumber,
                                             Double amount,
                                             String merchantId,
