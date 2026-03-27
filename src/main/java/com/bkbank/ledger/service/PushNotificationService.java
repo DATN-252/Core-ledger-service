@@ -1,6 +1,5 @@
 package com.bkbank.ledger.service;
 
-import com.bkbank.ledger.entity.Client;
 import com.bkbank.ledger.entity.PushDeviceToken;
 import com.bkbank.ledger.entity.Transaction;
 import com.bkbank.ledger.event.TransactionNotificationEvent;
@@ -30,6 +29,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 public class PushNotificationService {
+    private static final String DEFAULT_ANDROID_CHANNEL_ID = "default";
 
     private final TransactionRepository transactionRepository;
     private final SavingsAccountRepository savingsAccountRepository;
@@ -67,25 +67,24 @@ public class PushNotificationService {
             return;
         }
 
-        Client client = resolveClient(transaction);
-        if (client == null || client.getClientId() == null) {
+        String clientId = resolveClientId(transaction);
+        if (clientId == null || clientId.isBlank()) {
             return;
         }
 
-        List<PushDeviceToken> deviceTokens = pushDeviceTokenService.getActiveTokens(client.getClientId());
+        List<PushDeviceToken> deviceTokens = pushDeviceTokenService.getActiveTokens(clientId);
         if (deviceTokens.isEmpty()) {
             return;
         }
 
         List<Map<String, Object>> messages = new ArrayList<>();
         for (PushDeviceToken deviceToken : deviceTokens) {
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("to", deviceToken.getExpoPushToken());
-            payload.put("title", buildTitle(transaction));
-            payload.put("body", buildBody(transaction));
-            payload.put("sound", "default");
-            payload.put("data", buildData(transaction));
-            messages.add(payload);
+            messages.add(buildExpoPayload(
+                    deviceToken.getExpoPushToken(),
+                    buildTitle(transaction),
+                    buildBody(transaction),
+                    buildData(transaction)
+            ));
         }
 
         HttpResponse<String> response = sendExpoMessages(messages);
@@ -104,12 +103,7 @@ public class PushNotificationService {
             return;
         }
 
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("to", expoPushToken);
-        payload.put("title", title);
-        payload.put("body", body);
-        payload.put("sound", "default");
-        payload.put("data", data != null ? data : new HashMap<>());
+        Map<String, Object> payload = buildExpoPayload(expoPushToken, title, body, data);
 
         HttpResponse<String> response = sendExpoMessages(List.of(payload));
         if (response.statusCode() >= 300) {
@@ -119,56 +113,120 @@ public class PushNotificationService {
         handleExpoResponse(List.of(createPseudoDeviceToken(expoPushToken)), response.body());
     }
 
-    private Client resolveClient(Transaction transaction) {
+    public int sendToClientTokens(String clientId,
+                                  String title,
+                                  String body,
+                                  Map<String, Object> data) throws Exception {
+        if (!pushEnabled) {
+            return 0;
+        }
+
+        List<PushDeviceToken> deviceTokens = pushDeviceTokenService.getActiveTokens(clientId);
+        if (deviceTokens.isEmpty()) {
+            throw new IllegalArgumentException("Khong tim thay push token active cho khach hang nay");
+        }
+
+        List<Map<String, Object>> messages = new ArrayList<>();
+        for (PushDeviceToken deviceToken : deviceTokens) {
+            messages.add(buildExpoPayload(deviceToken.getExpoPushToken(), title, body, data));
+        }
+
+        HttpResponse<String> response = sendExpoMessages(messages);
+        if (response.statusCode() >= 300) {
+            throw new RuntimeException("Expo push send failed: " + response.body());
+        }
+
+        handleExpoResponse(deviceTokens, response.body());
+        return deviceTokens.size();
+    }
+
+    private String resolveClientId(Transaction transaction) {
         if ("SAVINGS".equalsIgnoreCase(transaction.getAccountType())) {
-            return savingsAccountRepository.findByAccountNumber(transaction.getAccountNumber())
-                    .map(account -> account.getClient())
+            return savingsAccountRepository.findClientIdByAccountNumber(transaction.getAccountNumber())
                     .orElse(null);
         }
         if ("LOAN".equalsIgnoreCase(transaction.getAccountType())) {
-            return loanAccountRepository.findByAccountNumber(transaction.getAccountNumber())
-                    .map(account -> account.getClient())
+            return loanAccountRepository.findClientIdByAccountNumber(transaction.getAccountNumber())
                     .orElse(null);
         }
         return null;
     }
 
     private String buildTitle(Transaction transaction) {
-        if ("FAILED".equalsIgnoreCase(transaction.getStatus())) {
-            return "Giao dich that bai";
-        }
-        return "Giao dich thanh cong";
+        return "Bien dong so du";
     }
 
     private String buildBody(Transaction transaction) {
         String amount = formatAmount(transaction.getAmount(), transaction.getCurrency());
-        String merchantName = transaction.getMerchantName() != null && !transaction.getMerchantName().isBlank()
-                ? transaction.getMerchantName()
-                : transaction.getAccountNumber();
+        String accountRef = maskAccountNumber(transaction.getAccountNumber());
+        String balanceText = buildBalanceText(transaction);
+
         if ("FAILED".equalsIgnoreCase(transaction.getStatus())) {
-            return "Giao dich " + amount + " tai " + merchantName + " khong thanh cong";
+            return String.format("TK %s giao dich %s khong thanh cong.%s",
+                    accountRef,
+                    amount,
+                    balanceText);
         }
-        if ("PAYMENT".equalsIgnoreCase(transaction.getTransactionType())) {
-            return "Ban vua thanh toan " + amount + " vao tai khoan " + transaction.getAccountNumber();
+
+        if (isCreditTransaction(transaction)) {
+            return String.format("TK %s vua ghi co %s.%s",
+                    accountRef,
+                    amount,
+                    balanceText);
         }
-        if ("REFUND".equalsIgnoreCase(transaction.getTransactionType()) || "REVERSAL".equalsIgnoreCase(transaction.getTransactionType())) {
-            return "Tai khoan cua ban vua duoc hoan " + amount + " tu " + merchantName;
-        }
-        return "Ban vua thuc hien giao dich " + amount + " tai " + merchantName;
+
+        return String.format("TK %s vua ghi no %s.%s",
+                accountRef,
+                amount,
+                balanceText);
     }
 
     private Map<String, Object> buildData(Transaction transaction) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", transaction.getId() != null ? transaction.getId().toString() : null);
+        result.put("accountNumber", transaction.getAccountNumber());
+        result.put("accountType", transaction.getAccountType());
+        result.put("transactionType", transaction.getTransactionType());
+        result.put("amount", transaction.getAmount());
+        result.put("currency", transaction.getCurrency());
+        result.put("paymentId", transaction.getPaymentId());
+        result.put("idempotencyKey", transaction.getIdempotencyKey());
+        result.put("originalTransactionId", transaction.getOriginalTransactionId());
+        result.put("channel", transaction.getChannel());
+        result.put("transactionDate", transaction.getTransactionDate() != null ? transaction.getTransactionDate().toString() : null);
+        result.put("description", transaction.getDescription());
+        result.put("balanceAfter", transaction.getBalanceAfter());
+        result.put("merchantId", transaction.getMerchantId());
+        result.put("merchantName", transaction.getMerchantName());
+        result.put("location", transaction.getLocation());
+        result.put("latitude", transaction.getLatitude());
+        result.put("longitude", transaction.getLongitude());
+        result.put("cardNetwork", transaction.getCardNetwork());
+        result.put("authCode", transaction.getAuthCode());
+        result.put("stan", transaction.getStan());
+        result.put("rrn", transaction.getRrn());
+        result.put("externalReference", transaction.getExternalReference());
+        result.put("responseCode", transaction.getResponseCode());
+        result.put("responseMessage", transaction.getResponseMessage());
+        result.put("status", transaction.getStatus());
+
         Map<String, Object> data = new HashMap<>();
-        data.put("transactionId", transaction.getId());
-        data.put("paymentId", transaction.getPaymentId());
-        data.put("accountNumber", transaction.getAccountNumber());
-        data.put("transactionType", transaction.getTransactionType());
-        data.put("status", transaction.getStatus());
-        data.put("amount", transaction.getAmount());
-        data.put("currency", transaction.getCurrency());
-        data.put("merchantId", transaction.getMerchantId());
-        data.put("merchantName", transaction.getMerchantName());
+        data.put("result", result);
         return data;
+    }
+
+    private Map<String, Object> buildExpoPayload(String expoPushToken,
+                                                 String title,
+                                                 String body,
+                                                 Map<String, Object> data) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("to", expoPushToken);
+        payload.put("title", title);
+        payload.put("body", body);
+        payload.put("sound", "default");
+        payload.put("channelId", DEFAULT_ANDROID_CHANNEL_ID);
+        payload.put("data", data != null ? data : new HashMap<>());
+        return payload;
     }
 
     private void handleExpoResponse(List<PushDeviceToken> deviceTokens, String responseBody) {
@@ -195,6 +253,35 @@ public class PushNotificationService {
 
     private String formatAmount(Double amount, String currency) {
         return String.format("%.2f %s", amount != null ? amount : 0.0, currency != null ? currency : "USD");
+    }
+
+    private boolean isCreditTransaction(Transaction transaction) {
+        String transactionType = transaction.getTransactionType();
+        return "DEPOSIT".equalsIgnoreCase(transactionType)
+                || "REFUND".equalsIgnoreCase(transactionType)
+                || "REVERSAL".equalsIgnoreCase(transactionType)
+                || "SETTLEMENT".equalsIgnoreCase(transactionType);
+    }
+
+    private String buildBalanceText(Transaction transaction) {
+        if (transaction.getBalanceAfter() == null) {
+            return "";
+        }
+
+        String label = "LOAN".equalsIgnoreCase(transaction.getAccountType())
+                ? " Du no sau GD: "
+                : " So du sau GD: ";
+        return label + formatAmount(transaction.getBalanceAfter(), transaction.getCurrency());
+    }
+
+    private String maskAccountNumber(String accountNumber) {
+        if (accountNumber == null || accountNumber.isBlank()) {
+            return "****";
+        }
+        if (accountNumber.length() <= 4) {
+            return accountNumber;
+        }
+        return "****" + accountNumber.substring(accountNumber.length() - 4);
     }
 
     private HttpResponse<String> sendExpoMessages(List<Map<String, Object>> messages) throws Exception {

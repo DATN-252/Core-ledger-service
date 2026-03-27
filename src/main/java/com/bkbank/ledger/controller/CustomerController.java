@@ -1,6 +1,7 @@
 package com.bkbank.ledger.controller;
 
 import com.bkbank.ledger.client.CmsClient;
+import com.bkbank.ledger.dto.request.PushNotificationTestRequest;
 import com.bkbank.ledger.dto.request.StatementPaymentRequest;
 import com.bkbank.ledger.dto.request.PushTokenRegistrationRequest;
 import com.bkbank.ledger.dto.request.PushTokenUnregisterRequest;
@@ -44,6 +45,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -430,12 +432,51 @@ public class CustomerController {
         }
     }
 
-    public ResponseEntity<String> sendPushNotification(String expoPushToken,
-                                                       String title,
-                                                       String body,
-                                                       Map<String, Object> data) throws Exception {
-        pushNotificationService.sendToSingleToken(expoPushToken, title, body, data);
-        return ResponseEntity.ok("Notification sent successfully");
+    @PostMapping("/push-token/test")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> testPushNotification(
+            Authentication authentication,
+            @RequestBody(required = false) PushNotificationTestRequest request) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+
+            String title = request != null && request.getTitle() != null && !request.getTitle().isBlank()
+                    ? request.getTitle().trim()
+                    : "Test BKBank";
+            String body = request != null && request.getBody() != null && !request.getBody().isBlank()
+                    ? request.getBody().trim()
+                    : "Thong bao test tu ledger-service";
+
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("source", "ledger-test-api");
+            payload.put("clientId", client.getClientId());
+            payload.put("message", "Test push notification");
+            if (request != null && request.getData() != null && !request.getData().isEmpty()) {
+                payload.putAll(request.getData());
+            }
+
+            Map<String, Object> response = new LinkedHashMap<>();
+            if (request != null && request.getExpoPushToken() != null && !request.getExpoPushToken().isBlank()) {
+                String expoPushToken = request.getExpoPushToken().trim();
+                pushNotificationService.sendToSingleToken(expoPushToken, title, body, payload);
+                response.put("mode", "single-token");
+                response.put("expoPushToken", expoPushToken);
+                response.put("sentCount", 1);
+            } else {
+                int sentCount = pushNotificationService.sendToClientTokens(client.getClientId(), title, body, payload);
+                response.put("mode", "active-tokens");
+                response.put("clientId", client.getClientId());
+                response.put("sentCount", sentCount);
+            }
+
+            response.put("title", title);
+            response.put("body", body);
+            response.put("data", payload);
+            return ResponseEntity.ok(ApiResponse.success("Gui test push notification thanh cong", response));
+        } catch (Exception e) {
+            log.error("Error sending test push notification: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
     }
 
     @DeleteMapping("/push-token")

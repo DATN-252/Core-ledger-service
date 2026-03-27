@@ -13,6 +13,9 @@ import java.util.Optional;
 public interface LoanAccountRepository extends JpaRepository<LoanAccount, Long>, JpaSpecificationExecutor<LoanAccount> {
     
     Optional<LoanAccount> findByAccountNumber(String accountNumber);
+
+    @Query("select l.client.clientId from LoanAccount l where l.accountNumber = :accountNumber")
+    Optional<String> findClientIdByAccountNumber(String accountNumber);
     
     boolean existsByAccountNumber(String accountNumber);
 
