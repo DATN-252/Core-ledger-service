@@ -21,6 +21,7 @@ public final class LedgerListSpecifications {
     public static Specification<Client> clientList(String q, String status) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.notLike(root.get("clientId"), "MERCHANT_%"));
 
             if (hasText(q)) {
                 String pattern = likePattern(q);

@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState, use } from 'react';
-import { getClientAccounts, getTransactions } from '@/lib/api';
+import { depositToSavingsAccount, getClientAccounts, getTransactions } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faArrowRight, faUser, faCreditCard, faPiggyBank, faHistory, faLocationDot, faMobileAlt } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faArrowRight, faUser, faCreditCard, faPiggyBank, faHistory, faLocationDot, faMobileAlt, faMoneyBillTransfer } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
 import { getDisplayTransactionType, isNegativeTransaction, isPositiveTransaction } from '@/lib/transactionDisplay';
 
@@ -11,35 +11,58 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
     const [clientData, setClientData] = useState<any>(null);
     const [transactions, setTransactions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [depositAccountId, setDepositAccountId] = useState<string | null>(null);
+    const [depositAmount, setDepositAmount] = useState('');
+    const [depositLoadingId, setDepositLoadingId] = useState<string | null>(null);
+
+    async function fetchData() {
+        try {
+            const data = await getClientAccounts(clientId);
+            setClientData(data);
+
+            const allAccounts = [
+                ...(data.savingsAccounts || []),
+                ...(data.loanAccounts || [])
+            ];
+
+            const txPromises = allAccounts.map((acc: any) => getTransactions(acc.accountNumber, 0, 50));
+            const txResults = await Promise.all(txPromises);
+
+            let allTx = txResults.map((res: any) => res?.content || []).flat();
+            allTx.sort((a: any, b: any) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime());
+            setTransactions(allTx.slice(0, 50));
+        } catch (err) {
+            console.error(err);
+            alert('Không tìm thấy thông tin khách hàng');
+        } finally {
+            setLoading(false);
+        }
+    }
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const data = await getClientAccounts(clientId);
-                setClientData(data);
-
-                // Fetch transactions for all accounts
-                const allAccounts = [
-                    ...(data.savingsAccounts || []),
-                    ...(data.loanAccounts || [])
-                ];
-
-                const txPromises = allAccounts.map((acc: any) => getTransactions(acc.accountNumber, 0, 50));
-                const txResults = await Promise.all(txPromises);
-
-                // Extract content and Flatten
-                let allTx = txResults.map((res: any) => res?.content || []).flat();
-                allTx.sort((a: any, b: any) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime());
-                setTransactions(allTx.slice(0, 50));
-            } catch (err) {
-                console.error(err);
-                alert('Không tìm thấy thông tin khách hàng');
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchData();
     }, [clientId]);
+
+    async function handleDeposit(accountNumber: string) {
+        const amount = Number(depositAmount);
+        if (!amount || amount <= 0) {
+            alert('Số tiền nạp phải lớn hơn 0');
+            return;
+        }
+
+        setDepositLoadingId(accountNumber);
+        try {
+            await depositToSavingsAccount(accountNumber, amount);
+            setDepositAmount('');
+            setDepositAccountId(null);
+            await fetchData();
+            alert('Nạp tiền thành công');
+        } catch (e: any) {
+            alert(e.message || 'Không thể nạp tiền');
+        } finally {
+            setDepositLoadingId(null);
+        }
+    }
 
     if (loading) return <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Đang tải...</div>;
     if (!clientData) return <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Không có dữ liệu</div>;
@@ -100,7 +123,6 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
             </div>
 
             <div style={{ display: 'grid', gap: '2rem', gridTemplateColumns: '1fr 1fr', marginBottom: '2rem' }}>
-                {/* Savings Accounts */}
                 <div className="card">
                     <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span><FontAwesomeIcon icon={faPiggyBank} style={{ marginRight: '0.5rem', color: 'var(--accent)' }} />Tài khoản Debit</span>
@@ -113,21 +135,71 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                             {savingsAccounts.map((acc: any) => (
-                                <div key={acc.accountNumber} style={{ border: '1px solid var(--border)', padding: '1rem', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <div>
-                                        <div style={{ fontWeight: 600, fontFamily: 'monospace' }}>{acc.accountNumber}</div>
-                                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>Trạng thái: <span className={`badge ${acc.status === 'ACTIVE' ? 'badge-active' : 'badge-pending'}`}>{acc.status}</span></div>
+                                <div key={acc.accountNumber} style={{ border: '1px solid var(--border)', padding: '1rem', borderRadius: '8px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                                        <div>
+                                            <div style={{ fontWeight: 600, fontFamily: 'monospace' }}>{acc.accountNumber}</div>
+                                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>Trạng thái: <span className={`badge ${acc.status === 'ACTIVE' ? 'badge-active' : 'badge-pending'}`}>{acc.status}</span></div>
+                                        </div>
+                                        <div style={{ textAlign: 'right' }}>
+                                            <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>
+                                                {Number(acc.balance || 0).toLocaleString('en-US')} USD
+                                            </div>
+                                            {acc.status === 'ACTIVE' ? (
+                                                <button
+                                                    className="btn-primary"
+                                                    style={{ marginTop: '0.75rem', padding: '0.45rem 0.85rem', fontSize: '0.8125rem' }}
+                                                    onClick={() => {
+                                                        setDepositAccountId(depositAccountId === acc.accountNumber ? null : acc.accountNumber);
+                                                        setDepositAmount('');
+                                                    }}
+                                                >
+                                                    <FontAwesomeIcon icon={faMoneyBillTransfer} />
+                                                    Nạp tiền
+                                                </button>
+                                            ) : null}
+                                        </div>
                                     </div>
-                                    <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>
-                                        {Number(acc.balance || 0).toLocaleString('en-US')} USD
-                                    </div>
+
+                                    {depositAccountId === acc.accountNumber ? (
+                                        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)', display: 'flex', gap: '0.75rem', alignItems: 'end', flexWrap: 'wrap' }}>
+                                            <div style={{ minWidth: '180px' }}>
+                                                <label className="info-label" style={{ display: 'block', marginBottom: '0.4rem' }}>Số tiền nạp (USD)</label>
+                                                <input
+                                                    className="input"
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    value={depositAmount}
+                                                    onChange={(e) => setDepositAmount(e.target.value)}
+                                                    placeholder="Nhập số tiền"
+                                                />
+                                            </div>
+                                            <button
+                                                className="btn-primary"
+                                                onClick={() => handleDeposit(acc.accountNumber)}
+                                                disabled={depositLoadingId === acc.accountNumber}
+                                            >
+                                                {depositLoadingId === acc.accountNumber ? 'Đang nạp...' : 'Xác nhận nạp'}
+                                            </button>
+                                            <button
+                                                className="btn-secondary"
+                                                onClick={() => {
+                                                    setDepositAccountId(null);
+                                                    setDepositAmount('');
+                                                }}
+                                                disabled={depositLoadingId === acc.accountNumber}
+                                            >
+                                                Hủy
+                                            </button>
+                                        </div>
+                                    ) : null}
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
 
-                {/* Loan Accounts */}
                 <div className="card">
                     <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span><FontAwesomeIcon icon={faCreditCard} style={{ marginRight: '0.5rem', color: 'var(--accent)' }} />Tài khoản Credit</span>
@@ -158,7 +230,6 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                                             </div>
                                         </div>
 
-                                        {/* Progress bar */}
                                         <div style={{ marginTop: '1rem' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                                                 <span style={{ color: 'var(--text-secondary)' }}>Đã dùng: <span style={{ color: 'var(--warning)', fontWeight: 600 }}>{used.toLocaleString('en-US')}</span></span>
@@ -176,7 +247,6 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                 </div>
             </div>
 
-            {/* Transaction History Section */}
             <div className="card">
                 <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center' }}>
                     <FontAwesomeIcon icon={faHistory} style={{ marginRight: '0.5rem', color: 'var(--accent)' }} />

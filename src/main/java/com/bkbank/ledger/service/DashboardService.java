@@ -32,8 +32,8 @@ public class DashboardService {
     private final TransactionRepository transactionRepository;
 
     public DashboardSummaryResponse getSummary() {
-        long clientCount = clientRepository.count();
-        long activeClientCount = clientRepository.countByStatus(ClientStatus.ACTIVE);
+        long clientCount = clientRepository.countVisibleClients();
+        long activeClientCount = clientRepository.countVisibleClientsByStatus(ClientStatus.ACTIVE);
 
         long loanCount = loanAccountRepository.count();
         long activeLoanCount = loanAccountRepository.countByStatus(AccountStatus.ACTIVE);

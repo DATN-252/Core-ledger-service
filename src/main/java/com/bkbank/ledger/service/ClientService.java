@@ -193,14 +193,14 @@ public class ClientService {
      * Get all active clients
      */
     public Page<Client> getAllActiveClients(Pageable pageable) {
-        return clientRepository.findByStatus(ClientStatus.ACTIVE, pageable);
+        return clientRepository.findVisibleByStatus(ClientStatus.ACTIVE, pageable);
     }
     
     /**
      * Search clients by name
      */
     public Page<Client> searchClientsByName(String name, Pageable pageable) {
-        return clientRepository.findByFullNameContainingIgnoreCase(name, pageable);
+        return clientRepository.findVisibleByFullNameContainingIgnoreCase(name, pageable);
     }
 
     public Page<Client> findClients(Specification<Client> specification, Pageable pageable) {

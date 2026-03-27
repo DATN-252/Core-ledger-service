@@ -179,6 +179,15 @@ export async function savingsCommand(id: string, command: 'activate' | 'lock') {
   return request<any>(`/savingsaccounts/${id}?command=${command}`, { method: 'POST', body: '{}' });
 }
 
+export async function depositToSavingsAccount(id: string, amount: number) {
+  return request<any>(`/savingsaccounts/${id}/transactions?command=deposit`, {
+    method: 'POST',
+    body: JSON.stringify({
+      transactionAmount: amount,
+    }),
+  });
+}
+
 // ─── Transactions ─────────────────────────────────────────────────────────────
 export async function getTransactions(
   accountId?: string,

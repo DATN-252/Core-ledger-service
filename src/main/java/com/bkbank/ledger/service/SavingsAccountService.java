@@ -93,6 +93,10 @@ public class SavingsAccountService {
     @Transactional
     public SavingsAccount deposit(String accountNumber, Double amount) {
         log.info("Depositing {} to account {}", amount, accountNumber);
+
+        if (amount == null || amount <= 0) {
+            throw new IllegalArgumentException("Deposit amount must be greater than 0");
+        }
         
         SavingsAccount account = getAccount(accountNumber);
         account.deposit(amount);
