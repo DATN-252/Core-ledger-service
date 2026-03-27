@@ -5,14 +5,15 @@ import com.bkbank.ledger.dto.response.CreditCardMonthlyStatementResponse;
 import com.bkbank.ledger.dto.response.CreditCardStatementSummaryResponse;
 import com.bkbank.ledger.dto.response.LoanStatementResponse;
 import com.bkbank.ledger.entity.LoanAccount;
+import com.bkbank.ledger.repository.spec.LedgerListSpecifications;
 import com.bkbank.ledger.repository.LoanAccountRepository;
 import com.bkbank.ledger.service.CreditCardStatementService;
 import com.bkbank.ledger.service.LoanAccountService;
 import com.bkbank.ledger.service.StatementService;
+import com.bkbank.ledger.util.PageableSortUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,6 +32,15 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 public class LoanAccountController {
+    private static final Map<String, String> LOAN_SORT_MAPPINGS = Map.ofEntries(
+            Map.entry("accountnumber", "accountNumber"),
+            Map.entry("clientname", "client.fullName"),
+            Map.entry("principal", "principal"),
+            Map.entry("outstanding", "principalOutstanding"),
+            Map.entry("status", "status"),
+            Map.entry("createdat", "createdAt"),
+            Map.entry("updatedat", "updatedAt")
+    );
 
     private final LoanAccountService loanAccountService;
     private final LoanAccountRepository loanAccountRepository;
@@ -45,10 +55,17 @@ public class LoanAccountController {
     @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
     public ResponseEntity<Page<Map<String, Object>>> listAccounts(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
     ) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<LoanAccount> accounts = loanAccountRepository.findAll(pageable);
+        Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "createdAt", LOAN_SORT_MAPPINGS);
+        Page<LoanAccount> accounts = loanAccountRepository.findAll(
+                LedgerListSpecifications.loanList(q, status),
+                pageable
+        );
         Page<Map<String, Object>> result = accounts.map(account -> {
             Map<String, Object> m = new HashMap<>();
             m.put("id", account.getAccountNumber());
@@ -58,6 +75,7 @@ public class LoanAccountController {
             m.put("currency", Map.of("code", account.getCurrency()));
             m.put("status", Map.of("value", account.getStatus().name()));
             m.put("clientName", account.getClientName());
+            m.put("createdAt", account.getCreatedAt());
             return m;
         });
         return ResponseEntity.ok(result);

@@ -79,6 +79,18 @@ async function cmsRequest<T>(path: string, options: RequestInit = {}): Promise<T
   return res.json();
 }
 
+type ListQueryValue = string | number | boolean | null | undefined;
+
+function withQuery(path: string, query: Record<string, ListQueryValue>) {
+  const params = new URLSearchParams();
+  Object.entries(query).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return;
+    params.set(key, String(value));
+  });
+  const queryString = params.toString();
+  return queryString ? `${path}?${queryString}` : path;
+}
+
 // ─── Auth ────────────────────────────────────────────────────────────────────
 export async function login(username: string, password: string) {
   const data = await request<{
@@ -115,8 +127,12 @@ export async function getLoan(loanId: string) {
   return request<any>(`/loans/${loanId}`);
 }
 
-export async function getAllLoans(page = 0, size = 10) {
-  return request<any>(`/loans?page=${page}&size=${size}`);
+export async function getAllLoans(
+  page = 0,
+  size = 10,
+  filters: Record<string, ListQueryValue> = {},
+) {
+  return request<any>(withQuery('/loans', { page, size, ...filters }));
 }
 
 export async function createLoan(data: any) {
@@ -147,8 +163,12 @@ export async function getSavingsAccount(id: string) {
   return request<any>(`/savingsaccounts/${id}`);
 }
 
-export async function getAllSavingsAccounts(page = 0, size = 10) {
-  return request<any>(`/savingsaccounts?page=${page}&size=${size}`);
+export async function getAllSavingsAccounts(
+  page = 0,
+  size = 10,
+  filters: Record<string, ListQueryValue> = {},
+) {
+  return request<any>(withQuery('/savingsaccounts', { page, size, ...filters }));
 }
 
 export async function createSavingsAccount(data: any) {
@@ -160,11 +180,13 @@ export async function savingsCommand(id: string, command: 'activate' | 'lock') {
 }
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
-export async function getTransactions(accountId?: string, page = 0, size = 50) {
-  const path = accountId
-    ? `/transactions?accountId=${accountId}&page=${page}&size=${size}`
-    : `/transactions?page=${page}&size=${size}`;
-  return request<any>(path);
+export async function getTransactions(
+  accountId?: string,
+  page = 0,
+  size = 50,
+  filters: Record<string, ListQueryValue> = {},
+) {
+  return request<any>(withQuery('/transactions', { accountId, page, size, ...filters }));
 }
 
 export async function getTransactionDetail(id: string | number) {
@@ -176,8 +198,12 @@ export async function getDashboardSummary() {
 }
 
 // ─── Merchants / Settlements ─────────────────────────────────────────────────
-export async function getMerchants(page = 0, size = 100) {
-  return request<any>(`/merchants?page=${page}&size=${size}`);
+export async function getMerchants(
+  page = 0,
+  size = 100,
+  filters: Record<string, ListQueryValue> = {},
+) {
+  return request<any>(withQuery('/merchants', { page, size, ...filters }));
 }
 
 export async function getMerchantDetail(merchantId: string) {
@@ -240,8 +266,12 @@ export async function runAutoSettlement(settlementDate: string, feeRate = 1.5, e
 }
 
 // ─── Clients ──────────────────────────────────────────────────────────────────
-export async function getAllClients(page = 0, size = 10) {
-  return request<any>(`/clients?page=${page}&size=${size}`);
+export async function getAllClients(
+  page = 0,
+  size = 10,
+  filters: Record<string, ListQueryValue> = {},
+) {
+  return request<any>(withQuery('/clients', { page, size, ...filters }));
 }
 
 export async function getClient(clientId: string) {

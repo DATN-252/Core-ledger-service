@@ -48,6 +48,11 @@ export default function CardsPage() {
     const [cards, setCards] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [status, setStatus] = useState('ALL');
+    const [cardType, setCardType] = useState('ALL');
+    const [network, setNetwork] = useState('ALL');
+    const [sortBy, setSortBy] = useState('cardholderName');
+    const [sortDir, setSortDir] = useState('asc');
 
     useEffect(() => {
         loadCards();
@@ -66,12 +71,32 @@ export default function CardsPage() {
         }
     }
 
-    const filtered = cards.filter(c =>
-        !search ||
-        c.cardholderName?.toLowerCase().includes(search.toLowerCase()) ||
-        c.maskedPan?.includes(search) ||
-        c.accountId?.toLowerCase().includes(search.toLowerCase())
-    );
+    const filtered = cards
+        .filter(c =>
+            (!search ||
+                c.cardholderName?.toLowerCase().includes(search.toLowerCase()) ||
+                c.maskedPan?.includes(search) ||
+                c.accountId?.toLowerCase().includes(search.toLowerCase())) &&
+            (status === 'ALL' || c.status === status) &&
+            (cardType === 'ALL' || c.cardType === cardType) &&
+            (network === 'ALL' || (c.network || 'UNKNOWN').toUpperCase() === network)
+        )
+        .sort((a, b) => {
+            const direction = sortDir === 'asc' ? 1 : -1;
+            const aValue = sortBy === 'creditLimit'
+                ? Number(a.creditLimit || 0)
+                : sortBy === 'outstandingBalance'
+                    ? Number(a.outstandingBalance || 0)
+                    : String(a[sortBy] || '').toLowerCase();
+            const bValue = sortBy === 'creditLimit'
+                ? Number(b.creditLimit || 0)
+                : sortBy === 'outstandingBalance'
+                    ? Number(b.outstandingBalance || 0)
+                    : String(b[sortBy] || '').toLowerCase();
+            if (aValue < bValue) return -1 * direction;
+            if (aValue > bValue) return 1 * direction;
+            return 0;
+        });
 
     return (
         <div className="animate-fade-in">
@@ -82,7 +107,7 @@ export default function CardsPage() {
                         Quản lý Thẻ (CMS)
                     </h1>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                        Tích hợp từ hệ thống Card Management System
+                        Tích hợp từ hệ thống Card Management System ({filtered.length}/{cards.length} thẻ)
                     </p>
                 </div>
                 <Link href="/dashboard/cards/new" className="btn-primary" style={{ textDecoration: 'none' }}>
@@ -92,14 +117,46 @@ export default function CardsPage() {
             </div>
 
             <div className="card">
-                <div style={{ marginBottom: '1rem' }}>
+                <div style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'minmax(260px, 2fr) repeat(5, minmax(140px, 1fr))', gap: '0.75rem' }}>
                     <input
                         className="input"
                         placeholder="Tìm theo chủ thẻ, số thẻ, mã tài khoản..."
                         value={search}
                         onChange={e => setSearch(e.target.value)}
-                        style={{ maxWidth: '400px' }}
                     />
+                    <select className="input" value={status} onChange={e => setStatus(e.target.value)}>
+                        <option value="ALL">Tất cả trạng thái</option>
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="PENDING">PENDING</option>
+                        <option value="LOCKED">LOCKED</option>
+                        <option value="EXPIRED">EXPIRED</option>
+                    </select>
+                    <select className="input" value={cardType} onChange={e => setCardType(e.target.value)}>
+                        <option value="ALL">Tất cả loại thẻ</option>
+                        <option value="CREDIT">CREDIT</option>
+                        <option value="DEBIT">DEBIT</option>
+                    </select>
+                    <select className="input" value={network} onChange={e => setNetwork(e.target.value)}>
+                        <option value="ALL">Tất cả network</option>
+                        <option value="VISA">VISA</option>
+                        <option value="MASTERCARD">MASTERCARD</option>
+                        <option value="AMEX">AMEX</option>
+                        <option value="JCB">JCB</option>
+                        <option value="DISCOVER">DISCOVER</option>
+                        <option value="NAPAS">NAPAS</option>
+                    </select>
+                    <select className="input" value={sortBy} onChange={e => setSortBy(e.target.value)}>
+                        <option value="cardholderName">Chủ thẻ</option>
+                        <option value="maskedPan">Số thẻ</option>
+                        <option value="status">Trạng thái</option>
+                        <option value="network">Network</option>
+                        <option value="creditLimit">Hạn mức</option>
+                        <option value="outstandingBalance">Dư nợ</option>
+                    </select>
+                    <select className="input" value={sortDir} onChange={e => setSortDir(e.target.value)}>
+                        <option value="asc">Tăng dần</option>
+                        <option value="desc">Giảm dần</option>
+                    </select>
                 </div>
 
                 {loading ? (

@@ -4,18 +4,19 @@ import com.bkbank.ledger.entity.Transaction;
 import com.bkbank.ledger.repository.LoanAccountRepository;
 import com.bkbank.ledger.repository.SavingsAccountRepository;
 import com.bkbank.ledger.repository.TransactionRepository;
+import com.bkbank.ledger.repository.spec.LedgerListSpecifications;
 import com.bkbank.ledger.service.TransactionLoggingService;
+import com.bkbank.ledger.util.PageableSortUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -23,6 +24,18 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 public class TransactionController {
+
+    private static final Map<String, String> TRANSACTION_SORT_MAPPINGS = Map.ofEntries(
+            Map.entry("date", "transactionDate"),
+            Map.entry("transactiondate", "transactionDate"),
+            Map.entry("amount", "amount"),
+            Map.entry("type", "transactionType"),
+            Map.entry("transactiontype", "transactionType"),
+            Map.entry("merchantname", "merchantName"),
+            Map.entry("merchantid", "merchantId"),
+            Map.entry("status", "status"),
+            Map.entry("accountnumber", "accountNumber")
+    );
 
     private final TransactionRepository transactionRepository;
     private final SavingsAccountRepository savingsAccountRepository;
@@ -41,10 +54,19 @@ public class TransactionController {
     @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
     public ResponseEntity<Page<Transaction>> getAll(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false, name = "type") String transactionType,
+            @RequestParam(required = false) String accountType,
+            @RequestParam(defaultValue = "transactionDate") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
     ) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("transactionDate").descending());
-        Page<Transaction> txns = transactionRepository.findAll(pageable);
+        Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "transactionDate", TRANSACTION_SORT_MAPPINGS);
+        Page<Transaction> txns = transactionRepository.findAll(
+                LedgerListSpecifications.transactionList(q, status, transactionType, accountType),
+                pageable
+        );
         return ResponseEntity.ok(txns);
     }
 
@@ -57,9 +79,11 @@ public class TransactionController {
     public ResponseEntity<Page<Transaction>> getByAccount(
             @RequestParam String accountId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(defaultValue = "transactionDate") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
     ) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "transactionDate", TRANSACTION_SORT_MAPPINGS);
         return ResponseEntity.ok(
                 transactionRepository.findByAccountNumberOrderByTransactionDateDesc(accountId, pageable)
         );
@@ -75,10 +99,10 @@ public class TransactionController {
         return transactionRepository.findById(id)
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(404)
-                        .body(Map.of(
+                        .body(new LinkedHashMap<>(Map.of(
                                 "error", "Transaction not found",
                                 "id", id
-                        )));
+                        ))));
     }
 
     /**
@@ -91,10 +115,10 @@ public class TransactionController {
         return transactionRepository.findByPaymentId(paymentId)
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(404)
-                        .body(Map.of(
+                        .body(new LinkedHashMap<>(Map.of(
                                 "error", "Transaction not found",
                                 "paymentId", paymentId
-                        )));
+                        ))));
     }
 
     /**
@@ -107,10 +131,10 @@ public class TransactionController {
         return transactionRepository.findByIdempotencyKey(idempotencyKey)
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(404)
-                        .body(Map.of(
+                        .body(new LinkedHashMap<>(Map.of(
                                 "error", "Transaction not found",
                                 "idempotencyKey", idempotencyKey
-                        )));
+                        ))));
     }
 
     /**

@@ -79,6 +79,7 @@ function CustomTooltip({ active, payload, label }: any) {
 export default function DashboardPage() {
     const [summary, setSummary] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
+    const [currentTime, setCurrentTime] = useState('');
 
     useEffect(() => {
         getDashboardSummary()
@@ -107,6 +108,10 @@ export default function DashboardPage() {
             .finally(() => {
                 setLoading(false);
             });
+    }, []);
+
+    useEffect(() => {
+        setCurrentTime(new Date().toLocaleTimeString('vi-VN'));
     }, []);
 
     // ── Derived stats ──────────────────────────────────────────────────────────
@@ -152,8 +157,6 @@ export default function DashboardPage() {
         }
     };
 
-    const now = new Date();
-
     if (loading) {
         return (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '40vh', gap: '1rem' }}>
@@ -173,7 +176,7 @@ export default function DashboardPage() {
                             Tổng quan hệ thống
                         </h1>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                            BKBank Core Ledger Admin — Cập nhật lúc {now.toLocaleTimeString('vi-VN')}
+                            BKBank Core Ledger Admin — Cập nhật lúc {currentTime || '—'}
                         </p>
                     </div>
                     <div style={{ display: 'flex', gap: '0.75rem' }}>

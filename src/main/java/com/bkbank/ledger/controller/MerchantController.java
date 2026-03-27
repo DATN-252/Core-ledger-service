@@ -8,14 +8,14 @@ import com.bkbank.ledger.entity.Merchant;
 import com.bkbank.ledger.entity.Transaction;
 import com.bkbank.ledger.repository.MerchantRepository;
 import com.bkbank.ledger.repository.TransactionRepository;
+import com.bkbank.ledger.repository.spec.LedgerListSpecifications;
 import com.bkbank.ledger.service.SettlementAdjustmentService;
 import com.bkbank.ledger.service.SettlementService;
 import com.bkbank.ledger.service.MerchantService;
+import com.bkbank.ledger.util.PageableSortUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,6 +35,16 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class MerchantController {
 
+    private static final Map<String, String> MERCHANT_SORT_MAPPINGS = Map.ofEntries(
+            Map.entry("merchantid", "merchantId"),
+            Map.entry("name", "name"),
+            Map.entry("category", "category"),
+            Map.entry("status", "status"),
+            Map.entry("cityname", "cityReference.cityName"),
+            Map.entry("createdat", "createdAt"),
+            Map.entry("updatedat", "updatedAt")
+    );
+
     private final MerchantRepository merchantRepository;
     private final MerchantService merchantService;
     private final TransactionRepository transactionRepository;
@@ -45,10 +55,18 @@ public class MerchantController {
     @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
     public ResponseEntity<Page<Map<String, Object>>> getAllActiveMerchants(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "ACTIVE") String status,
+            @RequestParam(required = false) String category,
+            @RequestParam(defaultValue = "merchantId") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir
     ) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Merchant> merchants = merchantRepository.findByStatus(Merchant.MerchantStatus.ACTIVE, pageable);
+        Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "merchantId", MERCHANT_SORT_MAPPINGS);
+        Page<Merchant> merchants = merchantRepository.findAll(
+                LedgerListSpecifications.merchantList(q, status, category),
+                pageable
+        );
         Page<Map<String, Object>> result = merchants.map(merchant -> {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("merchantId", merchant.getMerchantId());
@@ -104,11 +122,19 @@ public class MerchantController {
     public ResponseEntity<?> getMerchantTransactions(
             @PathVariable String merchantId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "transactionDate") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
     ) {
         try {
             merchantService.getActiveMerchant(merchantId);
-            Pageable pageable = PageRequest.of(page, size, Sort.by("transactionDate").descending());
+            Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "transactionDate", Map.of(
+                    "date", "transactionDate",
+                    "transactiondate", "transactionDate",
+                    "amount", "amount",
+                    "type", "transactionType",
+                    "status", "status"
+            ));
             Page<Transaction> transactions = transactionRepository.findByMerchantIdOrderByTransactionDateDesc(merchantId, pageable);
             return ResponseEntity.ok(transactions);
         } catch (Exception e) {
@@ -185,7 +211,7 @@ public class MerchantController {
             @RequestParam(defaultValue = "10") int size
     ) {
         try {
-            Pageable pageable = PageRequest.of(page, size);
+            Pageable pageable = PageableSortUtils.createPageable(page, size, "createdAt", "desc", "createdAt", Map.of("createdat", "createdAt"));
             return ResponseEntity.ok(settlementService.getSettlementBatches(merchantId, pageable));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -214,7 +240,7 @@ public class MerchantController {
     ) {
         try {
             merchantService.getActiveMerchant(merchantId);
-            Pageable pageable = PageRequest.of(page, size);
+            Pageable pageable = PageableSortUtils.createPageable(page, size, "createdAt", "desc", "createdAt", Map.of("createdat", "createdAt"));
             return ResponseEntity.ok(settlementAdjustmentService.getAdjustments(merchantId, pageable));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

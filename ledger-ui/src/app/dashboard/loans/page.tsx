@@ -17,17 +17,27 @@ export default function LoansPage() {
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [search, setSearch] = useState('');
+    const [status, setStatus] = useState('ALL');
+    const [sortBy, setSortBy] = useState('createdAt');
+    const [sortDir, setSortDir] = useState('desc');
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
+    const [totalElements, setTotalElements] = useState(0);
 
-    useEffect(() => { loadLoans(); }, [page]);
+    useEffect(() => { loadLoans(); }, [page, search, status, sortBy, sortDir]);
 
     async function loadLoans() {
         setLoading(true);
         try {
-            const data = await getAllLoans(page, 10);
+            const data = await getAllLoans(page, 10, {
+                q: search || undefined,
+                status,
+                sortBy,
+                sortDir,
+            });
             setLoans(data?.content || []);
             setTotalPages(data?.totalPages || 1);
+            setTotalElements(data?.totalElements || 0);
         }
         catch { setLoans([]); }
         finally { setLoading(false); }
@@ -40,11 +50,6 @@ export default function LoansPage() {
         finally { setActionLoading(null); }
     }
 
-    const filtered = loans.filter(l =>
-        !search || l.id?.toLowerCase().includes(search.toLowerCase()) ||
-        l.clientName?.toLowerCase().includes(search.toLowerCase())
-    );
-
     return (
         <div className="animate-fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
@@ -53,24 +58,42 @@ export default function LoansPage() {
                         <FontAwesomeIcon icon={faCreditCard} style={{ marginRight: '0.5rem' }} />
                         Credit Accounts
                     </h1>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Quản lý tài khoản tín dụng</p>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Quản lý tài khoản tín dụng ({totalElements} tài khoản)</p>
                 </div>
             </div>
 
             <div className="card">
-                <div style={{ marginBottom: '1rem' }}>
+                <div style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'minmax(260px, 1.5fr) repeat(3, minmax(160px, 1fr))', gap: '0.75rem' }}>
                     <input
                         className="input"
                         placeholder="Tìm kiếm theo ID hoặc tên khách hàng..."
                         value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        style={{ maxWidth: '360px' }}
+                        onChange={e => { setSearch(e.target.value); setPage(0); }}
                     />
+                    <select className="input" value={status} onChange={e => { setStatus(e.target.value); setPage(0); }}>
+                        <option value="ALL">Tất cả trạng thái</option>
+                        <option value="PENDING">PENDING</option>
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="LOCKED">LOCKED</option>
+                        <option value="CLOSED">CLOSED</option>
+                    </select>
+                    <select className="input" value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(0); }}>
+                        <option value="createdAt">Mới tạo</option>
+                        <option value="accountNumber">Số tài khoản</option>
+                        <option value="clientName">Khách hàng</option>
+                        <option value="principal">Hạn mức</option>
+                        <option value="outstanding">Dư nợ</option>
+                        <option value="status">Trạng thái</option>
+                    </select>
+                    <select className="input" value={sortDir} onChange={e => { setSortDir(e.target.value); setPage(0); }}>
+                        <option value="desc">Giảm dần</option>
+                        <option value="asc">Tăng dần</option>
+                    </select>
                 </div>
 
                 {loading ? (
                     <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Đang tải...</div>
-                ) : filtered.length === 0 ? (
+                ) : loans.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                         Không tìm thấy tài khoản nào
                     </div>
@@ -89,7 +112,7 @@ export default function LoansPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.map((loan: any) => {
+                                {loans.map((loan: any) => {
                                     const limit = Number(loan.principal || 0);
                                     const used = Number(loan.principalOutstanding || 0);
                                     const available = limit - used;

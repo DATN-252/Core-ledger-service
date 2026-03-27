@@ -64,7 +64,7 @@ export default function LoanStatementsPage() {
 
     const [loan, setLoan] = useState<any>(null);
     const [statements, setStatements] = useState<any[]>([]);
-    const [billingDate, setBillingDate] = useState(toDateInputValue());
+    const [billingDate, setBillingDate] = useState('');
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');

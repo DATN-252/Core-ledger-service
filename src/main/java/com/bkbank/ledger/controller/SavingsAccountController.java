@@ -3,11 +3,12 @@ package com.bkbank.ledger.controller;
 import com.bkbank.ledger.dto.WithdrawalRequest;
 import com.bkbank.ledger.entity.SavingsAccount;
 import com.bkbank.ledger.repository.SavingsAccountRepository;
+import com.bkbank.ledger.repository.spec.LedgerListSpecifications;
 import com.bkbank.ledger.service.SavingsAccountService;
+import com.bkbank.ledger.util.PageableSortUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,6 +28,16 @@ import java.util.stream.Collectors;
 @Slf4j
 public class SavingsAccountController {
 
+    private static final Map<String, String> SAVINGS_SORT_MAPPINGS = Map.ofEntries(
+            Map.entry("accountnumber", "accountNumber"),
+            Map.entry("clientname", "client.fullName"),
+            Map.entry("balance", "balance"),
+            Map.entry("currency", "currency"),
+            Map.entry("status", "status"),
+            Map.entry("createdat", "createdAt"),
+            Map.entry("updatedat", "updatedAt")
+    );
+
     private final SavingsAccountService savingsAccountService;
     private final SavingsAccountRepository savingsAccountRepository;
 
@@ -38,10 +49,17 @@ public class SavingsAccountController {
     @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
     public ResponseEntity<Page<Map<String, Object>>> listAccounts(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
     ) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<SavingsAccount> accounts = savingsAccountRepository.findAll(pageable);
+        Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "createdAt", SAVINGS_SORT_MAPPINGS);
+        Page<SavingsAccount> accounts = savingsAccountRepository.findAll(
+                LedgerListSpecifications.savingsList(q, status),
+                pageable
+        );
         Page<Map<String, Object>> result = accounts.map(account -> {
             Map<String, Object> m = new HashMap<>();
             m.put("id", account.getAccountNumber());
@@ -49,6 +67,7 @@ public class SavingsAccountController {
             m.put("currency", account.getCurrency());
             m.put("status", account.getStatus().name());
             m.put("clientName", account.getClientName());
+            m.put("createdAt", account.getCreatedAt());
             return m;
         });
         return ResponseEntity.ok(result);

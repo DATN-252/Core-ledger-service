@@ -5,7 +5,9 @@ import com.bkbank.ledger.dto.ClientUpdateRequest;
 import com.bkbank.ledger.entity.Client;
 import com.bkbank.ledger.entity.LoanAccount;
 import com.bkbank.ledger.entity.SavingsAccount;
+import com.bkbank.ledger.repository.spec.LedgerListSpecifications;
 import com.bkbank.ledger.service.ClientService;
+import com.bkbank.ledger.util.PageableSortUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -24,6 +27,16 @@ import java.util.Map;
 @RestController
 @RequestMapping("/clients")
 public class ClientController {
+
+    private static final Map<String, String> CLIENT_SORT_MAPPINGS = Map.ofEntries(
+            Map.entry("clientid", "clientId"),
+            Map.entry("name", "fullName"),
+            Map.entry("fullname", "fullName"),
+            Map.entry("email", "email"),
+            Map.entry("status", "status"),
+            Map.entry("createdat", "createdAt"),
+            Map.entry("updatedat", "updatedAt")
+    );
     
     private static final Logger log = LoggerFactory.getLogger(ClientController.class);
     
@@ -130,13 +143,20 @@ public class ClientController {
     @GetMapping
     public ResponseEntity<?> getAllClients(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "ACTIVE") String status,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
     ) {
         log.info("GET /clients");
         
         try {
-            Pageable pageable = PageRequest.of(page, size);
-            Page<Client> clients = clientService.getAllActiveClients(pageable);
+            Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "createdAt", CLIENT_SORT_MAPPINGS);
+            Page<Client> clients = clientService.findClients(
+                    LedgerListSpecifications.clientList(q, status),
+                    pageable
+            );
             
             Page<Map<String, Object>> response = clients.map(this::buildClientSummary);
             return ResponseEntity.ok(response);
@@ -290,13 +310,15 @@ public class ClientController {
     }
     
     private Map<String, Object> buildClientSummary(Client client) {
-        Map<String, Object> summary = new HashMap<>();
+        Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("clientId", client.getClientId());
         summary.put("fullName", client.getFullName());
         summary.put("email", client.getEmail());
         summary.put("phoneNumber", client.getPhoneNumber());
         summary.put("status", client.getStatus());
         summary.put("totalAccounts", client.getSavingsAccounts().size() + client.getLoanAccounts().size());
+        summary.put("city", client.getCity());
+        summary.put("createdAt", client.getCreatedAt());
         return summary;
     }
     

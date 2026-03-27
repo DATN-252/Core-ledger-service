@@ -16,17 +16,27 @@ export default function SavingsPage() {
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [search, setSearch] = useState('');
+    const [status, setStatus] = useState('ALL');
+    const [sortBy, setSortBy] = useState('createdAt');
+    const [sortDir, setSortDir] = useState('desc');
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
+    const [totalElements, setTotalElements] = useState(0);
 
-    useEffect(() => { loadAccounts(); }, [page]);
+    useEffect(() => { loadAccounts(); }, [page, search, status, sortBy, sortDir]);
 
     async function loadAccounts() {
         setLoading(true);
         try {
-            const data = await getAllSavingsAccounts(page, 10);
+            const data = await getAllSavingsAccounts(page, 10, {
+                q: search || undefined,
+                status,
+                sortBy,
+                sortDir,
+            });
             setAccounts(data?.content || []);
             setTotalPages(data?.totalPages || 1);
+            setTotalElements(data?.totalElements || 0);
         }
         catch { setAccounts([]); }
         finally { setLoading(false); }
@@ -39,11 +49,6 @@ export default function SavingsPage() {
         finally { setActionLoading(null); }
     }
 
-    const filtered = accounts.filter(a =>
-        !search || a.id?.toLowerCase().includes(search.toLowerCase()) ||
-        a.clientName?.toLowerCase().includes(search.toLowerCase())
-    );
-
     return (
         <div className="animate-fade-in">
             <div style={{ marginBottom: '2rem' }}>
@@ -51,18 +56,36 @@ export default function SavingsPage() {
                     <FontAwesomeIcon icon={faPiggyBank} style={{ marginRight: '0.5rem' }} />
                     Savings Accounts
                 </h1>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Quản lý tài khoản tiền gửi</p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Quản lý tài khoản tiền gửi ({totalElements} tài khoản)</p>
             </div>
 
             <div className="card">
-                <div style={{ marginBottom: '1rem' }}>
+                <div style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'minmax(260px, 1.5fr) repeat(3, minmax(160px, 1fr))', gap: '0.75rem' }}>
                     <input
                         className="input"
                         placeholder="Tìm kiếm theo ID hoặc tên khách hàng..."
                         value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        style={{ maxWidth: '360px' }}
+                        onChange={e => { setSearch(e.target.value); setPage(0); }}
                     />
+                    <select className="input" value={status} onChange={e => { setStatus(e.target.value); setPage(0); }}>
+                        <option value="ALL">Tất cả trạng thái</option>
+                        <option value="PENDING">PENDING</option>
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="LOCKED">LOCKED</option>
+                        <option value="CLOSED">CLOSED</option>
+                    </select>
+                    <select className="input" value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(0); }}>
+                        <option value="createdAt">Mới tạo</option>
+                        <option value="accountNumber">Số tài khoản</option>
+                        <option value="clientName">Khách hàng</option>
+                        <option value="balance">Số dư</option>
+                        <option value="currency">Tiền tệ</option>
+                        <option value="status">Trạng thái</option>
+                    </select>
+                    <select className="input" value={sortDir} onChange={e => { setSortDir(e.target.value); setPage(0); }}>
+                        <option value="desc">Giảm dần</option>
+                        <option value="asc">Tăng dần</option>
+                    </select>
                 </div>
 
                 {loading ? (
@@ -81,13 +104,13 @@ export default function SavingsPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.length === 0 ? (
+                                {accounts.length === 0 ? (
                                     <tr>
                                         <td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                                             Không có tài khoản
                                         </td>
                                     </tr>
-                                ) : filtered.map((acc: any) => {
+                                ) : accounts.map((acc: any) => {
                                     const status = acc.status || 'UNKNOWN';
                                     return (
                                         <tr key={acc.id}>
@@ -123,6 +146,8 @@ export default function SavingsPage() {
                         </table>
                     </div>
                 )}
+
+                <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
         </div>
     );

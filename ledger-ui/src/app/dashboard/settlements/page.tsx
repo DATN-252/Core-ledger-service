@@ -129,8 +129,8 @@ function startOfMonthIso() {
 export default function SettlementsPage() {
   const [merchants, setMerchants] = useState<MerchantItem[]>([]);
   const [selectedMerchantId, setSelectedMerchantId] = useState('');
-  const [fromDate, setFromDate] = useState(startOfMonthIso());
-  const [toDate, setToDate] = useState(todayIso());
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [feeRate, setFeeRate] = useState('1.5');
   const [note, setNote] = useState('Daily T+1 settlement batch');
   const [preview, setPreview] = useState<any | null>(null);
@@ -145,7 +145,7 @@ export default function SettlementsPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
   const [executingId, setExecutingId] = useState<number | null>(null);
-  const [autoSettlementDate, setAutoSettlementDate] = useState(todayIso());
+  const [autoSettlementDate, setAutoSettlementDate] = useState('');
   const [autoExecute, setAutoExecute] = useState(true);
   const [autoRunning, setAutoRunning] = useState(false);
   const [autoRunResult, setAutoRunResult] = useState<AutoSettlementRunResult | null>(null);
@@ -155,6 +155,12 @@ export default function SettlementsPage() {
     () => merchants.find((merchant) => merchant.merchantId === selectedMerchantId) || null,
     [merchants, selectedMerchantId],
   );
+
+  useEffect(() => {
+    setFromDate(startOfMonthIso());
+    setToDate(todayIso());
+    setAutoSettlementDate(todayIso());
+  }, []);
 
   useEffect(() => {
     setLoading(true);

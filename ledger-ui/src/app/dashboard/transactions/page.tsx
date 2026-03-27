@@ -11,13 +11,25 @@ export default function TransactionsPage() {
     const [txns, setTxns] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [status, setStatus] = useState('ALL');
+    const [type, setType] = useState('ALL');
+    const [accountType, setAccountType] = useState('ALL');
+    const [sortBy, setSortBy] = useState('transactionDate');
+    const [sortDir, setSortDir] = useState('desc');
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [totalElements, setTotalElements] = useState(0);
 
     useEffect(() => {
         setLoading(true);
-        getTransactions(undefined, page, 50)
+        getTransactions(undefined, page, 50, {
+            q: search || undefined,
+            status,
+            type,
+            accountType,
+            sortBy,
+            sortDir,
+        })
             .then(data => {
                 setTxns(data?.content || []);
                 setTotalPages(data?.totalPages || 1);
@@ -25,14 +37,7 @@ export default function TransactionsPage() {
             })
             .catch(() => setTxns([]))
             .finally(() => setLoading(false));
-    }, [page]);
-
-    const filtered = txns.filter(t =>
-        !search ||
-        t.merchantName?.toLowerCase().includes(search.toLowerCase()) ||
-        t.merchantId?.toLowerCase().includes(search.toLowerCase()) ||
-        String(t.id).includes(search)
-    );
+    }, [page, search, status, type, accountType, sortBy, sortDir]);
 
     const formatAmount = (txn: any) => {
         const isNegative = isNegativeTransaction(txn);
@@ -77,14 +82,47 @@ export default function TransactionsPage() {
             </div>
 
             <div className="card">
-                <div style={{ marginBottom: '1rem' }}>
+                <div style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'minmax(260px, 2fr) repeat(5, minmax(140px, 1fr))', gap: '0.75rem' }}>
                     <input
                         className="input"
                         placeholder="Tìm theo merchant, ID giao dịch..."
                         value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        style={{ maxWidth: '360px' }}
+                        onChange={e => { setSearch(e.target.value); setPage(0); }}
                     />
+                    <select className="input" value={status} onChange={e => { setStatus(e.target.value); setPage(0); }}>
+                        <option value="ALL">Tất cả trạng thái</option>
+                        <option value="SUCCESS">SUCCESS</option>
+                        <option value="FAILED">FAILED</option>
+                        <option value="REVERSED">REVERSED</option>
+                        <option value="REFUNDED">REFUNDED</option>
+                    </select>
+                    <select className="input" value={type} onChange={e => { setType(e.target.value); setPage(0); }}>
+                        <option value="ALL">Tất cả loại</option>
+                        <option value="CHARGE">CHARGE</option>
+                        <option value="WITHDRAWAL">WITHDRAWAL</option>
+                        <option value="PAYMENT">PAYMENT</option>
+                        <option value="REFUND">REFUND</option>
+                        <option value="REVERSAL">REVERSAL</option>
+                        <option value="SETTLEMENT">SETTLEMENT</option>
+                        <option value="DEPOSIT">DEPOSIT</option>
+                    </select>
+                    <select className="input" value={accountType} onChange={e => { setAccountType(e.target.value); setPage(0); }}>
+                        <option value="ALL">Tất cả tài khoản</option>
+                        <option value="LOAN">LOAN</option>
+                        <option value="SAVINGS">SAVINGS</option>
+                    </select>
+                    <select className="input" value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(0); }}>
+                        <option value="transactionDate">Thời gian</option>
+                        <option value="amount">Số tiền</option>
+                        <option value="transactionType">Loại</option>
+                        <option value="merchantName">Merchant</option>
+                        <option value="status">Trạng thái</option>
+                        <option value="accountNumber">Tài khoản</option>
+                    </select>
+                    <select className="input" value={sortDir} onChange={e => { setSortDir(e.target.value); setPage(0); }}>
+                        <option value="desc">Giảm dần</option>
+                        <option value="asc">Tăng dần</option>
+                    </select>
                 </div>
 
                 {loading ? (
@@ -107,13 +145,13 @@ export default function TransactionsPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.length === 0 ? (
+                                {txns.length === 0 ? (
                                     <tr>
                                         <td colSpan={10} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                                             Không có giao dịch
                                         </td>
                                     </tr>
-                                ) : filtered.map((txn: any) => (
+                                ) : txns.map((txn: any) => (
                                     <tr key={txn.id}>
                                         <td className="transaction-cell-id">#{txn.id}</td>
                                         <td className="transaction-cell-time">

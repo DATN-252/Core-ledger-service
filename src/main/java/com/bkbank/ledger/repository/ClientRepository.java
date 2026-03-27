@@ -3,6 +3,7 @@ package com.bkbank.ledger.repository;
 import com.bkbank.ledger.entity.Client;
 import com.bkbank.ledger.entity.enums.ClientStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import org.springframework.data.domain.Page;
@@ -14,7 +15,7 @@ import java.util.Optional;
  * Repository for Client entity
  */
 @Repository
-public interface ClientRepository extends JpaRepository<Client, Long> {
+public interface ClientRepository extends JpaRepository<Client, Long>, JpaSpecificationExecutor<Client> {
     
     /**
      * Find client by clientId (unique identifier)

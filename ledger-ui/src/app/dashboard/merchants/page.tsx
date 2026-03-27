@@ -11,13 +11,23 @@ export default function MerchantsPage() {
   const [merchants, setMerchants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('ACTIVE');
+  const [category, setCategory] = useState('ALL');
+  const [sortBy, setSortBy] = useState('merchantId');
+  const [sortDir, setSortDir] = useState('asc');
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
 
   useEffect(() => {
     setLoading(true);
-    getMerchants(page, 20)
+    getMerchants(page, 20, {
+      q: search || undefined,
+      status,
+      category,
+      sortBy,
+      sortDir,
+    })
       .then((data) => {
         setMerchants(data?.content || []);
         setTotalPages(data?.totalPages || 1);
@@ -25,14 +35,7 @@ export default function MerchantsPage() {
       })
       .catch(() => setMerchants([]))
       .finally(() => setLoading(false));
-  }, [page]);
-
-  const filtered = merchants.filter((merchant) =>
-    !search ||
-    merchant.name?.toLowerCase().includes(search.toLowerCase()) ||
-    merchant.merchantId?.toLowerCase().includes(search.toLowerCase()) ||
-    merchant.category?.toLowerCase().includes(search.toLowerCase()),
-  );
+  }, [page, search, status, category, sortBy, sortDir]);
 
   return (
     <div className="animate-fade-in">
@@ -49,14 +52,39 @@ export default function MerchantsPage() {
       </div>
 
       <div className="card">
-        <div style={{ marginBottom: '1rem' }}>
+        <div style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'minmax(260px, 2fr) repeat(4, minmax(140px, 1fr))', gap: '0.75rem' }}>
           <input
             className="input"
             placeholder="Tìm theo merchant ID, tên, category..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ maxWidth: '360px' }}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
           />
+          <select className="input" value={status} onChange={(e) => { setStatus(e.target.value); setPage(0); }}>
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="INACTIVE">INACTIVE</option>
+          </select>
+          <select className="input" value={category} onChange={(e) => { setCategory(e.target.value); setPage(0); }}>
+            <option value="ALL">Tất cả category</option>
+            <option value="UTILITY">UTILITY</option>
+            <option value="RETAIL">RETAIL</option>
+            <option value="grocery_pos">grocery_pos</option>
+            <option value="health_fitness">health_fitness</option>
+            <option value="entertainment">entertainment</option>
+            <option value="food_dining">food_dining</option>
+            <option value="shopping_net">shopping_net</option>
+          </select>
+          <select className="input" value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(0); }}>
+            <option value="merchantId">Merchant ID</option>
+            <option value="name">Tên merchant</option>
+            <option value="category">Category</option>
+            <option value="cityName">Thành phố</option>
+            <option value="status">Trạng thái</option>
+          </select>
+          <select className="input" value={sortDir} onChange={(e) => { setSortDir(e.target.value); setPage(0); }}>
+            <option value="asc">Tăng dần</option>
+            <option value="desc">Giảm dần</option>
+          </select>
         </div>
 
         {loading ? (
@@ -77,13 +105,13 @@ export default function MerchantsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {merchants.length === 0 ? (
                   <tr>
                     <td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                       Không có merchant
                     </td>
                   </tr>
-                ) : filtered.map((merchant) => (
+                ) : merchants.map((merchant) => (
                   <tr key={merchant.merchantId}>
                     <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{merchant.merchantId}</td>
                     <td style={{ fontWeight: 600 }}>{merchant.name}</td>

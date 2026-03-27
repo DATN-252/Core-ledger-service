@@ -10,25 +10,29 @@ export default function ClientsPage() {
     const [clients, setClients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [status, setStatus] = useState('ALL');
+    const [sortBy, setSortBy] = useState('createdAt');
+    const [sortDir, setSortDir] = useState('desc');
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
+    const [totalElements, setTotalElements] = useState(0);
 
     useEffect(() => {
         setLoading(true);
-        getAllClients(page, 10)
+        getAllClients(page, 10, {
+            q: search || undefined,
+            status,
+            sortBy,
+            sortDir,
+        })
             .then(data => {
                 setClients(data?.content || []);
                 setTotalPages(data?.totalPages || 1);
+                setTotalElements(data?.totalElements || 0);
             })
             .catch(() => setClients([]))
             .finally(() => setLoading(false));
-    }, [page]);
-
-    const filtered = clients.filter(c =>
-        !search ||
-        c.fullName?.toLowerCase().includes(search.toLowerCase()) ||
-        c.clientId?.toLowerCase().includes(search.toLowerCase())
-    );
+    }, [page, search, status, sortBy, sortDir]);
 
     return (
         <div className="animate-fade-in">
@@ -39,7 +43,7 @@ export default function ClientsPage() {
                         Khách hàng
                     </h1>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                        Quản lý hồ sơ khách hàng ({clients.length} hồ sơ)
+                        Quản lý hồ sơ khách hàng ({totalElements} hồ sơ)
                     </p>
                 </div>
                 <Link href="/dashboard/clients/new" className="btn-primary" style={{ textDecoration: 'none' }}>
@@ -49,14 +53,33 @@ export default function ClientsPage() {
             </div>
 
             <div className="card">
-                <div style={{ marginBottom: '1rem' }}>
+                <div style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'minmax(260px, 1.5fr) repeat(3, minmax(160px, 1fr))', gap: '0.75rem' }}>
                     <input
                         className="input"
                         placeholder="Tìm kiếm theo ID hoặc Tên khách hàng..."
                         value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        style={{ maxWidth: '360px' }}
+                        onChange={e => {
+                            setSearch(e.target.value);
+                            setPage(0);
+                        }}
                     />
+                    <select className="input" value={status} onChange={e => { setStatus(e.target.value); setPage(0); }}>
+                        <option value="ALL">Tất cả trạng thái</option>
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="INACTIVE">INACTIVE</option>
+                        <option value="BLOCKED">BLOCKED</option>
+                    </select>
+                    <select className="input" value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(0); }}>
+                        <option value="createdAt">Mới tạo</option>
+                        <option value="fullName">Họ tên</option>
+                        <option value="clientId">Mã khách hàng</option>
+                        <option value="email">Email</option>
+                        <option value="status">Trạng thái</option>
+                    </select>
+                    <select className="input" value={sortDir} onChange={e => { setSortDir(e.target.value); setPage(0); }}>
+                        <option value="desc">Giảm dần</option>
+                        <option value="asc">Tăng dần</option>
+                    </select>
                 </div>
 
                 {loading ? (
@@ -76,13 +99,13 @@ export default function ClientsPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.length === 0 ? (
+                                {clients.length === 0 ? (
                                     <tr>
                                         <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                                             Không có khách hàng
                                         </td>
                                     </tr>
-                                ) : filtered.map((client: any) => (
+                                ) : clients.map((client: any) => (
                                     <tr key={client.clientId}>
                                         <td style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>#{client.clientId}</td>
                                         <td style={{ fontWeight: 600 }}>{client.fullName}</td>

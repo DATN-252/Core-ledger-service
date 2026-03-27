@@ -9,6 +9,7 @@ import com.bkbank.ledger.entity.enums.ClientStatus;
 import com.bkbank.ledger.repository.ClientRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -200,6 +201,10 @@ public class ClientService {
      */
     public Page<Client> searchClientsByName(String name, Pageable pageable) {
         return clientRepository.findByFullNameContainingIgnoreCase(name, pageable);
+    }
+
+    public Page<Client> findClients(Specification<Client> specification, Pageable pageable) {
+        return clientRepository.findAll(specification, pageable);
     }
     
     /**
