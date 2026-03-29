@@ -56,6 +56,7 @@ public class SavingsAccountService {
         
         if (!account.isActive()) {
             Transaction failedTx = Transaction.createFailedWithdrawal(accountNumber, amount, account.getCurrency(), account.getBalance(), merchantId, merchantName, location, latitude, longitude, "Account inactive");
+            failedTx.assignBranch(account.getBranchId(), account.getBranchName());
             failedTx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
                     responseCode != null ? responseCode : "96",
                     responseMessage != null ? responseMessage : "Account inactive");
@@ -65,6 +66,7 @@ public class SavingsAccountService {
         
         if (!account.hasSufficientBalance(amount)) {
             Transaction failedTx = Transaction.createFailedWithdrawal(accountNumber, amount, account.getCurrency(), account.getBalance(), merchantId, merchantName, location, latitude, longitude, "Insufficient balance");
+            failedTx.assignBranch(account.getBranchId(), account.getBranchName());
             failedTx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
                     responseCode != null ? responseCode : "51",
                     responseMessage != null ? responseMessage : "Insufficient balance");
@@ -77,6 +79,7 @@ public class SavingsAccountService {
         
         // Log transaction
         Transaction tx = Transaction.createWithdrawal(accountNumber, amount, savedAccount.getCurrency(), savedAccount.getBalance(), merchantId, merchantName, location, latitude, longitude);
+        tx.assignBranch(savedAccount.getBranchId(), savedAccount.getBranchName());
         tx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
                 responseCode != null ? responseCode : "00",
                 responseMessage != null ? responseMessage : "Approved");
@@ -104,6 +107,7 @@ public class SavingsAccountService {
         
         // Log transaction
         Transaction tx = Transaction.createDeposit(accountNumber, amount, savedAccount.getCurrency(), savedAccount.getBalance());
+        tx.assignBranch(savedAccount.getBranchId(), savedAccount.getBranchName());
         Transaction savedTx = transactionRepository.save(tx);
         transactionNotificationEventPublisher.publish(savedTx.getId());
         
@@ -147,6 +151,7 @@ public class SavingsAccountService {
                 null,
                 null
         );
+        tx.assignBranch(savedAccount.getBranchId(), savedAccount.getBranchName());
         tx.setDescription("Statement payment"
                 + (loanAccountNumber != null && !loanAccountNumber.isBlank() ? " to " + loanAccountNumber : "")
                 + (billingDate != null && !billingDate.isBlank() ? " for " + billingDate : "")
@@ -183,6 +188,7 @@ public class SavingsAccountService {
                 settlementReference,
                 note
         );
+        tx.assignBranch(savedAccount.getBranchId(), savedAccount.getBranchName());
         Transaction savedTx = transactionRepository.save(tx);
         transactionNotificationEventPublisher.publish(savedTx.getId());
 
@@ -208,6 +214,7 @@ public class SavingsAccountService {
         Transaction adjustmentTx = "REVERSAL".equalsIgnoreCase(adjustmentType)
                 ? Transaction.createReversal(originalTransaction, savedAccount.getBalance(), reason)
                 : Transaction.createRefund(originalTransaction, savedAccount.getBalance(), reason);
+        adjustmentTx.assignBranch(savedAccount.getBranchId(), savedAccount.getBranchName());
         adjustmentTx.applyReferenceData(
                 paymentId,
                 idempotencyKey,

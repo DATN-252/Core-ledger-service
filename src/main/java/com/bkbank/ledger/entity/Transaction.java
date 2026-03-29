@@ -62,6 +62,12 @@ public class Transaction {
     @Column(name = "merchant_name")
     private String merchantName;
 
+    @Column(name = "branch_id", length = 50)
+    private String branchId;
+
+    @Column(name = "branch_name", length = 255)
+    private String branchName;
+
     private String location;
     private Double latitude;
     private Double longitude;
@@ -302,5 +308,10 @@ public class Transaction {
 
     private static String generatePaymentId() {
         return "PAY-" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 24).toUpperCase();
+    }
+
+    public void assignBranch(String branchId, String branchName) {
+        this.branchId = branchId;
+        this.branchName = branchName;
     }
 }

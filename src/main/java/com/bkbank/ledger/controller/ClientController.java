@@ -148,6 +148,7 @@ public class ClientController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "ACTIVE") String status,
+            @RequestParam(required = false) String branchId,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir
     ) {
@@ -156,7 +157,7 @@ public class ClientController {
         try {
             Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "createdAt", CLIENT_SORT_MAPPINGS);
             Page<Client> clients = clientService.findClients(
-                    LedgerListSpecifications.clientList(q, status),
+                    LedgerListSpecifications.clientList(q, status, branchId),
                     pageable
             );
             

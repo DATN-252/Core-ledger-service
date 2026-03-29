@@ -54,12 +54,13 @@ public class SavingsAccountController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String branchId,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir
     ) {
         Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "createdAt", SAVINGS_SORT_MAPPINGS);
         Page<SavingsAccount> accounts = savingsAccountRepository.findAll(
-                LedgerListSpecifications.savingsList(q, status),
+                LedgerListSpecifications.savingsList(q, status, branchId),
                 pageable
         );
         Page<Map<String, Object>> result = accounts.map(account -> {

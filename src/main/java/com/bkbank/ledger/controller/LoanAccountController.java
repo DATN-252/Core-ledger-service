@@ -62,12 +62,13 @@ public class LoanAccountController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String branchId,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir
     ) {
         Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "createdAt", LOAN_SORT_MAPPINGS);
         Page<LoanAccount> accounts = loanAccountRepository.findAll(
-                LedgerListSpecifications.loanList(q, status),
+                LedgerListSpecifications.loanList(q, status, branchId),
                 pageable
         );
         Page<Map<String, Object>> result = accounts.map(account -> {

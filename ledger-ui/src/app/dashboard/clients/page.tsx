@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { getAllClients } from '@/lib/api';
+import { getAllClients, getBranches } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUsers, faPlus, faEye } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
@@ -11,6 +11,8 @@ export default function ClientsPage() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState('ALL');
+    const [branchId, setBranchId] = useState('ALL');
+    const [branches, setBranches] = useState<any[]>([]);
     const [sortBy, setSortBy] = useState('createdAt');
     const [sortDir, setSortDir] = useState('desc');
     const [page, setPage] = useState(0);
@@ -18,10 +20,15 @@ export default function ClientsPage() {
     const [totalElements, setTotalElements] = useState(0);
 
     useEffect(() => {
+        getBranches().then(setBranches).catch(() => setBranches([]));
+    }, []);
+
+    useEffect(() => {
         setLoading(true);
         getAllClients(page, 10, {
             q: search || undefined,
             status,
+            branchId,
             sortBy,
             sortDir,
         })
@@ -32,7 +39,7 @@ export default function ClientsPage() {
             })
             .catch(() => setClients([]))
             .finally(() => setLoading(false));
-    }, [page, search, status, sortBy, sortDir]);
+    }, [page, search, status, branchId, sortBy, sortDir]);
 
     return (
         <div className="animate-fade-in">
@@ -53,7 +60,7 @@ export default function ClientsPage() {
             </div>
 
             <div className="card">
-                <div style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'minmax(260px, 1.5fr) repeat(3, minmax(160px, 1fr))', gap: '0.75rem' }}>
+                <div style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'minmax(260px, 1.5fr) repeat(4, minmax(160px, 1fr))', gap: '0.75rem' }}>
                     <input
                         className="input"
                         placeholder="Tìm kiếm theo ID hoặc Tên khách hàng..."
@@ -68,6 +75,14 @@ export default function ClientsPage() {
                         <option value="ACTIVE">ACTIVE</option>
                         <option value="INACTIVE">INACTIVE</option>
                         <option value="BLOCKED">BLOCKED</option>
+                    </select>
+                    <select className="input" value={branchId} onChange={e => { setBranchId(e.target.value); setPage(0); }}>
+                        <option value="ALL">Tất cả chi nhánh</option>
+                        {branches.map((branch: any) => (
+                            <option key={branch.branchId} value={branch.branchId}>
+                                {branch.branchName}
+                            </option>
+                        ))}
                     </select>
                     <select className="input" value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(0); }}>
                         <option value="createdAt">Mới tạo</option>

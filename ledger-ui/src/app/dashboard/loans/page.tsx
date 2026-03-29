@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getAllLoans, loanCommand } from '@/lib/api';
+import { getAllLoans, getBranches, loanCommand } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCreditCard, faCheck, faLock, faLockOpen, faFileInvoiceDollar } from '@fortawesome/free-solid-svg-icons';
 import { Pagination } from '@/components/Pagination';
@@ -18,13 +18,16 @@ export default function LoansPage() {
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState('ALL');
+    const [branchId, setBranchId] = useState('ALL');
+    const [branches, setBranches] = useState<any[]>([]);
     const [sortBy, setSortBy] = useState('createdAt');
     const [sortDir, setSortDir] = useState('desc');
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [totalElements, setTotalElements] = useState(0);
 
-    useEffect(() => { loadLoans(); }, [page, search, status, sortBy, sortDir]);
+    useEffect(() => { getBranches().then(setBranches).catch(() => setBranches([])); }, []);
+    useEffect(() => { loadLoans(); }, [page, search, status, branchId, sortBy, sortDir]);
 
     async function loadLoans() {
         setLoading(true);
@@ -32,6 +35,7 @@ export default function LoansPage() {
             const data = await getAllLoans(page, 10, {
                 q: search || undefined,
                 status,
+                branchId,
                 sortBy,
                 sortDir,
             });
@@ -63,7 +67,7 @@ export default function LoansPage() {
             </div>
 
             <div className="card">
-                <div style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'minmax(260px, 1.5fr) repeat(3, minmax(160px, 1fr))', gap: '0.75rem' }}>
+                <div style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'minmax(260px, 1.5fr) repeat(4, minmax(160px, 1fr))', gap: '0.75rem' }}>
                     <input
                         className="input"
                         placeholder="Tìm kiếm theo ID hoặc tên khách hàng..."
@@ -76,6 +80,14 @@ export default function LoansPage() {
                         <option value="ACTIVE">ACTIVE</option>
                         <option value="LOCKED">LOCKED</option>
                         <option value="CLOSED">CLOSED</option>
+                    </select>
+                    <select className="input" value={branchId} onChange={e => { setBranchId(e.target.value); setPage(0); }}>
+                        <option value="ALL">Tất cả chi nhánh</option>
+                        {branches.map((branch: any) => (
+                            <option key={branch.branchId} value={branch.branchId}>
+                                {branch.branchName}
+                            </option>
+                        ))}
                     </select>
                     <select className="input" value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(0); }}>
                         <option value="createdAt">Mới tạo</option>
@@ -104,6 +116,7 @@ export default function LoansPage() {
                                 <tr>
                                     <th>ID Tài khoản</th>
                                     <th>Khách hàng</th>
+                                    <th>Chi nhánh</th>
                                     <th>Hạn mức</th>
                                     <th>Đã dùng</th>
                                     <th>Khả dụng</th>
@@ -123,6 +136,7 @@ export default function LoansPage() {
                                                 {loan.id || loan.accountNo}
                                             </td>
                                             <td style={{ fontWeight: 500 }}>{loan.clientName || '—'}</td>
+                                            <td>{loan.branchName || '—'}</td>
                                             <td>{limit.toLocaleString('en-US')} {loan.currency?.code || 'USD'}</td>
                                             <td style={{ color: used > 0 ? 'var(--warning)' : 'var(--text-secondary)' }}>
                                                 {used.toLocaleString('en-US')} {loan.currency?.code || 'USD'}

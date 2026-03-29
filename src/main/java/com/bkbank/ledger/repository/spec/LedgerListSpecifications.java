@@ -18,14 +18,14 @@ public final class LedgerListSpecifications {
     private LedgerListSpecifications() {
     }
 
-    public static Specification<Client> clientList(String q, String status) {
+    public static Specification<Client> clientList(String q, String status, String branchId) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.notLike(root.get("clientId"), "MERCHANT_%"));
+            Join<Object, Object> branchJoin = root.join("homeBranch", JoinType.LEFT);
 
             if (hasText(q)) {
                 String pattern = likePattern(q);
-                Join<Object, Object> branchJoin = root.join("homeBranch", JoinType.LEFT);
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("clientId")), pattern),
                         cb.like(cb.lower(root.get("fullName")), pattern),
@@ -41,11 +41,15 @@ public final class LedgerListSpecifications {
                 predicates.add(cb.equal(root.get("status").as(String.class), normalizeEnumFilter(status)));
             }
 
+            if (hasText(branchId) && !"ALL".equalsIgnoreCase(branchId)) {
+                predicates.add(cb.equal(cb.lower(cb.coalesce(branchJoin.get("branchId"), "")), branchId.trim().toLowerCase()));
+            }
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
 
-    public static Specification<LoanAccount> loanList(String q, String status) {
+    public static Specification<LoanAccount> loanList(String q, String status, String branchId) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             Join<LoanAccount, Client> clientJoin = root.join("client", JoinType.LEFT);
@@ -67,11 +71,15 @@ public final class LedgerListSpecifications {
                 predicates.add(cb.equal(root.get("status").as(String.class), normalizeEnumFilter(status)));
             }
 
+            if (hasText(branchId) && !"ALL".equalsIgnoreCase(branchId)) {
+                predicates.add(cb.equal(cb.lower(cb.coalesce(branchJoin.get("branchId"), "")), branchId.trim().toLowerCase()));
+            }
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
 
-    public static Specification<SavingsAccount> savingsList(String q, String status) {
+    public static Specification<SavingsAccount> savingsList(String q, String status, String branchId) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             Join<SavingsAccount, Client> clientJoin = root.join("client", JoinType.LEFT);
@@ -93,11 +101,15 @@ public final class LedgerListSpecifications {
                 predicates.add(cb.equal(root.get("status").as(String.class), normalizeEnumFilter(status)));
             }
 
+            if (hasText(branchId) && !"ALL".equalsIgnoreCase(branchId)) {
+                predicates.add(cb.equal(cb.lower(cb.coalesce(branchJoin.get("branchId"), "")), branchId.trim().toLowerCase()));
+            }
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
 
-    public static Specification<Transaction> transactionList(String q, String status, String transactionType, String accountType) {
+    public static Specification<Transaction> transactionList(String q, String status, String transactionType, String accountType, String branchId) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -109,6 +121,8 @@ public final class LedgerListSpecifications {
                         cb.like(cb.lower(cb.coalesce(root.get("idempotencyKey"), "")), pattern),
                         cb.like(cb.lower(cb.coalesce(root.get("merchantId"), "")), pattern),
                         cb.like(cb.lower(cb.coalesce(root.get("merchantName"), "")), pattern),
+                        cb.like(cb.lower(cb.coalesce(root.get("branchId"), "")), pattern),
+                        cb.like(cb.lower(cb.coalesce(root.get("branchName"), "")), pattern),
                         cb.like(cb.lower(cb.coalesce(root.get("accountNumber"), "")), pattern),
                         cb.like(cb.lower(cb.coalesce(root.get("location"), "")), pattern)
                 ));
@@ -124,6 +138,10 @@ public final class LedgerListSpecifications {
 
             if (hasEnumFilter(accountType)) {
                 predicates.add(cb.equal(root.get("accountType"), normalizeEnumFilter(accountType)));
+            }
+
+            if (hasText(branchId) && !"ALL".equalsIgnoreCase(branchId)) {
+                predicates.add(cb.equal(cb.lower(cb.coalesce(root.get("branchId"), "")), branchId.trim().toLowerCase()));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

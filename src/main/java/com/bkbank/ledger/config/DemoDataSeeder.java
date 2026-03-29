@@ -338,7 +338,20 @@ public class DemoDataSeeder implements CommandLineRunner {
         transaction.setChannel(channel);
         transaction.setResponseCode(responseCode);
         transaction.setResponseMessage(responseMessage);
+        assignBranch(transaction);
         return transaction;
+    }
+
+    private void assignBranch(Transaction transaction) {
+        if ("SAVINGS".equalsIgnoreCase(transaction.getAccountType())) {
+            savingsAccountRepository.findByAccountNumber(transaction.getAccountNumber())
+                    .ifPresent(account -> transaction.assignBranch(account.getBranchId(), account.getBranchName()));
+            return;
+        }
+        if ("LOAN".equalsIgnoreCase(transaction.getAccountType())) {
+            loanAccountRepository.findByAccountNumber(transaction.getAccountNumber())
+                    .ifPresent(account -> transaction.assignBranch(account.getBranchId(), account.getBranchName()));
+        }
     }
 
     private void createTransactionIfMissing(String paymentId, Transaction transaction) {

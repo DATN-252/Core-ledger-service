@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { getAllSavingsAccounts, savingsCommand } from '@/lib/api';
+import { getAllSavingsAccounts, getBranches, savingsCommand } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPiggyBank, faCheck, faLock } from '@fortawesome/free-solid-svg-icons';
 import { Pagination } from '@/components/Pagination';
@@ -17,13 +17,16 @@ export default function SavingsPage() {
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState('ALL');
+    const [branchId, setBranchId] = useState('ALL');
+    const [branches, setBranches] = useState<any[]>([]);
     const [sortBy, setSortBy] = useState('createdAt');
     const [sortDir, setSortDir] = useState('desc');
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [totalElements, setTotalElements] = useState(0);
 
-    useEffect(() => { loadAccounts(); }, [page, search, status, sortBy, sortDir]);
+    useEffect(() => { getBranches().then(setBranches).catch(() => setBranches([])); }, []);
+    useEffect(() => { loadAccounts(); }, [page, search, status, branchId, sortBy, sortDir]);
 
     async function loadAccounts() {
         setLoading(true);
@@ -31,6 +34,7 @@ export default function SavingsPage() {
             const data = await getAllSavingsAccounts(page, 10, {
                 q: search || undefined,
                 status,
+                branchId,
                 sortBy,
                 sortDir,
             });
@@ -60,7 +64,7 @@ export default function SavingsPage() {
             </div>
 
             <div className="card">
-                <div style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'minmax(260px, 1.5fr) repeat(3, minmax(160px, 1fr))', gap: '0.75rem' }}>
+                <div style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'minmax(260px, 1.5fr) repeat(4, minmax(160px, 1fr))', gap: '0.75rem' }}>
                     <input
                         className="input"
                         placeholder="Tìm kiếm theo ID hoặc tên khách hàng..."
@@ -73,6 +77,14 @@ export default function SavingsPage() {
                         <option value="ACTIVE">ACTIVE</option>
                         <option value="LOCKED">LOCKED</option>
                         <option value="CLOSED">CLOSED</option>
+                    </select>
+                    <select className="input" value={branchId} onChange={e => { setBranchId(e.target.value); setPage(0); }}>
+                        <option value="ALL">Tất cả chi nhánh</option>
+                        {branches.map((branch: any) => (
+                            <option key={branch.branchId} value={branch.branchId}>
+                                {branch.branchName}
+                            </option>
+                        ))}
                     </select>
                     <select className="input" value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(0); }}>
                         <option value="createdAt">Mới tạo</option>
@@ -97,6 +109,7 @@ export default function SavingsPage() {
                                 <tr>
                                     <th>ID Tài khoản</th>
                                     <th>Khách hàng</th>
+                                    <th>Chi nhánh</th>
                                     <th>Số dư</th>
                                     <th>Tiền tệ</th>
                                     <th>Trạng thái</th>
@@ -106,7 +119,7 @@ export default function SavingsPage() {
                             <tbody>
                                 {accounts.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                                        <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                                             Không có tài khoản
                                         </td>
                                     </tr>
@@ -116,6 +129,7 @@ export default function SavingsPage() {
                                         <tr key={acc.id}>
                                             <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem', color: 'var(--accent-hover)' }}>{acc.id}</td>
                                             <td style={{ fontWeight: 500 }}>{acc.clientName || '—'}</td>
+                                            <td>{acc.branchName || '—'}</td>
                                             <td style={{ fontWeight: 600 }}>
                                                 {Number(acc.balance || 0).toLocaleString('en-US')} {acc.currency || 'USD'}
                                             </td>

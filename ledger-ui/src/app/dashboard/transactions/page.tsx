@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { getTransactions } from '@/lib/api';
+import { getBranches, getTransactions } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowRight, faListUl } from '@fortawesome/free-solid-svg-icons';
 import { Pagination } from '@/components/Pagination';
@@ -21,11 +21,17 @@ export default function TransactionsPage() {
     const [status, setStatus] = useState('ALL');
     const [type, setType] = useState('ALL');
     const [accountType, setAccountType] = useState('ALL');
+    const [branchId, setBranchId] = useState('ALL');
+    const [branches, setBranches] = useState<any[]>([]);
     const [sortBy, setSortBy] = useState('transactionDate');
     const [sortDir, setSortDir] = useState('desc');
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [totalElements, setTotalElements] = useState(0);
+
+    useEffect(() => {
+        getBranches().then(setBranches).catch(() => setBranches([]));
+    }, []);
 
     useEffect(() => {
         setLoading(true);
@@ -34,6 +40,7 @@ export default function TransactionsPage() {
             status,
             type,
             accountType,
+            branchId,
             sortBy,
             sortDir,
         })
@@ -44,7 +51,7 @@ export default function TransactionsPage() {
             })
             .catch(() => setTxns([]))
             .finally(() => setLoading(false));
-    }, [page, search, status, type, accountType, sortBy, sortDir]);
+    }, [page, search, status, type, accountType, branchId, sortBy, sortDir]);
 
     const formatAmount = (txn: any) => {
         const isNegative = isNegativeTransaction(txn);
@@ -89,7 +96,7 @@ export default function TransactionsPage() {
             </div>
 
             <div className="card">
-                <div style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'minmax(260px, 2fr) repeat(5, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                <div style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'minmax(260px, 2fr) repeat(6, minmax(140px, 1fr))', gap: '0.75rem' }}>
                     <input
                         className="input"
                         placeholder="Tìm theo merchant, ID giao dịch..."
@@ -118,6 +125,14 @@ export default function TransactionsPage() {
                         <option value="LOAN">LOAN</option>
                         <option value="SAVINGS">SAVINGS</option>
                     </select>
+                    <select className="input" value={branchId} onChange={e => { setBranchId(e.target.value); setPage(0); }}>
+                        <option value="ALL">Tất cả chi nhánh</option>
+                        {branches.map((branch: any) => (
+                            <option key={branch.branchId} value={branch.branchId}>
+                                {branch.branchName}
+                            </option>
+                        ))}
+                    </select>
                     <select className="input" value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(0); }}>
                         <option value="transactionDate">Thời gian</option>
                         <option value="amount">Số tiền</option>
@@ -145,7 +160,7 @@ export default function TransactionsPage() {
                                     <th>Loại</th>
                                     <th>Đối tác ID</th>
                                     <th>Đối tác</th>
-                                    <th>Vị trí</th>
+                                    <th>Chi nhánh / Vị trí</th>
                                     <th>Trạng thái</th>
                                     <th>Tài khoản</th>
                                     <th></th>
@@ -177,7 +192,8 @@ export default function TransactionsPage() {
                                         </td>
                                         <td title={getCounterpartyColumnTitle(txn)}>{getDisplayCounterpartyName(txn) || <span style={{ color: 'var(--text-secondary)' }}>—</span>}</td>
                                         <td className="transaction-cell-location" title={formatLocation(txn)}>
-                                            {formatLocation(txn)}
+                                            <div>{txn.branchName || '—'}</div>
+                                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.125rem' }}>{formatLocation(txn)}</div>
                                         </td>
                                         <td>
                                             {(() => {

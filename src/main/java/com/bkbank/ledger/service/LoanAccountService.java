@@ -58,6 +58,7 @@ public class LoanAccountService {
         
         if (!account.isActive()) {
             Transaction failedTx = Transaction.createFailedCharge(accountNumber, amount, account.getCurrency(), account.getPrincipalOutstanding(), merchantId, merchantName, location, latitude, longitude, "Account inactive");
+            failedTx.assignBranch(account.getBranchId(), account.getBranchName());
             failedTx.setCardNetwork(cardNetwork);
             failedTx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
                     responseCode != null ? responseCode : "96",
@@ -68,6 +69,7 @@ public class LoanAccountService {
         
         if (!account.hasSufficientCredit(amount)) {
             Transaction failedTx = Transaction.createFailedCharge(accountNumber, amount, account.getCurrency(), account.getPrincipalOutstanding(), merchantId, merchantName, location, latitude, longitude, "Credit limit exceeded");
+            failedTx.assignBranch(account.getBranchId(), account.getBranchName());
             failedTx.setCardNetwork(cardNetwork);
             failedTx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
                     responseCode != null ? responseCode : "51",
@@ -81,6 +83,7 @@ public class LoanAccountService {
         
         // Log transaction
         Transaction tx = Transaction.createCharge(accountNumber, amount, savedAccount.getCurrency(), savedAccount.getPrincipalOutstanding(), merchantId, merchantName, location, latitude, longitude);
+        tx.assignBranch(savedAccount.getBranchId(), savedAccount.getBranchName());
         tx.setCardNetwork(cardNetwork);
         tx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
                 responseCode != null ? responseCode : "00",
@@ -105,6 +108,7 @@ public class LoanAccountService {
         
         // Log transaction
         Transaction tx = Transaction.createPayment(accountNumber, amount, savedAccount.getCurrency(), savedAccount.getPrincipalOutstanding());
+        tx.assignBranch(savedAccount.getBranchId(), savedAccount.getBranchName());
         Transaction savedTx = transactionRepository.save(tx);
         transactionNotificationEventPublisher.publish(savedTx.getId());
         
@@ -126,6 +130,7 @@ public class LoanAccountService {
         LoanAccount savedAccount = loanAccountRepository.save(account);
 
         Transaction tx = Transaction.createPayment(accountNumber, amount, savedAccount.getCurrency(), savedAccount.getPrincipalOutstanding());
+        tx.assignBranch(savedAccount.getBranchId(), savedAccount.getBranchName());
         tx.setChannel("STATEMENT_PAYMENT");
         tx.setDescription("Statement payment"
                 + (billingDate != null && !billingDate.isBlank() ? " for " + billingDate : "")
@@ -159,6 +164,7 @@ public class LoanAccountService {
         Transaction adjustmentTx = "REVERSAL".equalsIgnoreCase(adjustmentType)
                 ? Transaction.createReversal(originalTransaction, savedAccount.getPrincipalOutstanding(), reason)
                 : Transaction.createRefund(originalTransaction, savedAccount.getPrincipalOutstanding(), reason);
+        adjustmentTx.assignBranch(savedAccount.getBranchId(), savedAccount.getBranchName());
         adjustmentTx.setCardNetwork(originalTransaction.getCardNetwork());
         adjustmentTx.applyReferenceData(
                 paymentId,

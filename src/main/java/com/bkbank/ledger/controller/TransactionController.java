@@ -33,6 +33,8 @@ public class TransactionController {
             Map.entry("transactiontype", "transactionType"),
             Map.entry("merchantname", "merchantName"),
             Map.entry("merchantid", "merchantId"),
+            Map.entry("branchid", "branchId"),
+            Map.entry("branchname", "branchName"),
             Map.entry("status", "status"),
             Map.entry("accountnumber", "accountNumber")
     );
@@ -59,12 +61,13 @@ public class TransactionController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false, name = "type") String transactionType,
             @RequestParam(required = false) String accountType,
+            @RequestParam(required = false) String branchId,
             @RequestParam(defaultValue = "transactionDate") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir
     ) {
         Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "transactionDate", TRANSACTION_SORT_MAPPINGS);
         Page<Transaction> txns = transactionRepository.findAll(
-                LedgerListSpecifications.transactionList(q, status, transactionType, accountType),
+                LedgerListSpecifications.transactionList(q, status, transactionType, accountType, branchId),
                 pageable
         );
         return ResponseEntity.ok(txns);
@@ -177,8 +180,12 @@ public class TransactionController {
         Transaction tx;
         if ("SAVINGS".equalsIgnoreCase(accountType)) {
             tx = Transaction.createFailedWithdrawal(accountNumber, amount, currency, currentBalance, merchantId, merchantName, location, latitude, longitude, failureReason);
+            savingsAccountRepository.findByAccountNumber(accountNumber)
+                    .ifPresent(account -> tx.assignBranch(account.getBranchId(), account.getBranchName()));
         } else {
             tx = Transaction.createFailedCharge(accountNumber, amount, currency, currentBalance, merchantId, merchantName, location, latitude, longitude, failureReason);
+            loanAccountRepository.findByAccountNumber(accountNumber)
+                    .ifPresent(account -> tx.assignBranch(account.getBranchId(), account.getBranchName()));
         }
         tx.setCardNetwork(cardNetwork);
         tx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference, responseCode, responseMessage);
