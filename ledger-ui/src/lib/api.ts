@@ -304,6 +304,10 @@ export async function getClient(clientId: string) {
   return request<any>(`/clients/${clientId}`);
 }
 
+export async function getBranches() {
+  return request<any[]>('/branches');
+}
+
 export async function getClientAccounts(clientId: string) {
   return request<any>(`/clients/${clientId}/accounts`);
 }

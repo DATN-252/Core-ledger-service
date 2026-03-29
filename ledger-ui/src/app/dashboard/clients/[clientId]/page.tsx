@@ -67,7 +67,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
     if (loading) return <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Đang tải...</div>;
     if (!clientData) return <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Không có dữ liệu</div>;
 
-    const { clientName, savingsAccounts = [], loanAccounts = [] } = clientData;
+    const { clientName, homeBranchName, homeBranchId, savingsAccounts = [], loanAccounts = [] } = clientData;
 
     const formatAmount = (tx: any) => {
         const isNegative = isNegativeTransaction(tx);
@@ -111,6 +111,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
                         Mã khách hàng: {clientId}
                     </p>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                        Chi nhánh quản lý: {homeBranchName ? `${homeBranchName} (${homeBranchId})` : '—'}
+                    </p>
                 </div>
 
                 <Link
@@ -140,6 +143,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                                         <div>
                                             <div style={{ fontWeight: 600, fontFamily: 'monospace' }}>{acc.accountNumber}</div>
                                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>Trạng thái: <span className={`badge ${acc.status === 'ACTIVE' ? 'badge-active' : 'badge-pending'}`}>{acc.status}</span></div>
+                                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', marginTop: '0.25rem' }}>Chi nhánh: {acc.branchName || '—'}</div>
                                         </div>
                                         <div style={{ textAlign: 'right' }}>
                                             <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>
@@ -221,6 +225,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                                             <div>
                                                 <div style={{ fontWeight: 600, fontFamily: 'monospace' }}>{acc.accountNumber}</div>
                                                 <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>Trạng thái: <span className={`badge ${acc.status === 'ACTIVE' ? 'badge-active' : 'badge-pending'}`}>{acc.status}</span></div>
+                                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', marginTop: '0.25rem' }}>Chi nhánh: {acc.branchName || '—'}</div>
                                             </div>
                                             <div style={{ textAlign: 'right' }}>
                                                 <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>

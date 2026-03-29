@@ -120,6 +120,10 @@ public class Client {
     
     @OneToMany(mappedBy = "client", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<LoanAccount> loanAccounts = new ArrayList<>();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "home_branch_fk")
+    private Branch homeBranch;
     
     // ============================================
     // CONSTRUCTORS
@@ -331,6 +335,14 @@ public class Client {
 
     public void setLoanAccounts(List<LoanAccount> loanAccounts) {
         this.loanAccounts = loanAccounts;
+    }
+
+    public Branch getHomeBranch() {
+        return homeBranch;
+    }
+
+    public void setHomeBranch(Branch homeBranch) {
+        this.homeBranch = homeBranch;
     }
     
     // ============================================

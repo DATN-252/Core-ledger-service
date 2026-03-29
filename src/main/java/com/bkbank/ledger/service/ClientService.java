@@ -2,10 +2,12 @@ package com.bkbank.ledger.service;
 
 import com.bkbank.ledger.dto.ClientCreateRequest;
 import com.bkbank.ledger.dto.ClientUpdateRequest;
+import com.bkbank.ledger.entity.Branch;
 import com.bkbank.ledger.entity.Client;
 import com.bkbank.ledger.entity.LoanAccount;
 import com.bkbank.ledger.entity.SavingsAccount;
 import com.bkbank.ledger.entity.enums.ClientStatus;
+import com.bkbank.ledger.repository.BranchRepository;
 import com.bkbank.ledger.repository.ClientRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,9 +28,11 @@ public class ClientService {
     private static final Logger log = LoggerFactory.getLogger(ClientService.class);
     
     private final ClientRepository clientRepository;
-    
-    public ClientService(ClientRepository clientRepository) {
+    private final BranchRepository branchRepository;
+
+    public ClientService(ClientRepository clientRepository, BranchRepository branchRepository) {
         this.clientRepository = clientRepository;
+        this.branchRepository = branchRepository;
     }
     
     /**
@@ -66,6 +70,7 @@ public class ClientService {
         client.setAddress(request.getAddress());
         client.setIdNumber(request.getIdNumber());
         client.setIdType(request.getIdType());
+        client.setHomeBranch(resolveBranch(request.getHomeBranchId()));
         // status is set to ACTIVE by default in constructor
         
         // Set optional fields (if provided)
@@ -140,6 +145,9 @@ public class ClientService {
         }
         if (request.getCountry() != null) {
             client.setCountry(request.getCountry());
+        }
+        if (request.getHomeBranchId() != null) {
+            client.setHomeBranch(resolveBranch(request.getHomeBranchId()));
         }
         if (request.getIdIssueDate() != null) {
             client.setIdIssueDate(request.getIdIssueDate());
@@ -221,5 +229,13 @@ public class ClientService {
     public List<LoanAccount> getClientLoanAccounts(String clientId) {
         Client client = getClient(clientId);
         return client.getLoanAccounts();
+    }
+
+    private Branch resolveBranch(String branchId) {
+        if (branchId == null || branchId.isBlank()) {
+            return null;
+        }
+        return branchRepository.findByBranchId(branchId)
+                .orElseThrow(() -> new RuntimeException("Branch not found: " + branchId));
     }
 }

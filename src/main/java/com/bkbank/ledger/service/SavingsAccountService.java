@@ -242,6 +242,7 @@ public class SavingsAccountService {
         account.setAccountNumber(accountNumber);
         account.setBalance(initialBalance != null ? initialBalance : 0.0);
         account.setClient(client);
+        account.setBranch(client.getHomeBranch());
         account.setCurrency("USD");
         
         SavingsAccount savedAccount = savingsAccountRepository.save(account);

@@ -33,6 +33,7 @@ public class ClientCreateRequest {
     // Extended Contact
     private String city;
     private String country;
+    private String homeBranchId;
     
     // ID Details
     private LocalDate idIssueDate;
@@ -134,6 +135,14 @@ public class ClientCreateRequest {
 
     public void setCountry(String country) {
         this.country = country;
+    }
+
+    public String getHomeBranchId() {
+        return homeBranchId;
+    }
+
+    public void setHomeBranchId(String homeBranchId) {
+        this.homeBranchId = homeBranchId;
     }
 
     public LocalDate getIdIssueDate() {

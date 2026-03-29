@@ -1,8 +1,10 @@
 package com.bkbank.ledger.service;
 
 import com.bkbank.ledger.entity.CityReference;
+import com.bkbank.ledger.entity.Branch;
 import com.bkbank.ledger.entity.Merchant;
 import com.bkbank.ledger.repository.CityReferenceRepository;
+import com.bkbank.ledger.repository.BranchRepository;
 import com.bkbank.ledger.entity.Client;
 import com.bkbank.ledger.entity.SavingsAccount;
 import com.bkbank.ledger.entity.enums.AccountStatus;
@@ -26,6 +28,7 @@ import java.util.List;
 public class MerchantService {
 
     private final CityReferenceRepository cityReferenceRepository;
+    private final BranchRepository branchRepository;
     private final MerchantRepository merchantRepository;
     private final ClientRepository clientRepository;
     private final SavingsAccountRepository savingsAccountRepository;
@@ -154,6 +157,7 @@ public class MerchantService {
         account.setCurrency("USD");
         account.setStatus(AccountStatus.ACTIVE);
         account.setClient(settlementClient);
+        account.setBranch(settlementClient.getHomeBranch());
         return savingsAccountRepository.save(account);
     }
 
@@ -173,10 +177,15 @@ public class MerchantService {
             client.setIdNumber("MER-" + merchant.getMerchantId());
             client.setIdType(IdType.NATIONAL_ID);
             client.setStatus(ClientStatus.ACTIVE);
+            client.setHomeBranch(resolveMerchantBranch());
             client.setCity(merchant.getCityReference() != null ? merchant.getCityReference().getCityName() : "Merchant City");
             client.setCountry(merchant.getCityReference() != null ? merchant.getCityReference().getCountry() : "Vietnam");
             return clientRepository.save(client);
         });
+    }
+
+    private Branch resolveMerchantBranch() {
+        return branchRepository.findByBranchId(BranchService.HEAD_OFFICE_BRANCH_ID).orElse(null);
     }
 
     private String buildMerchantPhone(String merchantId) {

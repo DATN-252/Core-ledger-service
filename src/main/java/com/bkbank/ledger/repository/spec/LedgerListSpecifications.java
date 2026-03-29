@@ -25,12 +25,15 @@ public final class LedgerListSpecifications {
 
             if (hasText(q)) {
                 String pattern = likePattern(q);
+                Join<Object, Object> branchJoin = root.join("homeBranch", JoinType.LEFT);
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("clientId")), pattern),
                         cb.like(cb.lower(root.get("fullName")), pattern),
                         cb.like(cb.lower(root.get("email")), pattern),
                         cb.like(cb.lower(root.get("phoneNumber")), pattern),
-                        cb.like(cb.lower(cb.coalesce(root.get("city"), "")), pattern)
+                        cb.like(cb.lower(cb.coalesce(root.get("city"), "")), pattern),
+                        cb.like(cb.lower(cb.coalesce(branchJoin.get("branchId"), "")), pattern),
+                        cb.like(cb.lower(cb.coalesce(branchJoin.get("branchName"), "")), pattern)
                 ));
             }
 
@@ -46,6 +49,7 @@ public final class LedgerListSpecifications {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             Join<LoanAccount, Client> clientJoin = root.join("client", JoinType.LEFT);
+            Join<Object, Object> branchJoin = root.join("branch", JoinType.LEFT);
 
             if (hasText(q)) {
                 String pattern = likePattern(q);
@@ -53,7 +57,9 @@ public final class LedgerListSpecifications {
                         cb.like(cb.lower(root.get("accountNumber")), pattern),
                         cb.like(cb.lower(cb.coalesce(clientJoin.get("fullName"), "")), pattern),
                         cb.like(cb.lower(cb.coalesce(clientJoin.get("clientId"), "")), pattern),
-                        cb.like(cb.lower(cb.coalesce(root.get("currency"), "")), pattern)
+                        cb.like(cb.lower(cb.coalesce(root.get("currency"), "")), pattern),
+                        cb.like(cb.lower(cb.coalesce(branchJoin.get("branchId"), "")), pattern),
+                        cb.like(cb.lower(cb.coalesce(branchJoin.get("branchName"), "")), pattern)
                 ));
             }
 
@@ -69,6 +75,7 @@ public final class LedgerListSpecifications {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             Join<SavingsAccount, Client> clientJoin = root.join("client", JoinType.LEFT);
+            Join<Object, Object> branchJoin = root.join("branch", JoinType.LEFT);
 
             if (hasText(q)) {
                 String pattern = likePattern(q);
@@ -76,7 +83,9 @@ public final class LedgerListSpecifications {
                         cb.like(cb.lower(root.get("accountNumber")), pattern),
                         cb.like(cb.lower(cb.coalesce(clientJoin.get("fullName"), "")), pattern),
                         cb.like(cb.lower(cb.coalesce(clientJoin.get("clientId"), "")), pattern),
-                        cb.like(cb.lower(cb.coalesce(root.get("currency"), "")), pattern)
+                        cb.like(cb.lower(cb.coalesce(root.get("currency"), "")), pattern),
+                        cb.like(cb.lower(cb.coalesce(branchJoin.get("branchId"), "")), pattern),
+                        cb.like(cb.lower(cb.coalesce(branchJoin.get("branchName"), "")), pattern)
                 ));
             }
 

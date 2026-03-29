@@ -20,6 +20,7 @@ public class ClientUpdateRequest {
     private String address;
     private String city;
     private String country;
+    private String homeBranchId;
     
     // Can't update ID number (immutable)
     
@@ -99,6 +100,14 @@ public class ClientUpdateRequest {
 
     public void setCountry(String country) {
         this.country = country;
+    }
+
+    public String getHomeBranchId() {
+        return homeBranchId;
+    }
+
+    public void setHomeBranchId(String homeBranchId) {
+        this.homeBranchId = homeBranchId;
     }
 
     public LocalDate getIdIssueDate() {

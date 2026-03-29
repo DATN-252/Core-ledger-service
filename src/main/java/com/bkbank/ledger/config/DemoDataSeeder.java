@@ -1,6 +1,7 @@
 package com.bkbank.ledger.config;
 
 import com.bkbank.ledger.entity.Client;
+import com.bkbank.ledger.entity.Branch;
 import com.bkbank.ledger.entity.CreditCardStatement;
 import com.bkbank.ledger.entity.LoanAccount;
 import com.bkbank.ledger.entity.SavingsAccount;
@@ -13,6 +14,7 @@ import com.bkbank.ledger.entity.enums.Gender;
 import com.bkbank.ledger.entity.enums.IdType;
 import com.bkbank.ledger.entity.enums.UserRole;
 import com.bkbank.ledger.repository.ClientRepository;
+import com.bkbank.ledger.repository.BranchRepository;
 import com.bkbank.ledger.repository.CreditCardStatementRepository;
 import com.bkbank.ledger.repository.LoanAccountRepository;
 import com.bkbank.ledger.repository.SavingsAccountRepository;
@@ -36,6 +38,7 @@ import java.time.LocalDateTime;
 public class DemoDataSeeder implements CommandLineRunner {
 
     private final ClientRepository clientRepository;
+    private final BranchRepository branchRepository;
     private final UserRepository userRepository;
     private final SavingsAccountRepository savingsAccountRepository;
     private final LoanAccountRepository loanAccountRepository;
@@ -57,7 +60,8 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "001122334455",
                 "Software Engineer",
                 "FPT Software",
-                30_000_000.0
+                30_000_000.0,
+                "BR001"
         );
         Client clientTwo = seedClient(
                 "CLI_002",
@@ -70,7 +74,8 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "998877665544",
                 "Product Manager",
                 "VNG",
-                42_000_000.0
+                42_000_000.0,
+                "BR002"
         );
 
         seedCustomerUser(clientOne, "0333444555", "customer123");
@@ -98,8 +103,10 @@ public class DemoDataSeeder implements CommandLineRunner {
                               String idNumber,
                               String occupation,
                               String employerName,
-                              Double monthlyIncome) {
+                              Double monthlyIncome,
+                              String homeBranchId) {
         return clientRepository.findByClientId(clientId).orElseGet(() -> {
+            Branch homeBranch = branchRepository.findByBranchId(homeBranchId).orElse(null);
             Client client = new Client();
             client.setClientId(clientId);
             client.setFullName(fullName);
@@ -113,6 +120,7 @@ public class DemoDataSeeder implements CommandLineRunner {
             client.setStatus(ClientStatus.ACTIVE);
             client.setCity("Vietnam");
             client.setCountry("Vietnam");
+            client.setHomeBranch(homeBranch);
             client.setIdIssueDate(LocalDate.of(2018, 1, 1));
             client.setIdExpiryDate(LocalDate.of(2033, 1, 1));
             client.setOccupation(occupation);
@@ -152,6 +160,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         account.setCurrency("USD");
         account.setStatus(AccountStatus.ACTIVE);
         account.setClient(client);
+        account.setBranch(client.getHomeBranch());
         savingsAccountRepository.save(account);
     }
 
@@ -171,6 +180,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         account.setMinimumPaymentFloor(10.0);
         account.setStatus(AccountStatus.ACTIVE);
         account.setClient(client);
+        account.setBranch(client.getHomeBranch());
         loanAccountRepository.save(account);
     }
 

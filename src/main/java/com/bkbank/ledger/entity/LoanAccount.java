@@ -62,6 +62,10 @@ public class LoanAccount {
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "branch_fk")
+    private Branch branch;
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -218,5 +222,13 @@ public class LoanAccount {
      */
     public String getClientName() {
         return client != null ? client.getFullName() : null;
+    }
+
+    public String getBranchId() {
+        return branch != null ? branch.getBranchId() : null;
+    }
+
+    public String getBranchName() {
+        return branch != null ? branch.getBranchName() : null;
     }
 }

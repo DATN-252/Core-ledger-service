@@ -12,6 +12,7 @@ function NewSavingsForm() {
 
     const [loading, setLoading] = useState(false);
     const [clientName, setClientName] = useState('');
+    const [clientBranch, setClientBranch] = useState('');
     const [formData, setFormData] = useState({
         clientId: defaultClientId,
         accountNumber: '',
@@ -22,6 +23,7 @@ function NewSavingsForm() {
         if (formData.clientId && formData.clientId.length > 3) {
             getClient(formData.clientId).then(c => {
                 if (c && c.fullName) setClientName(c.fullName);
+                setClientBranch(c?.homeBranchName ? `${c.homeBranchName} (${c.homeBranchId})` : '');
             }).catch(() => setClientName(''));
         }
     }, [formData.clientId]);
@@ -80,6 +82,11 @@ function NewSavingsForm() {
                         {clientName && (
                             <div style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                                 <FontAwesomeIcon icon={faUser} /> Tìm thấy khách hàng: <strong>{clientName}</strong>
+                            </div>
+                        )}
+                        {clientBranch && (
+                            <div style={{ marginTop: '0.35rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                                Chi nhánh sẽ kế thừa: <strong>{clientBranch}</strong>
                             </div>
                         )}
                     </div>

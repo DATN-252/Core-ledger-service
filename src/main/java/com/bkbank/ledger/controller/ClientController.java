@@ -34,6 +34,8 @@ public class ClientController {
             Map.entry("fullname", "fullName"),
             Map.entry("email", "email"),
             Map.entry("status", "status"),
+            Map.entry("branchid", "homeBranch.branchId"),
+            Map.entry("branchname", "homeBranch.branchName"),
             Map.entry("createdat", "createdAt"),
             Map.entry("updatedat", "updatedAt")
     );
@@ -206,6 +208,8 @@ public class ClientController {
             Map<String, Object> response = new HashMap<>();
             response.put("clientId", client.getClientId());
             response.put("clientName", client.getFullName());
+            response.put("homeBranchId", client.getHomeBranch() != null ? client.getHomeBranch().getBranchId() : null);
+            response.put("homeBranchName", client.getHomeBranch() != null ? client.getHomeBranch().getBranchName() : null);
             response.put("savingsAccounts", buildSavingsAccountList(savingsAccounts));
             response.put("loanAccounts", buildLoanAccountList(loanAccounts));
             response.put("totalSavingsAccounts", savingsAccounts.size());
@@ -281,6 +285,8 @@ public class ClientController {
         response.put("address", client.getAddress());
         response.put("city", client.getCity());
         response.put("country", client.getCountry());
+        response.put("homeBranchId", client.getHomeBranch() != null ? client.getHomeBranch().getBranchId() : null);
+        response.put("homeBranchName", client.getHomeBranch() != null ? client.getHomeBranch().getBranchName() : null);
         
         // ID info
         response.put("idNumber", client.getIdNumber());
@@ -318,6 +324,8 @@ public class ClientController {
         summary.put("status", client.getStatus());
         summary.put("totalAccounts", client.getSavingsAccounts().size() + client.getLoanAccounts().size());
         summary.put("city", client.getCity());
+        summary.put("homeBranchId", client.getHomeBranch() != null ? client.getHomeBranch().getBranchId() : null);
+        summary.put("homeBranchName", client.getHomeBranch() != null ? client.getHomeBranch().getBranchName() : null);
         summary.put("createdAt", client.getCreatedAt());
         return summary;
     }
@@ -328,6 +336,8 @@ public class ClientController {
             map.put("accountNumber", acc.getAccountNumber());
             map.put("balance", acc.getBalance());
             map.put("status", acc.getStatus());
+            map.put("branchId", acc.getBranchId());
+            map.put("branchName", acc.getBranchName());
             return map;
         }).toList();
     }
@@ -339,6 +349,8 @@ public class ClientController {
             map.put("principal", acc.getPrincipal());
             map.put("principalOutstanding", acc.getPrincipalOutstanding());
             map.put("status", acc.getStatus());
+            map.put("branchId", acc.getBranchId());
+            map.put("branchName", acc.getBranchName());
             return map;
         }).toList();
     }

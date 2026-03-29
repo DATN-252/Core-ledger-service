@@ -34,6 +34,8 @@ public class SavingsAccountController {
             Map.entry("balance", "balance"),
             Map.entry("currency", "currency"),
             Map.entry("status", "status"),
+            Map.entry("branchid", "branch.branchId"),
+            Map.entry("branchname", "branch.branchName"),
             Map.entry("createdat", "createdAt"),
             Map.entry("updatedat", "updatedAt")
     );
@@ -67,6 +69,8 @@ public class SavingsAccountController {
             m.put("currency", account.getCurrency());
             m.put("status", account.getStatus().name());
             m.put("clientName", account.getClientName());
+            m.put("branchId", account.getBranchId());
+            m.put("branchName", account.getBranchName());
             m.put("createdAt", account.getCreatedAt());
             return m;
         });
@@ -93,6 +97,8 @@ public class SavingsAccountController {
             response.put("currency", Map.of("code", account.getCurrency()));
             response.put("status", Map.of("value", account.getStatus().name()));
             response.put("clientName", account.getClientName());
+            response.put("branchId", account.getBranchId());
+            response.put("branchName", account.getBranchName());
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -242,6 +248,8 @@ public class SavingsAccountController {
             response.put("accountNumber", account.getAccountNumber());
             response.put("clientId", clientId);
             response.put("clientName", account.getClientName());  // For backward compatibility
+            response.put("branchId", account.getBranchId());
+            response.put("branchName", account.getBranchName());
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {

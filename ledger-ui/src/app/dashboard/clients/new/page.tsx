@@ -1,7 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/api';
+import { createClient, getBranches } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUserPlus, faArrowLeft, faSave } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
@@ -9,6 +9,7 @@ import Link from 'next/link';
 export default function NewClientPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [branches, setBranches] = useState<any[]>([]);
     const [formData, setFormData] = useState({
         fullName: '',
         dateOfBirth: '',
@@ -18,6 +19,7 @@ export default function NewClientPage() {
         address: '',
         city: '',
         country: 'Vietnam',
+        homeBranchId: '',
         idNumber: '',
         idType: 'NATIONAL_ID',
         idIssueDate: '',
@@ -26,6 +28,18 @@ export default function NewClientPage() {
         employerName: '',
         monthlyIncome: '',
     });
+
+    useEffect(() => {
+        getBranches()
+            .then((data) => {
+                setBranches(data || []);
+                setFormData((prev) => ({
+                    ...prev,
+                    homeBranchId: prev.homeBranchId || data?.[0]?.branchId || '',
+                }));
+            })
+            .catch(() => setBranches([]));
+    }, []);
 
     const handleChange = (e: any) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -97,6 +111,17 @@ export default function NewClientPage() {
                     <div>
                         <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Quốc gia</label>
                         <input required name="country" value={formData.country} onChange={handleChange} className="input" />
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Chi nhánh đăng ký *</label>
+                        <select required name="homeBranchId" value={formData.homeBranchId} onChange={handleChange} className="input">
+                            <option value="">Chọn chi nhánh</option>
+                            {branches.map((branch: any) => (
+                                <option key={branch.branchId} value={branch.branchId}>
+                                    {branch.branchId} - {branch.branchName}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                     <div style={{ gridColumn: '1 / -1' }}>
                         <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Địa chỉ</label>

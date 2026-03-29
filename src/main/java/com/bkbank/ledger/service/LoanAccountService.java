@@ -195,6 +195,7 @@ public class LoanAccountService {
         account.setPrincipal(principal);
         account.setPrincipalOutstanding(0.0);
         account.setClient(client);
+        account.setBranch(client.getHomeBranch());
         account.setCurrency("USD");
         account.setStatus(com.bkbank.ledger.entity.enums.AccountStatus.PENDING);
         

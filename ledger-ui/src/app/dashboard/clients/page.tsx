@@ -91,6 +91,7 @@ export default function ClientsPage() {
                                 <tr>
                                     <th>Mã KH</th>
                                     <th>Họ tên</th>
+                                    <th>Chi nhánh</th>
                                     <th>Email</th>
                                     <th>Số điện thoại</th>
                                     <th>Tổng TK</th>
@@ -101,7 +102,7 @@ export default function ClientsPage() {
                             <tbody>
                                 {clients.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                                        <td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                                             Không có khách hàng
                                         </td>
                                     </tr>
@@ -109,6 +110,7 @@ export default function ClientsPage() {
                                     <tr key={client.clientId}>
                                         <td style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>#{client.clientId}</td>
                                         <td style={{ fontWeight: 600 }}>{client.fullName}</td>
+                                        <td>{client.homeBranchName || '—'}</td>
                                         <td>{client.email || '—'}</td>
                                         <td>{client.phoneNumber || '—'}</td>
                                         <td style={{ fontWeight: 600 }}>{client.totalAccounts}</td>
