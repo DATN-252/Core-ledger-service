@@ -162,6 +162,34 @@ public class CreditCardStatementService {
     }
 
     @Transactional
+    public CreditCardMonthlyStatementResponse getOrGenerateStatement(String accountNumber, LocalDate billingDate) {
+        LoanAccount account = loanAccountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
+
+        validateBillingDateNotInFuture(billingDate);
+
+        LocalDate normalizedBillingDate = normalizeBillingDate(billingDate, account.getBillingDayOfMonth());
+        if (!normalizedBillingDate.equals(billingDate)) {
+            throw new IllegalArgumentException("billingDate does not match account billing day");
+        }
+
+        if (creditCardStatementRepository.findByAccountNumberAndBillingDate(accountNumber, billingDate).isPresent()) {
+            return getStatementDetail(accountNumber, billingDate);
+        }
+
+        return generateMonthlyStatement(accountNumber, billingDate);
+    }
+
+    @Transactional
+    public CreditCardMonthlyStatementResponse getCurrentStatement(String accountNumber) {
+        LoanAccount account = loanAccountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
+
+        LocalDate latestBillingDate = resolveLatestBillingDate(account, LocalDate.now());
+        return getOrGenerateStatement(accountNumber, latestBillingDate);
+    }
+
+    @Transactional
     public StatementPaymentResponse payStatement(String accountNumber, LocalDate billingDate, StatementPaymentRequest request) {
         LoanAccount account = loanAccountRepository.findByAccountNumber(accountNumber)
                 .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
@@ -249,6 +277,14 @@ public class CreditCardStatementService {
         YearMonth yearMonth = YearMonth.from(referenceDate);
         int day = Math.min(configuredDay, yearMonth.lengthOfMonth());
         return yearMonth.atDay(day);
+    }
+
+    private LocalDate resolveLatestBillingDate(LoanAccount account, LocalDate referenceDate) {
+        LocalDate candidate = normalizeBillingDate(referenceDate, account.getBillingDayOfMonth());
+        if (candidate.isAfter(referenceDate)) {
+            return normalizeBillingDate(referenceDate.minusMonths(1), account.getBillingDayOfMonth());
+        }
+        return candidate;
     }
 
     private void validateBillingDateNotInFuture(LocalDate billingDate) {

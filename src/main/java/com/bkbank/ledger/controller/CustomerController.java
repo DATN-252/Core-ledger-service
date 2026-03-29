@@ -233,6 +233,41 @@ public class CustomerController {
         }
     }
 
+    @GetMapping("/me/statement")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<CreditCardMonthlyStatementResponse>> getMyStatement(
+            Authentication authentication,
+            @RequestParam(required = false) String loanId,
+            @RequestParam(required = false) LocalDate billingDate) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+            String resolvedLoanId = resolveStatementLoanId(client, loanId);
+            CreditCardMonthlyStatementResponse statement = billingDate != null
+                    ? creditCardStatementService.getOrGenerateStatement(resolvedLoanId, billingDate)
+                    : creditCardStatementService.getCurrentStatement(resolvedLoanId);
+            return ResponseEntity.ok(ApiResponse.success(statement));
+        } catch (Exception e) {
+            log.error("Error getting my statement: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @GetMapping("/me/statements")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<List<CreditCardStatementSummaryResponse>>> getMyStatements(
+            Authentication authentication,
+            @RequestParam(required = false) String loanId) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+            String resolvedLoanId = resolveStatementLoanId(client, loanId);
+            List<CreditCardStatementSummaryResponse> statements = creditCardStatementService.getStatementHistory(resolvedLoanId);
+            return ResponseEntity.ok(ApiResponse.success(statements));
+        } catch (Exception e) {
+            log.error("Error getting my statements: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
     @GetMapping("/me/loans/{loanId}/monthly-statements")
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<ApiResponse<List<CreditCardStatementSummaryResponse>>> getMyMonthlyStatementHistory(
@@ -369,6 +404,22 @@ public class CustomerController {
                 card.put("accountStatus", loanAccount.getStatus().name());
             }
         }
+    }
+
+    private String resolveStatementLoanId(Client client, String loanId) {
+        if (loanId != null && !loanId.isBlank()) {
+            ensureLoanBelongsToClient(client, loanId);
+            return loanId;
+        }
+
+        List<LoanAccount> loanAccounts = clientService.getClientLoanAccounts(client.getClientId());
+        if (loanAccounts.isEmpty()) {
+            throw new RuntimeException("Khach hang khong co tai khoan vay nao");
+        }
+        if (loanAccounts.size() > 1) {
+            throw new RuntimeException("Vui long truyen loanId vi khach hang co nhieu the tin dung");
+        }
+        return loanAccounts.get(0).getAccountNumber();
     }
 
     private String stringValue(Object value) {
