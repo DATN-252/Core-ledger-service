@@ -52,7 +52,7 @@ public class MerchantController {
     private final SettlementService settlementService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER', 'SYSTEM')")
     public ResponseEntity<Page<Map<String, Object>>> getAllActiveMerchants(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -86,7 +86,7 @@ public class MerchantController {
     }
 
     @GetMapping("/{merchantId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER', 'SYSTEM')")
     public ResponseEntity<?> getMerchantDetail(@PathVariable String merchantId) {
         try {
             Merchant merchant = merchantService.getActiveMerchant(merchantId);
@@ -118,7 +118,7 @@ public class MerchantController {
     }
 
     @GetMapping("/{merchantId}/transactions")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER', 'SYSTEM')")
     public ResponseEntity<?> getMerchantTransactions(
             @PathVariable String merchantId,
             @RequestParam(defaultValue = "0") int page,
@@ -143,7 +143,7 @@ public class MerchantController {
     }
 
     @GetMapping("/{merchantId}/settlement/preview")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER', 'SYSTEM')")
     public ResponseEntity<?> previewSettlement(
             @PathVariable String merchantId,
             @RequestParam LocalDate fromDate,
@@ -204,7 +204,7 @@ public class MerchantController {
     }
 
     @GetMapping("/{merchantId}/settlements")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER', 'SYSTEM')")
     public ResponseEntity<?> getSettlementBatches(
             @PathVariable String merchantId,
             @RequestParam(defaultValue = "0") int page,
@@ -219,7 +219,7 @@ public class MerchantController {
     }
 
     @GetMapping("/{merchantId}/settlements/{batchId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER', 'SYSTEM')")
     public ResponseEntity<?> getSettlementBatch(
             @PathVariable String merchantId,
             @PathVariable Long batchId
@@ -232,7 +232,7 @@ public class MerchantController {
     }
 
     @GetMapping("/{merchantId}/settlement-adjustments")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER', 'SYSTEM')")
     public ResponseEntity<?> getSettlementAdjustments(
             @PathVariable String merchantId,
             @RequestParam(defaultValue = "0") int page,
@@ -248,7 +248,7 @@ public class MerchantController {
     }
 
     @GetMapping("/{merchantId}/settlement-adjustments/{adjustmentId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER', 'SYSTEM')")
     public ResponseEntity<?> getSettlementAdjustment(
             @PathVariable String merchantId,
             @PathVariable Long adjustmentId
