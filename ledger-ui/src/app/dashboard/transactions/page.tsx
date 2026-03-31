@@ -179,7 +179,7 @@ export default function TransactionsPage() {
                                         <td className="transaction-cell-time">
                                             {txn.transactionDate ? new Date(txn.transactionDate).toLocaleString('vi-VN') : '—'}
                                         </td>
-                                        <td style={{ fontWeight: 600, color: isPositiveTransaction(txn) ? 'var(--success)' : 'var(--text-primary)' }}>
+                                        <td style={{ fontWeight: 600, color: isNegativeTransaction(txn) ? 'var(--warning)' : 'var(--success)' }}>
                                             {formatAmount(txn)}
                                         </td>
                                         <td>

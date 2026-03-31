@@ -24,6 +24,7 @@ import {
   faSave,
   faTrash,
 } from '@fortawesome/free-solid-svg-icons';
+import CardNetworkLogo from '@/components/CardNetworkLogo';
 
 const STATUS_BADGE: Record<string, string> = {
   ACTIVE: 'badge-active',
@@ -165,7 +166,7 @@ export default function CardDetailPage() {
               <tbody>
                 <tr><th>ID</th><td>{card.id}</td></tr>
                 <tr><th>Loại thẻ</th><td>{card.cardType || '—'}</td></tr>
-                <tr><th>Network</th><td>{card.network || 'UNKNOWN'}</td></tr>
+                <tr><th>Network</th><td><CardNetworkLogo network={card.network} width={64} height={24} /></td></tr>
                 <tr><th>Tài khoản liên kết</th><td>{card.accountId || '—'}</td></tr>
                 <tr><th>Ngày hết hạn</th><td>{card.expirationDate || '—'}</td></tr>
                 <tr><th>Hạn mức</th><td>{card.cardType === 'CREDIT' ? `${Number(card.creditLimit || 0).toLocaleString('en-US')} USD` : 'N/A'}</td></tr>
