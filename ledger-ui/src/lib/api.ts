@@ -219,8 +219,8 @@ export async function getTransactionDetail(id: string | number) {
   return request<any>(`/transactions/${id}`);
 }
 
-export async function getDashboardSummary() {
-  return request<any>('/dashboard/summary');
+export async function getDashboardSummary(days = 14) {
+  return request<any>(`/dashboard/summary?days=${days}`);
 }
 
 // ─── Merchants / Settlements ─────────────────────────────────────────────────

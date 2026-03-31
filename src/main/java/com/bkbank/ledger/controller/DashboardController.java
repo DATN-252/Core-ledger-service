@@ -6,6 +6,7 @@ import com.bkbank.ledger.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,7 +19,9 @@ public class DashboardController {
 
     @GetMapping("/summary")
     @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
-    public ApiResponse<DashboardSummaryResponse> getSummary() {
-        return ApiResponse.success(dashboardService.getSummary());
+    public ApiResponse<DashboardSummaryResponse> getSummary(
+            @RequestParam(defaultValue = "14") int days
+    ) {
+        return ApiResponse.success(dashboardService.getSummary(days));
     }
 }

@@ -80,9 +80,11 @@ export default function DashboardPage() {
     const [summary, setSummary] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
     const [currentTime, setCurrentTime] = useState('');
+    const [trendDays, setTrendDays] = useState(14);
 
     useEffect(() => {
-        getDashboardSummary()
+        setLoading(true);
+        getDashboardSummary(trendDays)
             .then((data) => {
                 setSummary(data);
             })
@@ -108,7 +110,7 @@ export default function DashboardPage() {
             .finally(() => {
                 setLoading(false);
             });
-    }, []);
+    }, [trendDays]);
 
     useEffect(() => {
         setCurrentTime(new Date().toLocaleTimeString('vi-VN'));
@@ -276,11 +278,27 @@ export default function DashboardPage() {
                                 <FontAwesomeIcon icon={faChartBar} style={{ marginRight: '0.5rem', color: 'var(--accent)' }} />
                                 Lịch sử giao dịch
                             </h2>
-                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>14 ngày gần nhất</p>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                                {trendDays} ngày gần nhất
+                            </p>
                         </div>
-                        <Link href="/dashboard/transactions" style={{ fontSize: '0.8125rem', color: 'var(--accent)', textDecoration: 'none' }}>
-                            Xem tất cả →
-                        </Link>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <select
+                                className="input"
+                                value={trendDays}
+                                onChange={(e) => setTrendDays(Number(e.target.value))}
+                                style={{ width: '132px', minWidth: '132px', paddingTop: '0.45rem', paddingBottom: '0.45rem' }}
+                            >
+                                <option value={7}>7 ngày</option>
+                                <option value={14}>14 ngày</option>
+                                <option value={30}>30 ngày</option>
+                                <option value={60}>60 ngày</option>
+                                <option value={90}>90 ngày</option>
+                            </select>
+                            <Link href="/dashboard/transactions" style={{ fontSize: '0.8125rem', color: 'var(--accent)', textDecoration: 'none' }}>
+                                Xem tất cả →
+                            </Link>
+                        </div>
                     </div>
                     {txnByDay.length === 0 ? (
                         <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>

@@ -31,7 +31,8 @@ public class DashboardService {
     private final SavingsAccountRepository savingsAccountRepository;
     private final TransactionRepository transactionRepository;
 
-    public DashboardSummaryResponse getSummary() {
+    public DashboardSummaryResponse getSummary(int days) {
+        int safeDays = Math.max(1, Math.min(days, 365));
         long clientCount = clientRepository.countVisibleClients();
         long activeClientCount = clientRepository.countVisibleClientsByStatus(ClientStatus.ACTIVE);
 
@@ -49,14 +50,14 @@ public class DashboardService {
         double totalCreditLimit = defaultDouble(loanAccountRepository.sumPrincipal());
         double totalOutstanding = defaultDouble(loanAccountRepository.sumPrincipalOutstanding());
 
-        LocalDate fromDate = LocalDate.now().minusDays(13);
+        LocalDate fromDate = LocalDate.now().minusDays(safeDays - 1L);
         LocalDateTime fromDateTime = fromDate.atStartOfDay();
 
         List<Transaction> recentTransactions = transactionRepository.findTop8ByOrderByTransactionDateDesc();
         List<Transaction> recentChartTransactions = transactionRepository.findByTransactionDateGreaterThanEqualOrderByTransactionDateAsc(fromDateTime);
 
         Map<LocalDate, DashboardTransactionTrendResponse> trendMap = new LinkedHashMap<>();
-        for (int i = 0; i < 14; i++) {
+        for (int i = 0; i < safeDays; i++) {
             LocalDate day = fromDate.plusDays(i);
             trendMap.put(day, new DashboardTransactionTrendResponse(day.format(DAY_LABEL_FORMAT), 0, 0, 0));
         }
