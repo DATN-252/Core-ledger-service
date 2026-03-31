@@ -326,16 +326,53 @@ export async function getCreditCards(clientId?: string) {
   return cmsRequest<any[]>(path);
 }
 
+export async function getCardDetail(cardId: string | number) {
+  return cmsRequest<any>(`/cards/${cardId}`);
+}
+
 export async function issueDebitCard(data: { pan: string, cvv: string, expirationDate: string, accountId: string, cardholderName: string, network?: string }) {
-  const params = new URLSearchParams(data as any);
-  return cmsRequest<any>(`/cards/issue?${params.toString()}`, { method: 'POST' });
+  return cmsRequest<any>('/cards/issue', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }
 
 export async function issueCreditCard(data: { pan: string, cvv: string, expirationDate: string, creditLimit: number, loanAccountId: string, cardholderName: string, network?: string }) {
-  const params = new URLSearchParams(data as any);
-  return cmsRequest<any>(`/cards/issue/credit?${params.toString()}`, { method: 'POST' });
+  return cmsRequest<any>('/cards/issue/credit', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }
 
-export async function changeCardStatus(cardNumber: string, status: string) {
-  return cmsRequest<any>(`/cards/${cardNumber}/status?status=${status}`, { method: 'PUT' });
+export async function changeCardStatus(cardId: string | number, status: string) {
+  return cmsRequest<any>(`/cards/${cardId}/status?status=${status}`, { method: 'PUT' });
+}
+
+export async function blockCard(cardId: string | number) {
+  return cmsRequest<any>(`/cards/${cardId}/block`, { method: 'POST' });
+}
+
+export async function unblockCard(cardId: string | number) {
+  return cmsRequest<any>(`/cards/${cardId}/unblock`, { method: 'POST' });
+}
+
+export async function cancelCard(cardId: string | number) {
+  return cmsRequest<any>(`/cards/${cardId}/cancel`, { method: 'POST' });
+}
+
+export async function renewCard(cardId: string | number, expirationDate: string) {
+  return cmsRequest<any>(`/cards/${cardId}/renew`, {
+    method: 'POST',
+    body: JSON.stringify({ expirationDate }),
+  });
+}
+
+export async function replaceCard(
+  cardId: string | number,
+  data: { pan: string; cvv: string; expirationDate: string; cardholderName?: string; network?: string },
+) {
+  return cmsRequest<any>(`/cards/${cardId}/replace`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }

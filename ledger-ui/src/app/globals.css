@@ -234,6 +234,11 @@ select.input::-ms-expand {
   color: var(--danger);
 }
 
+.badge-danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fda4af;
+}
+
 /* Table */
 .table-container {
   overflow-x: auto;

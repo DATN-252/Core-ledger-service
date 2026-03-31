@@ -2,14 +2,15 @@
 import { useEffect, useState } from 'react';
 import { getCreditCards } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faIdCard, faCreditCard, faMoneyBillWave, faLock, faCheckCircle, faExclamationTriangle, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faIdCard, faCreditCard, faMoneyBillWave, faLock, faCheckCircle, faExclamationTriangle, faPlus, faEye } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
 
 const STATUS_BADGE: Record<string, string> = {
     ACTIVE: 'badge-active',
     PENDING: 'badge-pending',
     LOCKED: 'badge-locked',
-    EXPIRED: 'badge-locked'
+    EXPIRED: 'badge-locked',
+    CANCELLED: 'badge-locked',
 };
 
 const NETWORK_STYLES: Record<string, { bg: string; color: string; label: string }> = {
@@ -130,6 +131,7 @@ export default function CardsPage() {
                         <option value="PENDING">PENDING</option>
                         <option value="LOCKED">LOCKED</option>
                         <option value="EXPIRED">EXPIRED</option>
+                        <option value="CANCELLED">CANCELLED</option>
                     </select>
                     <select className="input" value={cardType} onChange={e => setCardType(e.target.value)}>
                         <option value="ALL">Tất cả loại thẻ</option>
@@ -176,11 +178,12 @@ export default function CardsPage() {
                                     <th>Network</th>
                                     <th>Tài khoản l/kết</th>
                                     <th>Hạn mức</th>
-                                    <th>Dư nợ</th>
-                                    <th>Hết hạn</th>
-                                    <th>Trạng thái</th>
-                                </tr>
-                            </thead>
+                                        <th>Dư nợ</th>
+                                        <th>Hết hạn</th>
+                                        <th>Trạng thái</th>
+                                        <th>Thao tác</th>
+                                    </tr>
+                                </thead>
                             <tbody>
                                 {filtered.map((card: any) => {
                                     const limit = Number(card.creditLimit || 0);
@@ -226,6 +229,12 @@ export default function CardsPage() {
                                                     {status === 'EXPIRED' && <FontAwesomeIcon icon={faExclamationTriangle} style={{ marginRight: '0.25rem' }} />}
                                                     {status}
                                                 </span>
+                                            </td>
+                                            <td>
+                                                <Link href={`/dashboard/cards/${card.id}`} className="btn-secondary" style={{ textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                                                    <FontAwesomeIcon icon={faEye} style={{ marginRight: '0.375rem' }} />
+                                                    Chi tiết
+                                                </Link>
                                             </td>
                                         </tr>
                                     );
