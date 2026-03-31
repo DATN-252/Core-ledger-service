@@ -2,9 +2,9 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { getFraudAlerts } from '@/lib/api';
+import { getFraudAlerts, getFraudAlertSummary } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faShieldHalved, faEye } from '@fortawesome/free-solid-svg-icons';
+import { faEye, faShieldHalved } from '@fortawesome/free-solid-svg-icons';
 
 const STATUS_BADGE: Record<string, string> = {
   OPEN: 'badge-locked',
@@ -14,6 +14,10 @@ const STATUS_BADGE: Record<string, string> = {
   CARD_LOCKED: 'badge-locked',
   RESOLVED: 'badge-active',
   FALSE_POSITIVE: 'badge-pending',
+  ACTIVE: 'badge-active',
+  LOCKED: 'badge-locked',
+  EXPIRED: 'badge-pending',
+  CANCELLED: 'badge-locked',
 };
 
 const RISK_BADGE: Record<string, string> = {
@@ -39,20 +43,54 @@ function formatEnumLabel(value: string) {
     .join(' ');
 }
 
+const SUMMARY_CARDS: Array<{ key: string; label: string }> = [
+  { key: 'totalAlerts', label: 'Tổng alert' },
+  { key: 'openAlerts', label: 'Open' },
+  { key: 'waitingCustomerConfirmation', label: 'Chờ khách xác nhận' },
+  { key: 'highRiskAlerts', label: 'High risk' },
+  { key: 'cardLockedAlerts', label: 'Đã khóa thẻ' },
+  { key: 'resolvedAlerts', label: 'Resolved' },
+];
+
 export default function FraudAlertsPage() {
   const [alerts, setAlerts] = useState<any[]>([]);
+  const [summary, setSummary] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('ALL');
   const [riskLevel, setRiskLevel] = useState('ALL');
+  const [customerResponse, setCustomerResponse] = useState('ALL');
+  const [notificationStatus, setNotificationStatus] = useState('ALL');
+  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
 
   useEffect(() => {
-    loadAlerts();
-  }, [status, riskLevel]);
+    void loadSummary();
+  }, []);
+
+  useEffect(() => {
+    void loadAlerts();
+  }, [status, riskLevel, customerResponse, notificationStatus, search]);
+
+  async function loadSummary() {
+    try {
+      const data = await getFraudAlertSummary();
+      setSummary(data || {});
+    } catch (err) {
+      console.error('Failed to load fraud alert summary', err);
+      setSummary({});
+    }
+  }
 
   async function loadAlerts() {
     setLoading(true);
     try {
-      const data = await getFraudAlerts({ status, riskLevel });
+      const data = await getFraudAlerts({
+        status,
+        riskLevel,
+        customerResponse,
+        notificationStatus,
+        search,
+      });
       setAlerts(data || []);
     } catch (err) {
       console.error('Failed to load fraud alerts', err);
@@ -60,6 +98,10 @@ export default function FraudAlertsPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function applySearch() {
+    setSearch(searchInput.trim());
   }
 
   return (
@@ -70,27 +112,82 @@ export default function FraudAlertsPage() {
           Fraud Alerts
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-          Theo dõi giao dịch bị nghi ngờ gian lận. Các thao tác xử lý được đặt trong trang chi tiết từng case.
+          Theo dõi giao dịch nghi ngờ gian lận, trạng thái phản hồi khách hàng và tiến độ xử lý của đội vận hành.
         </p>
       </div>
 
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
+        {SUMMARY_CARDS.map((item) => (
+          <div key={item.key} className="card" style={{ padding: '1rem' }}>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.35rem' }}>{item.label}</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{summary[item.key] ?? 0}</div>
+          </div>
+        ))}
+      </div>
+
       <div className="card">
-        <div style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(180px, 220px))', gap: '0.75rem' }}>
-          <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="ALL">Tất cả trạng thái</option>
-            <option value="OPEN">{formatEnumLabel('OPEN')}</option>
-            <option value="WAITING_CUSTOMER_CONFIRMATION">{formatEnumLabel('WAITING_CUSTOMER_CONFIRMATION')}</option>
-            <option value="CONFIRMED_BY_CUSTOMER">{formatEnumLabel('CONFIRMED_BY_CUSTOMER')}</option>
-            <option value="CARD_LOCKED">{formatEnumLabel('CARD_LOCKED')}</option>
-            <option value="RESOLVED">{formatEnumLabel('RESOLVED')}</option>
-            <option value="FALSE_POSITIVE">{formatEnumLabel('FALSE_POSITIVE')}</option>
-          </select>
-          <select className="input" value={riskLevel} onChange={(e) => setRiskLevel(e.target.value)}>
-            <option value="ALL">Tất cả mức rủi ro</option>
-            <option value="HIGH">{formatEnumLabel('HIGH')}</option>
-            <option value="MEDIUM">{formatEnumLabel('MEDIUM')}</option>
-            <option value="LOW">{formatEnumLabel('LOW')}</option>
-          </select>
+        <div
+          style={{
+            marginBottom: '1rem',
+            display: 'grid',
+            gridTemplateColumns: 'minmax(220px, 1.2fr) repeat(4, minmax(160px, 220px)) auto',
+            gap: '0.75rem',
+            alignItems: 'end',
+          }}
+        >
+          <div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.35rem' }}>Tìm kiếm</div>
+            <input
+              className="input"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') applySearch();
+              }}
+              placeholder="paymentId, accountId, merchant, PAN..."
+            />
+          </div>
+          <div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.35rem' }}>Trạng thái case</div>
+            <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="ALL">Tất cả trạng thái</option>
+              <option value="OPEN">{formatEnumLabel('OPEN')}</option>
+              <option value="WAITING_CUSTOMER_CONFIRMATION">{formatEnumLabel('WAITING_CUSTOMER_CONFIRMATION')}</option>
+              <option value="CONFIRMED_BY_CUSTOMER">{formatEnumLabel('CONFIRMED_BY_CUSTOMER')}</option>
+              <option value="CARD_LOCKED">{formatEnumLabel('CARD_LOCKED')}</option>
+              <option value="RESOLVED">{formatEnumLabel('RESOLVED')}</option>
+              <option value="FALSE_POSITIVE">{formatEnumLabel('FALSE_POSITIVE')}</option>
+            </select>
+          </div>
+          <div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.35rem' }}>Mức rủi ro</div>
+            <select className="input" value={riskLevel} onChange={(e) => setRiskLevel(e.target.value)}>
+              <option value="ALL">Tất cả mức rủi ro</option>
+              <option value="HIGH">{formatEnumLabel('HIGH')}</option>
+              <option value="MEDIUM">{formatEnumLabel('MEDIUM')}</option>
+              <option value="LOW">{formatEnumLabel('LOW')}</option>
+            </select>
+          </div>
+          <div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.35rem' }}>Phản hồi khách</div>
+            <select className="input" value={customerResponse} onChange={(e) => setCustomerResponse(e.target.value)}>
+              <option value="ALL">Tất cả phản hồi</option>
+              <option value="NO_RESPONSE">{formatResponseLabel('NO_RESPONSE')}</option>
+              <option value="CONFIRMED">{formatResponseLabel('CONFIRMED')}</option>
+              <option value="REJECTED">{formatResponseLabel('REJECTED')}</option>
+            </select>
+          </div>
+          <div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.35rem' }}>Thông báo</div>
+            <select className="input" value={notificationStatus} onChange={(e) => setNotificationStatus(e.target.value)}>
+              <option value="ALL">Tất cả</option>
+              <option value="PUSH_SENT">Push Sent</option>
+              <option value="PENDING">Pending</option>
+            </select>
+          </div>
+          <button className="btn-primary" onClick={applySearch} style={{ height: '44px' }}>
+            Tìm
+          </button>
         </div>
 
         {loading ? (
@@ -138,29 +235,33 @@ export default function FraudAlertsPage() {
                     </td>
                     <td>
                       <span className={`badge ${RISK_BADGE[alert.riskLevel] || 'badge-pending'}`}>
-                        {alert.riskLevel || 'UNKNOWN'}
+                        {formatEnumLabel(alert.riskLevel || 'UNKNOWN')}
                       </span>
                       <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.125rem' }}>
                         score: {alert.riskScore != null ? Number(alert.riskScore).toFixed(2) : '—'}
                       </div>
                     </td>
-                      <td>
-                        <span className={`badge ${STATUS_BADGE[alert.status] || 'badge-pending'}`}>
-                          {alert.status}
-                        </span>
-                        {alert.customerResponse ? (
-                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.125rem' }}>
-                            customer: {formatResponseLabel(alert.customerResponse)}
-                          </div>
-                        ) : null}
-                      </td>
+                    <td>
+                      <span className={`badge ${STATUS_BADGE[alert.status] || 'badge-pending'}`}>
+                        {formatEnumLabel(alert.status || 'UNKNOWN')}
+                      </span>
+                      {alert.customerResponse ? (
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.125rem' }}>
+                          customer: {formatResponseLabel(alert.customerResponse)}
+                        </div>
+                      ) : null}
+                    </td>
                     <td>
                       <span className={`badge ${alert.notificationSent ? 'badge-active' : 'badge-pending'}`}>
                         {alert.notificationSent ? 'PUSH_SENT' : 'PENDING'}
                       </span>
                     </td>
                     <td style={{ minWidth: '150px' }}>
-                      <Link href={`/dashboard/fraud-alerts/${alert.id}`} className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.45rem 0.8rem' }}>
+                      <Link
+                        href={`/dashboard/fraud-alerts/${alert.id}`}
+                        className="btn-secondary"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.45rem 0.8rem' }}
+                      >
                         <FontAwesomeIcon icon={faEye} />
                         Chi tiết
                       </Link>

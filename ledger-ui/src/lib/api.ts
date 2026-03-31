@@ -334,6 +334,10 @@ export async function getFraudAlerts(filters: Record<string, ListQueryValue> = {
   return cmsRequest<any[]>(withQuery('/fraud-alerts', filters));
 }
 
+export async function getFraudAlertSummary() {
+  return cmsRequest<any>('/fraud-alerts/summary');
+}
+
 export async function getFraudAlertDetail(alertId: string | number) {
   return cmsRequest<any>(`/fraud-alerts/${alertId}`);
 }

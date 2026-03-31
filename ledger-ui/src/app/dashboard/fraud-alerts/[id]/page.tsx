@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   getFraudAlertDetail,
@@ -26,6 +26,10 @@ const STATUS_BADGE: Record<string, string> = {
   CARD_LOCKED: 'badge-locked',
   RESOLVED: 'badge-active',
   FALSE_POSITIVE: 'badge-pending',
+  ACTIVE: 'badge-active',
+  LOCKED: 'badge-locked',
+  EXPIRED: 'badge-pending',
+  CANCELLED: 'badge-locked',
 };
 
 const RISK_BADGE: Record<string, string> = {
@@ -43,9 +47,27 @@ function formatResponseLabel(value?: string | null) {
     .join(' ');
 }
 
+function renderStateChange(
+  label: string,
+  before: string | null | undefined,
+  after: string | null | undefined,
+  badgeClass?: string,
+) {
+  if (!after) return null;
+  const normalizedBefore = before || null;
+  const normalizedAfter = after || null;
+
+  return (
+    <span className={`badge ${badgeClass || 'badge-pending'}`}>
+      {normalizedBefore && normalizedBefore !== normalizedAfter
+        ? `${label}: ${formatResponseLabel(normalizedBefore)} -> ${formatResponseLabel(normalizedAfter)}`
+        : `${label} status at event: ${formatResponseLabel(normalizedAfter)}`}
+    </span>
+  );
+}
+
 export default function FraudAlertDetailPage() {
   const params = useParams<{ id: string }>();
-  const router = useRouter();
   const alertId = params?.id;
   const [alertDetail, setAlertDetail] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -179,6 +201,12 @@ export default function FraudAlertDetailPage() {
             {Number(alertDetail.amount || 0).toLocaleString('en-US')} {alertDetail.currency || 'USD'}
           </div>
         </div>
+        <div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.35rem' }}>Trạng thái thẻ hiện tại</div>
+          <span className={`badge ${STATUS_BADGE[alertDetail.currentCardStatus] || 'badge-pending'}`}>
+            {formatResponseLabel(alertDetail.currentCardStatus)}
+          </span>
+        </div>
       </div>
 
       <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
@@ -212,6 +240,57 @@ export default function FraudAlertDetailPage() {
             <div><strong>Admin note:</strong> {alertDetail.adminNote || '—'}</div>
           </div>
         </div>
+      </div>
+
+      <div className="card">
+        <h3 style={{ marginBottom: '1rem' }}>Timeline</h3>
+        {!Array.isArray(alertDetail.events) || alertDetail.events.length === 0 ? (
+          <div style={{ color: 'var(--text-secondary)' }}>Chưa có audit event nào.</div>
+        ) : (
+          <div style={{ display: 'grid', gap: '0.85rem' }}>
+            {alertDetail.events.map((event: any) => (
+              <div
+                key={event.id}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '220px 1fr',
+                  gap: '1rem',
+                  paddingBottom: '0.85rem',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                }}
+              >
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                  <div>{event.createdAt ? new Date(event.createdAt).toLocaleString('vi-VN') : '—'}</div>
+                  <div style={{ marginTop: '0.25rem' }}>actor: {event.actor || 'system'}</div>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>{formatResponseLabel(event.eventType)}</div>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{event.note || '—'}</div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                    {renderStateChange(
+                      'Case',
+                      event.statusBefore,
+                      event.statusAfter,
+                      STATUS_BADGE[event.statusAfter] || 'badge-pending',
+                    )}
+                    {renderStateChange(
+                      'Customer',
+                      event.customerResponseBefore,
+                      event.customerResponseAfter,
+                      'badge-pending',
+                    )}
+                    {renderStateChange(
+                      'Card',
+                      event.cardStatusBefore,
+                      event.cardStatusAfter,
+                      STATUS_BADGE[event.cardStatusAfter] || 'badge-pending',
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

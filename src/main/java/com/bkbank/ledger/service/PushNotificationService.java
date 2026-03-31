@@ -67,6 +67,11 @@ public class PushNotificationService {
             return;
         }
 
+        if (isFraudDecline(transaction)) {
+            log.info("Skip balance-change push for fraud-declined transaction {}", transaction.getId());
+            return;
+        }
+
         String clientId = resolveClientId(transaction);
         if (clientId == null || clientId.isBlank()) {
             return;
@@ -253,6 +258,21 @@ public class PushNotificationService {
 
     private String formatAmount(Double amount, String currency) {
         return String.format("%.2f %s", amount != null ? amount : 0.0, currency != null ? currency : "USD");
+    }
+
+    private boolean isFraudDecline(Transaction transaction) {
+        if (transaction == null || !"FAILED".equalsIgnoreCase(transaction.getStatus())) {
+            return false;
+        }
+        if ("59".equalsIgnoreCase(transaction.getResponseCode())) {
+            return true;
+        }
+        return containsIgnoreCase(transaction.getResponseMessage(), "suspected fraud")
+                || containsIgnoreCase(transaction.getDescription(), "suspected fraud");
+    }
+
+    private boolean containsIgnoreCase(String value, String expected) {
+        return value != null && value.toLowerCase().contains(expected.toLowerCase());
     }
 
     private boolean isCreditTransaction(Transaction transaction) {
