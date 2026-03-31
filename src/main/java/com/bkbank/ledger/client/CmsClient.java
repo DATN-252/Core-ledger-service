@@ -68,6 +68,63 @@ public class CmsClient {
         }
     }
 
+    public List<Map<String, Object>> getFraudAlertsByAccountIds(List<String> accountIds) {
+        if (accountIds == null || accountIds.isEmpty()) {
+            return List.of();
+        }
+
+        try {
+            String url = UriComponentsBuilder.fromHttpUrl(cmsUrl + "/api/internal/fraud-alerts")
+                    .queryParam("accountIds", String.join(",", accountIds))
+                    .toUriString();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Internal-Api-Key", cmsApiKey);
+            HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
+
+            ResponseEntity<List<Map<String, Object>>> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    requestEntity,
+                    new ParameterizedTypeReference<List<Map<String, Object>>>() {}
+            );
+
+            return response.getBody() != null ? response.getBody() : List.of();
+        } catch (Exception e) {
+            log.error("Failed to fetch fraud alerts from CMS: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    public Map<String, Object> getFraudAlertDetail(Long alertId) {
+        try {
+            String url = cmsUrl + "/api/internal/fraud-alerts/" + alertId;
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Internal-Api-Key", cmsApiKey);
+            HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
+
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    requestEntity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+
+            return response.getBody();
+        } catch (Exception e) {
+            log.error("Failed to fetch fraud alert {} from CMS: {}", alertId, e.getMessage());
+            return null;
+        }
+    }
+
+    public Map<String, Object> confirmFraudAlert(Long alertId, String note) {
+        return postFraudAlertAction(alertId, "confirm", note);
+    }
+
+    public Map<String, Object> rejectFraudAlert(Long alertId, String note) {
+        return postFraudAlertAction(alertId, "reject", note);
+    }
+
     public Map<String, Object> authorizePayment(com.bkbank.ledger.dto.request.PaymentRequest request, Merchant merchant) {
         try {
             String url = UriComponentsBuilder.fromHttpUrl(cmsUrl + "/api/transaction")
@@ -127,6 +184,30 @@ public class CmsClient {
         } catch (Exception e) {
             log.error("Failed to authorize payment via CMS: {}", e.getMessage());
             return Map.of("approved", false, "responseCode", "96", "responseMessage", "System error: " + e.getMessage());
+        }
+    }
+
+    private Map<String, Object> postFraudAlertAction(Long alertId, String action, String note) {
+        try {
+            String url = cmsUrl + "/api/internal/fraud-alerts/" + alertId + "/" + action;
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Internal-Api-Key", cmsApiKey);
+            headers.set("Content-Type", "application/json");
+
+            Map<String, Object> payload = new java.util.HashMap<>();
+            payload.put("note", note);
+
+            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(payload, headers);
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    requestEntity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+            return response.getBody();
+        } catch (Exception e) {
+            log.error("Failed to {} fraud alert {} in CMS: {}", action, alertId, e.getMessage());
+            return null;
         }
     }
 }

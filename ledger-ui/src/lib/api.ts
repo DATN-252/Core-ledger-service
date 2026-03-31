@@ -330,6 +330,35 @@ export async function getCardDetail(cardId: string | number) {
   return cmsRequest<any>(`/cards/${cardId}`);
 }
 
+export async function getFraudAlerts(filters: Record<string, ListQueryValue> = {}) {
+  return cmsRequest<any[]>(withQuery('/fraud-alerts', filters));
+}
+
+export async function getFraudAlertDetail(alertId: string | number) {
+  return cmsRequest<any>(`/fraud-alerts/${alertId}`);
+}
+
+export async function lockFraudAlertCard(alertId: string | number, note?: string) {
+  return cmsRequest<any>(`/fraud-alerts/${alertId}/lock-card`, {
+    method: 'POST',
+    body: JSON.stringify({ note: note || '' }),
+  });
+}
+
+export async function resolveFraudAlert(alertId: string | number, note?: string) {
+  return cmsRequest<any>(`/fraud-alerts/${alertId}/resolve`, {
+    method: 'POST',
+    body: JSON.stringify({ note: note || '' }),
+  });
+}
+
+export async function markFraudAlertFalsePositive(alertId: string | number, note?: string) {
+  return cmsRequest<any>(`/fraud-alerts/${alertId}/false-positive`, {
+    method: 'POST',
+    body: JSON.stringify({ note: note || '' }),
+  });
+}
+
 export async function issueDebitCard(data: { pan: string, cvv: string, expirationDate: string, accountId: string, cardholderName: string, network?: string }) {
   return cmsRequest<any>('/cards/issue', {
     method: 'POST',

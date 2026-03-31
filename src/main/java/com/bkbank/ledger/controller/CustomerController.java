@@ -429,6 +429,28 @@ public class CustomerController {
         return value.toString();
     }
 
+    private List<String> getClientAccountIds(Client client) {
+        List<String> accountIds = new ArrayList<>();
+        clientService.getClientSavingsAccounts(client.getClientId())
+                .forEach(acc -> accountIds.add(acc.getAccountNumber()));
+        clientService.getClientLoanAccounts(client.getClientId())
+                .forEach(acc -> accountIds.add(acc.getAccountNumber()));
+        return accountIds;
+    }
+
+    private Map<String, Object> getOwnedFraudAlert(Client client, Long alertId) {
+        List<String> accountIds = getClientAccountIds(client);
+        Map<String, Object> alert = cmsClient.getFraudAlertDetail(alertId);
+        if (alert == null) {
+            throw new RuntimeException("Khong tim thay fraud alert");
+        }
+        String accountId = stringValue(alert.get("accountId"));
+        if (accountId == null || !accountIds.contains(accountId)) {
+            throw new RuntimeException("Khong tim thay fraud alert cua khach hang");
+        }
+        return alert;
+    }
+
     /**
      * Lấy danh sách biến động số dư (Giao dịch) của KH
      * GET /customer/me/transactions
@@ -457,6 +479,74 @@ public class CustomerController {
             return ResponseEntity.ok(ApiResponse.success(transactions));
         } catch (Exception e) {
             log.error("Error getting transactions: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @GetMapping("/me/fraud-alerts")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMyFraudAlerts(Authentication authentication) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+            List<Map<String, Object>> alerts = cmsClient.getFraudAlertsByAccountIds(getClientAccountIds(client));
+            return ResponseEntity.ok(ApiResponse.success(alerts));
+        } catch (Exception e) {
+            log.error("Error getting fraud alerts: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @GetMapping("/me/fraud-alerts/{alertId}")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getMyFraudAlertDetail(
+            Authentication authentication,
+            @PathVariable Long alertId) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+            Map<String, Object> alert = getOwnedFraudAlert(client, alertId);
+            return ResponseEntity.ok(ApiResponse.success(alert));
+        } catch (Exception e) {
+            log.error("Error getting fraud alert detail: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @PostMapping("/me/fraud-alerts/{alertId}/confirm")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> confirmMyFraudAlert(
+            Authentication authentication,
+            @PathVariable Long alertId,
+            @RequestBody(required = false) Map<String, String> body) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+            getOwnedFraudAlert(client, alertId);
+            Map<String, Object> response = cmsClient.confirmFraudAlert(alertId, body != null ? body.get("note") : null);
+            if (response == null) {
+                throw new RuntimeException("Khong the xac nhan fraud alert");
+            }
+            return ResponseEntity.ok(ApiResponse.success("Xac nhan giao dich thanh cong", response));
+        } catch (Exception e) {
+            log.error("Error confirming fraud alert: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @PostMapping("/me/fraud-alerts/{alertId}/reject")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> rejectMyFraudAlert(
+            Authentication authentication,
+            @PathVariable Long alertId,
+            @RequestBody(required = false) Map<String, String> body) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+            getOwnedFraudAlert(client, alertId);
+            Map<String, Object> response = cmsClient.rejectFraudAlert(alertId, body != null ? body.get("note") : null);
+            if (response == null) {
+                throw new RuntimeException("Khong the tu choi fraud alert");
+            }
+            return ResponseEntity.ok(ApiResponse.success("Da bao cao giao dich khong phai ban", response));
+        } catch (Exception e) {
+            log.error("Error rejecting fraud alert: {}", e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
     }
