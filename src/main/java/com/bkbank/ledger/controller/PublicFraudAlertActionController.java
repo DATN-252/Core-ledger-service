@@ -59,36 +59,45 @@ public class PublicFraudAlertActionController {
         FraudAlertEmailAction action = preview.action();
         Map<String, Object> alert = preview.alert();
         String actionLabel = action.getDecision() == FraudAlertEmailActionDecision.CONFIRM
-                ? "Day la giao dich cua toi"
-                : "Day khong phai giao dich cua toi";
+                ? "Đây là giao dịch của tôi"
+                : "Đây không phải giao dịch của tôi";
         String actionColor = action.getDecision() == FraudAlertEmailActionDecision.CONFIRM ? "#047857" : "#b91c1c";
         String alertStatus = alert != null && alert.get("status") != null ? escapeHtml(alert.get("status").toString()) : "N/A";
         String customerResponse = alert != null && alert.get("customerResponse") != null ? escapeHtml(alert.get("customerResponse").toString()) : "NO_RESPONSE";
         return layout(
-                "Xac nhan giao dich nghi ngo",
+                "Xác nhận giao dịch nghi ngờ",
                 """
-                <p style="margin:0 0 12px;">BKBank can ban xac nhan lai mot giao dich nghi ngo.</p>
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:16px;margin:16px 0;">
-                  <div style="margin-bottom:8px;"><strong>Fraud alert:</strong> #%s</div>
-                  <div style="margin-bottom:8px;"><strong>So tien:</strong> %s</div>
-                  <div style="margin-bottom:8px;"><strong>Merchant:</strong> %s</div>
-                  <div style="margin-bottom:8px;"><strong>The:</strong> %s</div>
-                  <div style="margin-bottom:8px;"><strong>Muc do rui ro:</strong> %s</div>
-                  <div style="margin-bottom:8px;"><strong>Trang thai case:</strong> %s</div>
-                  <div><strong>Phan hoi hien tai:</strong> %s</div>
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px;">
+                  <div>
+                    <div style="display:inline-block;background:#e0ecff;color:#1d4ed8;border-radius:999px;padding:7px 12px;font-size:12px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:12px;">BKBank Security</div>
+                    <p style="margin:0;font-size:16px;line-height:1.8;color:#334155;max-width:560px;">BKBank cần bạn xác nhận lại giao dịch nghi ngờ dưới đây trước khi hệ thống tiếp tục xử lý.</p>
+                  </div>
+                  <div style="background:#fff1f2;color:#be123c;border:1px solid #fecdd3;border-radius:999px;padding:10px 14px;font-size:13px;font-weight:800;">%s</div>
                 </div>
-                <p style="margin:0 0 16px;">Lien ket nay het han luc <strong>%s</strong>.</p>
-                <form method="post" action="/public/fraud-alert-actions/%s">
-                  <button type="submit" style="background:%s;color:#fff;border:none;border-radius:12px;padding:12px 20px;font-size:15px;font-weight:700;cursor:pointer;">
-                    %s
-                  </button>
-                </form>
+                <div style="background:linear-gradient(180deg,#fbfdff,#f5f9ff);border:1px solid #d9e7fb;border-radius:22px;padding:22px;margin:18px 0 20px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.75);">
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px 18px;">
+                    <div><div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Mã cảnh báo</div><div style="font-size:17px;font-weight:800;color:#0f172a;">#%s</div></div>
+                    <div><div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Số tiền</div><div style="font-size:24px;font-weight:800;color:#0f172a;">%s</div></div>
+                    <div><div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Đơn vị chấp nhận thẻ</div><div style="font-size:16px;font-weight:700;color:#1e293b;">%s</div></div>
+                    <div><div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Thẻ</div><div style="font-size:16px;font-weight:700;color:#1e293b;">%s</div></div>
+                    <div><div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Trạng thái case</div><div style="font-size:16px;font-weight:700;color:#1e293b;">%s</div></div>
+                    <div><div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Phản hồi hiện tại</div><div style="font-size:16px;font-weight:700;color:#1e293b;">%s</div></div>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px;">
+                  <p style="margin:0;color:#475569;line-height:1.7;">Liên kết này hết hạn lúc <strong>%s</strong>.</p>
+                  <form method="post" action="/public/fraud-alert-actions/%s" style="margin:0;">
+                    <button type="submit" style="background:%s;color:#fff;border:none;border-radius:16px;padding:16px 24px;font-family:Arial,'Segoe UI',sans-serif;font-size:15px;line-height:1.35;font-weight:700;white-space:nowrap;cursor:pointer;box-shadow:0 16px 30px rgba(15,23,42,0.14);">
+                      %s
+                    </button>
+                  </form>
+                </div>
                 """.formatted(
+                        escapeHtml(valueOrDefault(action.getRiskLevel(), "UNKNOWN")),
                         action.getFraudAlertId(),
                         escapeHtml(amountText(action.getAmount(), action.getCurrency())),
                         escapeHtml(valueOrDefault(action.getMerchantName(), "Merchant khong xac dinh")),
                         escapeHtml(valueOrDefault(action.getMaskedPan(), "N/A")),
-                        escapeHtml(valueOrDefault(action.getRiskLevel(), "UNKNOWN")),
                         alertStatus,
                         customerResponse,
                         action.getExpiresAt().format(DATETIME_FORMATTER),
@@ -102,16 +111,17 @@ public class PublicFraudAlertActionController {
     private String renderSuccess(FraudAlertEmailActionService.EmailActionExecutionResult result) {
         FraudAlertEmailAction action = result.action();
         String title = action.getDecision() == FraudAlertEmailActionDecision.CONFIRM
-                ? "Da xac nhan giao dich"
-                : "Da bao cao giao dich khong phai ban";
+                ? "Đã xác nhận giao dịch"
+                : "Đã báo cáo giao dịch không phải bạn";
         String body = action.getDecision() == FraudAlertEmailActionDecision.CONFIRM
-                ? "Cam on ban da xac nhan. BKBank da cap nhat case fraud alert nay."
-                : "BKBank da ghi nhan phan hoi cua ban. Neu can, the se duoc khoa theo quy trinh hien tai.";
+                ? "Cảm ơn bạn đã xác nhận. BKBank đã cập nhật cảnh báo này và ghi nhận giao dịch là hợp lệ."
+                : "BKBank đã ghi nhận phản hồi của bạn. Nếu cần, thẻ sẽ được khóa và case sẽ tiếp tục được xử lý theo quy trình hiện tại.";
         return layout(title,
                 """
-                <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:16px;padding:16px;">
-                  <p style="margin:0 0 8px;"><strong>%s</strong></p>
-                  <p style="margin:0;">%s</p>
+                <div style="background:linear-gradient(180deg,#effcf7,#e6fbf3);border:1px solid #9de8ca;border-radius:22px;padding:20px;box-shadow:0 18px 36px rgba(16,185,129,0.10);">
+                  <div style="display:inline-block;background:#d1fae5;color:#047857;border-radius:999px;padding:7px 12px;font-size:12px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:12px;">Xử lý thành công</div>
+                  <p style="margin:0 0 10px;font-size:24px;font-weight:800;color:#064e3b;">%s</p>
+                  <p style="margin:0;font-size:16px;line-height:1.75;color:#065f46;">%s</p>
                 </div>
                 """.formatted(escapeHtml(title), escapeHtml(body)));
     }
@@ -119,9 +129,10 @@ public class PublicFraudAlertActionController {
     private String renderError(String title, String message) {
         return layout(title,
                 """
-                <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:16px;padding:16px;">
-                  <p style="margin:0 0 8px;"><strong>%s</strong></p>
-                  <p style="margin:0;">%s</p>
+                <div style="background:linear-gradient(180deg,#fff5f5,#fff0f0);border:1px solid #fecaca;border-radius:22px;padding:20px;box-shadow:0 18px 36px rgba(239,68,68,0.08);">
+                  <div style="display:inline-block;background:#fee2e2;color:#b91c1c;border-radius:999px;padding:7px 12px;font-size:12px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:12px;">Không thể xử lý</div>
+                  <p style="margin:0 0 10px;font-size:24px;font-weight:800;color:#7f1d1d;">%s</p>
+                  <p style="margin:0;font-size:16px;line-height:1.75;color:#991b1b;">%s</p>
                 </div>
                 """.formatted(escapeHtml(title), escapeHtml(message)));
     }
@@ -135,10 +146,10 @@ public class PublicFraudAlertActionController {
                   <meta name="viewport" content="width=device-width, initial-scale=1.0">
                   <title>%s</title>
                 </head>
-                <body style="margin:0;background:#f1f5f9;font-family:Arial,sans-serif;color:#172033;">
-                  <div style="max-width:640px;margin:48px auto;padding:0 16px;">
-                    <div style="background:#ffffff;border-radius:20px;padding:24px;box-shadow:0 16px 40px rgba(15,23,42,0.08);">
-                      <h1 style="margin:0 0 12px;font-size:24px;">%s</h1>
+                <body style="margin:0;background:radial-gradient(circle at top,#eef4ff 0%%,#f8fbff 48%%,#eff7f1 100%%);font-family:Arial,sans-serif;color:#172033;">
+                  <div style="max-width:680px;margin:48px auto;padding:0 16px;">
+                    <div style="background:rgba(255,255,255,0.92);border:1px solid rgba(217,228,245,0.85);backdrop-filter:blur(12px);border-radius:30px;padding:32px;box-shadow:0 28px 64px rgba(20,35,90,0.10);">
+                      <h1 style="margin:0 0 14px;font-size:34px;line-height:1.18;color:#0f2d66;">%s</h1>
                       %s
                     </div>
                   </div>
@@ -156,6 +167,9 @@ public class PublicFraudAlertActionController {
     }
 
     private String escapeHtml(String value) {
+        if (value == null) {
+            return "";
+        }
         return value
                 .replace("&", "&amp;")
                 .replace("<", "&lt;")
