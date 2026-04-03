@@ -2,8 +2,12 @@ package com.bkbank.ledger.controller;
 
 import com.bkbank.ledger.dto.request.FraudAlertNotificationRequest;
 import com.bkbank.ledger.dto.response.ApiResponse;
+import com.bkbank.ledger.entity.Client;
+import com.bkbank.ledger.repository.ClientRepository;
 import com.bkbank.ledger.repository.LoanAccountRepository;
 import com.bkbank.ledger.repository.SavingsAccountRepository;
+import com.bkbank.ledger.service.EmailService;
+import com.bkbank.ledger.service.FraudAlertEmailActionService;
 import com.bkbank.ledger.service.PushNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +29,10 @@ public class InternalFraudAlertController {
 
     private final SavingsAccountRepository savingsAccountRepository;
     private final LoanAccountRepository loanAccountRepository;
+    private final ClientRepository clientRepository;
     private final PushNotificationService pushNotificationService;
+    private final EmailService emailService;
+    private final FraudAlertEmailActionService fraudAlertEmailActionService;
 
     @PostMapping("/notify")
     @PreAuthorize("hasRole('SYSTEM')")
@@ -53,11 +60,48 @@ public class InternalFraudAlertController {
                     amountText,
                     request.getMerchantName() != null ? request.getMerchantName() : "merchant khong xac dinh");
 
-            int sentCount = pushNotificationService.sendToClientTokens(clientId, "Canh bao gian lan", body, data);
-
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("clientId", clientId);
-            result.put("sentCount", sentCount);
+            result.put("paymentId", request.getPaymentId());
+
+            try {
+                int sentCount = pushNotificationService.sendToClientTokens(clientId, "Canh bao gian lan", body, data);
+                result.put("channel", "PUSH");
+                result.put("sentCount", sentCount);
+                return ResponseEntity.ok(ApiResponse.success("Gui fraud alert notification thanh cong", result));
+            } catch (Exception pushError) {
+                log.warn("Push fraud alert failed for client {}: {}", clientId, pushError.getMessage());
+            }
+
+            Client client = clientRepository.findByClientId(clientId)
+                    .orElseThrow(() -> new RuntimeException("Khong tim thay khach hang de gui email"));
+            FraudAlertEmailActionService.EmailActionLinks links = fraudAlertEmailActionService.createLinks(
+                    request.getFraudAlertId(),
+                    clientId,
+                    request.getAccountId(),
+                    request.getPaymentId(),
+                    request.getMaskedPan(),
+                    request.getMerchantName(),
+                    request.getAmount(),
+                    request.getCurrency(),
+                    request.getRiskLevel()
+            );
+            EmailService.EmailSendResult emailSendResult = emailService.sendFraudAlertEmail(
+                    client,
+                    request.getFraudAlertId(),
+                    request.getPaymentId(),
+                    request.getMerchantName(),
+                    request.getAmount(),
+                    request.getCurrency(),
+                    request.getRiskLevel(),
+                    links.confirmUrl(),
+                    links.rejectUrl()
+            );
+            result.put("channel", "EMAIL");
+            result.put("recipient", emailSendResult.recipient());
+            result.put("providerMessageId", emailSendResult.providerMessageId());
+            result.put("confirmUrl", links.confirmUrl());
+            result.put("rejectUrl", links.rejectUrl());
             return ResponseEntity.ok(ApiResponse.success("Gui fraud alert notification thanh cong", result));
         } catch (Exception e) {
             log.error("Error sending fraud alert notification: {}", e.getMessage(), e);

@@ -6,6 +6,15 @@ spring:
     import: optional:file:.env[.properties]
   application:
     name: core-ledger-service
+  mail:
+    host: ${SPRING_MAIL_HOST:}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      "[mail.smtp.auth]": ${SPRING_MAIL_SMTP_AUTH:true}
+      "[mail.smtp.starttls.enable]": ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:true}
+      "[mail.smtp.starttls.required]": ${SPRING_MAIL_SMTP_STARTTLS_REQUIRED:true}
   
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5434/ledgerdb}
@@ -23,6 +32,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
 app:
+  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8083}
   seed:
     demo-data: ${APP_SEED_DEMO_DATA:false}
 
@@ -59,4 +69,12 @@ push:
     enabled: ${PUSH_EXPO_ENABLED:true}
     url: ${PUSH_EXPO_URL:https://exp.host/--/api/v2/push/send}
     access-token: ${PUSH_EXPO_ACCESS_TOKEN:}
-  
+
+mail:
+  enabled: ${MAIL_ENABLED:false}
+  from: ${MAIL_FROM:}
+  reply-to: ${MAIL_REPLY_TO:}
+
+fraud:
+  email-action:
+    expiration-minutes: ${FRAUD_EMAIL_ACTION_EXPIRATION_MINUTES:15}

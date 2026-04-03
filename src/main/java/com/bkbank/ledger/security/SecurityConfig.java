@@ -50,6 +50,7 @@ public class SecurityConfig {
                 .requestMatchers("/auth/register-customer").hasAnyRole("ADMIN", "TELLER")
                 // Allow /error so validation exceptions don't trigger 401 Unauthorized
                 .requestMatchers("/error").permitAll()
+                .requestMatchers("/public/fraud-alert-actions/**").permitAll()
                 // System internal endpoint — authenticated via X-System-Api-Key header
                 .requestMatchers(HttpMethod.POST, "/transactions/log-failed").permitAll()
                 // Public — List of active merchants for POS/Apps
