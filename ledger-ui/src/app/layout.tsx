@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import '@fortawesome/fontawesome-svg-core/styles.css';
 import { config } from '@fortawesome/fontawesome-svg-core';
+import BrowserAlertBridge from '@/components/BrowserAlertBridge';
 config.autoAddCss = false;
 
 export const metadata: Metadata = {
@@ -12,7 +13,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="vi" suppressHydrationWarning>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        {children}
+        <BrowserAlertBridge />
+      </body>
     </html>
   );
 }

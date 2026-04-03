@@ -17,6 +17,7 @@ import {
   faShieldHalved,
   faTriangleExclamation,
 } from '@fortawesome/free-solid-svg-icons';
+import AppModal from '@/components/AppModal';
 
 const STATUS_BADGE: Record<string, string> = {
   OPEN: 'badge-locked',
@@ -72,6 +73,8 @@ export default function FraudAlertDetailPage() {
   const [alertDetail, setAlertDetail] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [noticeModal, setNoticeModal] = useState<{ title: string; message: string } | null>(null);
+  const [actionModal, setActionModal] = useState<{ action: 'lock' | 'resolve' | 'false-positive'; title: string; note: string } | null>(null);
 
   useEffect(() => {
     if (!alertId) return;
@@ -92,9 +95,8 @@ export default function FraudAlertDetailPage() {
     }
   }
 
-  async function handleAction(action: 'lock' | 'resolve' | 'false-positive') {
+  async function submitAction(action: 'lock' | 'resolve' | 'false-positive', note: string) {
     if (!alertId) return;
-    const note = window.prompt('Ghi chú vận hành (tuỳ chọn):', '') || '';
     setSubmitting(true);
     try {
       if (action === 'lock') {
@@ -105,8 +107,12 @@ export default function FraudAlertDetailPage() {
         await markFraudAlertFalsePositive(alertId, note);
       }
       await loadDetail();
+      setActionModal(null);
     } catch (err: any) {
-      alert(err.message || 'Không thể thực hiện thao tác');
+      setNoticeModal({
+        title: 'Không thể thực hiện thao tác',
+        message: err.message || 'Không thể thực hiện thao tác',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -130,6 +136,45 @@ export default function FraudAlertDetailPage() {
 
   return (
     <div className="animate-fade-in" style={{ display: 'grid', gap: '1rem' }}>
+      <AppModal
+        open={!!noticeModal}
+        title={noticeModal?.title || ''}
+        onClose={() => setNoticeModal(null)}
+        footer={<button className="btn-primary" onClick={() => setNoticeModal(null)}>Đã hiểu</button>}
+      >
+        <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>{noticeModal?.message}</p>
+      </AppModal>
+      <AppModal
+        open={!!actionModal}
+        title={actionModal?.title || ''}
+        onClose={() => !submitting && setActionModal(null)}
+        footer={
+          <>
+            <button className="btn-secondary" disabled={submitting} onClick={() => setActionModal(null)}>Hủy</button>
+            <button
+              className="btn-primary"
+              disabled={submitting}
+              onClick={() => actionModal && void submitAction(actionModal.action, actionModal.note)}
+            >
+              {submitting ? 'Đang xử lý...' : 'Xác nhận'}
+            </button>
+          </>
+        }
+      >
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+            Bạn có thể thêm ghi chú vận hành cho hành động này.
+          </p>
+          <textarea
+            className="input"
+            rows={4}
+            value={actionModal?.note || ''}
+            onChange={(e) => setActionModal((prev) => prev ? ({ ...prev, note: e.target.value }) : prev)}
+            placeholder="Nhập ghi chú xử lý..."
+            style={{ resize: 'vertical' }}
+          />
+        </div>
+      </AppModal>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
           <div style={{ marginBottom: '0.75rem' }}>
@@ -150,21 +195,21 @@ export default function FraudAlertDetailPage() {
           <button
             className="btn-secondary"
             disabled={submitting || alertDetail.status === 'CARD_LOCKED'}
-            onClick={() => handleAction('lock')}
+            onClick={() => setActionModal({ action: 'lock', title: 'Khóa thẻ từ fraud alert', note: '' })}
           >
             <FontAwesomeIcon icon={faLock} /> Khóa thẻ
           </button>
           <button
             className="btn-secondary"
             disabled={submitting || alertDetail.status === 'RESOLVED'}
-            onClick={() => handleAction('resolve')}
+            onClick={() => setActionModal({ action: 'resolve', title: 'Đóng case fraud alert', note: '' })}
           >
             <FontAwesomeIcon icon={faCircleCheck} /> Resolve
           </button>
           <button
             className="btn-secondary"
             disabled={submitting || alertDetail.status === 'FALSE_POSITIVE'}
-            onClick={() => handleAction('false-positive')}
+            onClick={() => setActionModal({ action: 'false-positive', title: 'Đánh dấu false positive', note: '' })}
           >
             <FontAwesomeIcon icon={faTriangleExclamation} /> False positive
           </button>

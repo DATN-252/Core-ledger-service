@@ -5,11 +5,13 @@ import { createClient, getBranches } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUserPlus, faArrowLeft, faSave } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
+import AppModal from '@/components/AppModal';
 
 export default function NewClientPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [branches, setBranches] = useState<any[]>([]);
+    const [modal, setModal] = useState<{ title: string; message: string; onClose?: () => void } | null>(null);
     const [formData, setFormData] = useState({
         fullName: '',
         dateOfBirth: '',
@@ -57,10 +59,16 @@ export default function NewClientPage() {
                 clientId: generatedClientId,
                 monthlyIncome: Number(formData.monthlyIncome) || 0
             });
-            alert('Tạo khách hàng thành công!');
-            router.push('/dashboard/clients');
+            setModal({
+                title: 'Tạo khách hàng thành công',
+                message: 'Hồ sơ khách hàng mới đã được tạo.',
+                onClose: () => router.push('/dashboard/clients'),
+            });
         } catch (err: any) {
-            alert(err.message || 'Lỗi khi tạo khách hàng');
+            setModal({
+                title: 'Không thể tạo khách hàng',
+                message: err.message || 'Lỗi khi tạo khách hàng',
+            });
         } finally {
             setLoading(false);
         }
@@ -68,6 +76,22 @@ export default function NewClientPage() {
 
     return (
         <div className="animate-fade-in">
+            <AppModal
+                open={!!modal}
+                title={modal?.title || ''}
+                onClose={() => {
+                    const next = modal?.onClose;
+                    setModal(null);
+                    next?.();
+                }}
+                footer={<button className="btn-primary" onClick={() => {
+                    const next = modal?.onClose;
+                    setModal(null);
+                    next?.();
+                }}>Đã hiểu</button>}
+            >
+                <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>{modal?.message}</p>
+            </AppModal>
             <div style={{ marginBottom: '2rem' }}>
                 <Link href="/dashboard/clients" style={{ color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
                     <FontAwesomeIcon icon={faArrowLeft} /> Quay lại danh sách

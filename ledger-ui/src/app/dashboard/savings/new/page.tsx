@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createSavingsAccount, getClient } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPiggyBank, faArrowLeft, faSave, faUser } from '@fortawesome/free-solid-svg-icons';
+import AppModal from '@/components/AppModal';
 
 function NewSavingsForm() {
     const router = useRouter();
@@ -13,6 +14,7 @@ function NewSavingsForm() {
     const [loading, setLoading] = useState(false);
     const [clientName, setClientName] = useState('');
     const [clientBranch, setClientBranch] = useState('');
+    const [modal, setModal] = useState<{ title: string; message: string; onClose?: () => void } | null>(null);
     const [formData, setFormData] = useState({
         clientId: defaultClientId,
         accountNumber: '',
@@ -37,14 +39,22 @@ function NewSavingsForm() {
                 accountNumber: formData.accountNumber,
                 currency: formData.currency,
             });
-            alert('Mở tài khoản thanh toán thành công!');
-            if (defaultClientId) {
-                router.push(`/dashboard/clients/${defaultClientId}`);
-            } else {
-                router.push('/dashboard/savings');
-            }
+            setModal({
+                title: 'Mở tài khoản thành công',
+                message: 'Tài khoản thanh toán mới đã được tạo.',
+                onClose: () => {
+                    if (defaultClientId) {
+                        router.push(`/dashboard/clients/${defaultClientId}`);
+                    } else {
+                        router.push('/dashboard/savings');
+                    }
+                },
+            });
         } catch (err: any) {
-            alert(err.message || 'Lỗi khi mở tài khoản');
+            setModal({
+                title: 'Không thể mở tài khoản',
+                message: err.message || 'Lỗi khi mở tài khoản',
+            });
         } finally {
             setLoading(false);
         }
@@ -52,6 +62,22 @@ function NewSavingsForm() {
 
     return (
         <div className="animate-fade-in">
+            <AppModal
+                open={!!modal}
+                title={modal?.title || ''}
+                onClose={() => {
+                    const next = modal?.onClose;
+                    setModal(null);
+                    next?.();
+                }}
+                footer={<button className="btn-primary" onClick={() => {
+                    const next = modal?.onClose;
+                    setModal(null);
+                    next?.();
+                }}>Đã hiểu</button>}
+            >
+                <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>{modal?.message}</p>
+            </AppModal>
             <div style={{ marginBottom: '2rem' }}>
                 <button onClick={() => router.back()} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
                     <FontAwesomeIcon icon={faArrowLeft} /> Quay lại

@@ -25,6 +25,7 @@ import {
   faTrash,
 } from '@fortawesome/free-solid-svg-icons';
 import CardNetworkLogo from '@/components/CardNetworkLogo';
+import AppModal from '@/components/AppModal';
 
 const STATUS_BADGE: Record<string, string> = {
   ACTIVE: 'badge-active',
@@ -57,6 +58,8 @@ export default function CardDetailPage() {
   const [error, setError] = useState('');
   const [renewDate, setRenewDate] = useState(buildFutureDate());
   const [manualStatus, setManualStatus] = useState('LOCKED');
+  const [noticeModal, setNoticeModal] = useState<{ title: string; message: string; onClose?: () => void } | null>(null);
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
   const [replacement, setReplacement] = useState({
     pan: '',
     cvv: '',
@@ -97,12 +100,11 @@ export default function CardDetailPage() {
     setError('');
     try {
       await action();
-      alert(successMessage);
-      if (redirect) {
-        router.push('/dashboard/cards');
-        return;
-      }
-      await loadCard();
+      setNoticeModal({
+        title: 'Thao tác thành công',
+        message: successMessage,
+        onClose: redirect ? () => router.push('/dashboard/cards') : () => { void loadCard(); },
+      });
     } catch (err: any) {
       setError(err.message || 'Không thể thực hiện thao tác');
     } finally {
@@ -126,6 +128,12 @@ export default function CardDetailPage() {
     return <div className="card">Không tìm thấy thẻ.</div>;
   }
 
+  function closeNoticeModal() {
+    const next = noticeModal?.onClose;
+    setNoticeModal(null);
+    next?.();
+  }
+
   const status = card.status || 'UNKNOWN';
   const canBlock = status === 'ACTIVE';
   const canUnblock = status === 'LOCKED' || status === 'EXPIRED';
@@ -135,6 +143,32 @@ export default function CardDetailPage() {
 
   return (
     <div className="animate-fade-in">
+      <AppModal
+        open={!!noticeModal}
+        title={noticeModal?.title || ''}
+        onClose={closeNoticeModal}
+        footer={<button className="btn-primary" onClick={closeNoticeModal}>Đã hiểu</button>}
+      >
+        <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>{noticeModal?.message}</p>
+      </AppModal>
+      <AppModal
+        open={confirmCancelOpen}
+        title="Xác nhận hủy thẻ"
+        onClose={() => setConfirmCancelOpen(false)}
+        footer={
+          <>
+            <button className="btn-secondary" onClick={() => setConfirmCancelOpen(false)}>Giữ lại</button>
+            <button className="btn-danger" onClick={() => {
+              setConfirmCancelOpen(false);
+              void runAction(() => cancelCard(card.id), 'Đã hủy thẻ');
+            }}>Hủy thẻ</button>
+          </>
+        }
+      >
+        <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+          Thẻ này sẽ bị hủy và không nên hoàn tác. Bạn có chắc muốn tiếp tục?
+        </p>
+      </AppModal>
       <div style={{ marginBottom: '1.5rem' }}>
         <Link href="/dashboard/cards" style={{ color: 'var(--text-secondary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
           <FontAwesomeIcon icon={faArrowLeft} />
@@ -182,11 +216,7 @@ export default function CardDetailPage() {
             <button className="btn-secondary" disabled={!canUnblock || submitting} onClick={() => runAction(() => unblockCard(card.id), 'Đã mở khóa thẻ')}>
               <FontAwesomeIcon icon={faCheckCircle} /> Mở khóa
             </button>
-            <button className="btn-secondary" disabled={!canCancel || submitting} onClick={() => {
-              if (window.confirm('Hủy thẻ này? Thao tác này không nên hoàn tác.')) {
-                runAction(() => cancelCard(card.id), 'Đã hủy thẻ');
-              }
-            }}>
+            <button className="btn-secondary" disabled={!canCancel || submitting} onClick={() => setConfirmCancelOpen(true)}>
               <FontAwesomeIcon icon={faBan} /> Hủy thẻ
             </button>
             <button className="btn-secondary" disabled={submitting} onClick={() => runAction(() => changeCardStatus(card.id, manualStatus), `Đã chuyển trạng thái sang ${manualStatus}`)}>

@@ -5,6 +5,7 @@ import { getAllLoans, getBranches, loanCommand } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCreditCard, faCheck, faLock, faLockOpen, faFileInvoiceDollar } from '@fortawesome/free-solid-svg-icons';
 import { Pagination } from '@/components/Pagination';
+import AppModal from '@/components/AppModal';
 
 const STATUS_BADGE: Record<string, string> = {
     ACTIVE: 'badge-active',
@@ -25,6 +26,7 @@ export default function LoansPage() {
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [totalElements, setTotalElements] = useState(0);
+    const [modal, setModal] = useState<{ title: string; message: string } | null>(null);
 
     useEffect(() => { getBranches().then(setBranches).catch(() => setBranches([])); }, []);
     useEffect(() => { loadLoans(); }, [page, search, status, branchId, sortBy, sortDir]);
@@ -50,12 +52,25 @@ export default function LoansPage() {
     async function handleCommand(loanId: string, command: 'activate' | 'lock' | 'unlock') {
         setActionLoading(loanId + command);
         try { await loanCommand(loanId, command); await loadLoans(); }
-        catch (e: any) { alert(e.message); }
+        catch (e: any) {
+            setModal({
+                title: 'Không thể thực hiện thao tác',
+                message: e.message || 'Đã có lỗi xảy ra.',
+            });
+        }
         finally { setActionLoading(null); }
     }
 
     return (
         <div className="animate-fade-in">
+            <AppModal
+                open={!!modal}
+                title={modal?.title || ''}
+                onClose={() => setModal(null)}
+                footer={<button className="btn-primary" onClick={() => setModal(null)}>Đã hiểu</button>}
+            >
+                <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>{modal?.message}</p>
+            </AppModal>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
                 <div>
                     <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>

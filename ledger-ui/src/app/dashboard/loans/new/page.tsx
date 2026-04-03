@@ -5,6 +5,7 @@ import { createLoan, getClient } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCreditCard, faArrowLeft, faSave, faUser } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
+import AppModal from '@/components/AppModal';
 
 function NewLoanForm() {
     const router = useRouter();
@@ -14,6 +15,7 @@ function NewLoanForm() {
     const [loading, setLoading] = useState(false);
     const [clientName, setClientName] = useState('');
     const [clientBranch, setClientBranch] = useState('');
+    const [modal, setModal] = useState<{ title: string; message: string; onClose?: () => void } | null>(null);
     const [formData, setFormData] = useState({
         clientId: defaultClientId,
         accountNumber: '',
@@ -38,14 +40,22 @@ function NewLoanForm() {
                 accountNumber: formData.accountNumber,
                 principal: Number(formData.principal),
             });
-            alert('Tạo tài khoản tín dụng thành công!');
-            if (defaultClientId) {
-                router.push(`/dashboard/clients/${defaultClientId}`);
-            } else {
-                router.push('/dashboard/loans');
-            }
+            setModal({
+                title: 'Tạo tài khoản tín dụng thành công',
+                message: 'Tài khoản tín dụng mới đã được tạo.',
+                onClose: () => {
+                    if (defaultClientId) {
+                        router.push(`/dashboard/clients/${defaultClientId}`);
+                    } else {
+                        router.push('/dashboard/loans');
+                    }
+                },
+            });
         } catch (err: any) {
-            alert(err.message || 'Lỗi khi tạo tài khoản tín dụng');
+            setModal({
+                title: 'Không thể tạo tài khoản tín dụng',
+                message: err.message || 'Lỗi khi tạo tài khoản tín dụng',
+            });
         } finally {
             setLoading(false);
         }
@@ -53,6 +63,22 @@ function NewLoanForm() {
 
     return (
         <div className="animate-fade-in">
+            <AppModal
+                open={!!modal}
+                title={modal?.title || ''}
+                onClose={() => {
+                    const next = modal?.onClose;
+                    setModal(null);
+                    next?.();
+                }}
+                footer={<button className="btn-primary" onClick={() => {
+                    const next = modal?.onClose;
+                    setModal(null);
+                    next?.();
+                }}>Đã hiểu</button>}
+            >
+                <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>{modal?.message}</p>
+            </AppModal>
             <div style={{ marginBottom: '2rem' }}>
                 <button onClick={() => router.back()} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
                     <FontAwesomeIcon icon={faArrowLeft} /> Quay lại

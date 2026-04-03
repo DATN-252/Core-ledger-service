@@ -5,11 +5,13 @@ import { issueDebitCard, issueCreditCard } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCreditCard, faArrowLeft, faSave, faRandom } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
+import AppModal from '@/components/AppModal';
 
 export default function NewCardPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [formError, setFormError] = useState('');
+    const [modal, setModal] = useState<{ title: string; message: string; onClose?: () => void } | null>(null);
     const [formData, setFormData] = useState({
         type: 'DEBIT',
         pan: '',
@@ -68,8 +70,11 @@ export default function NewCardPage() {
                     network: formData.network,
                 });
             }
-            alert('Phát hành thẻ thành công!');
-            router.push('/dashboard/cards');
+            setModal({
+                title: 'Phát hành thẻ thành công',
+                message: 'Thẻ mới đã được phát hành thành công.',
+                onClose: () => router.push('/dashboard/cards'),
+            });
         } catch (err: any) {
             setFormError(err.message || 'Lỗi khi phát hành thẻ');
         } finally {
@@ -79,6 +84,22 @@ export default function NewCardPage() {
 
     return (
         <div className="animate-fade-in">
+            <AppModal
+                open={!!modal}
+                title={modal?.title || ''}
+                onClose={() => {
+                    const next = modal?.onClose;
+                    setModal(null);
+                    next?.();
+                }}
+                footer={<button className="btn-primary" onClick={() => {
+                    const next = modal?.onClose;
+                    setModal(null);
+                    next?.();
+                }}>Đã hiểu</button>}
+            >
+                <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>{modal?.message}</p>
+            </AppModal>
             <div style={{ marginBottom: '2rem' }}>
                 <Link href="/dashboard/cards" style={{ color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
                     <FontAwesomeIcon icon={faArrowLeft} /> Quay lại danh sách

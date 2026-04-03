@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faArrowRight, faUser, faCreditCard, faPiggyBank, faHistory, faLocationDot, faMobileAlt, faMoneyBillTransfer } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
 import { getDisplayCounterpartyName, getDisplayTransactionType, isNegativeTransaction, isPositiveTransaction } from '@/lib/transactionDisplay';
+import AppModal from '@/components/AppModal';
 
 export default function ClientDetailPage({ params }: { params: Promise<{ clientId: string }> }) {
     const { clientId } = use(params);
@@ -14,6 +15,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
     const [depositAccountId, setDepositAccountId] = useState<string | null>(null);
     const [depositAmount, setDepositAmount] = useState('');
     const [depositLoadingId, setDepositLoadingId] = useState<string | null>(null);
+    const [modal, setModal] = useState<{ title: string; message: string } | null>(null);
 
     async function fetchData() {
         try {
@@ -33,7 +35,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
             setTransactions(allTx.slice(0, 50));
         } catch (err) {
             console.error(err);
-            alert('Không tìm thấy thông tin khách hàng');
+            setModal({
+                title: 'Không thể tải thông tin khách hàng',
+                message: 'Không tìm thấy thông tin khách hàng.',
+            });
         } finally {
             setLoading(false);
         }
@@ -46,7 +51,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
     async function handleDeposit(accountNumber: string) {
         const amount = Number(depositAmount);
         if (!amount || amount <= 0) {
-            alert('Số tiền nạp phải lớn hơn 0');
+            setModal({
+                title: 'Số tiền chưa hợp lệ',
+                message: 'Số tiền nạp phải lớn hơn 0.',
+            });
             return;
         }
 
@@ -56,9 +64,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
             setDepositAmount('');
             setDepositAccountId(null);
             await fetchData();
-            alert('Nạp tiền thành công');
+            setModal({
+                title: 'Nạp tiền thành công',
+                message: 'Số dư tài khoản đã được cập nhật.',
+            });
         } catch (e: any) {
-            alert(e.message || 'Không thể nạp tiền');
+            setModal({
+                title: 'Không thể nạp tiền',
+                message: e.message || 'Không thể nạp tiền',
+            });
         } finally {
             setDepositLoadingId(null);
         }
@@ -99,6 +113,14 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
 
     return (
         <div className="animate-fade-in">
+            <AppModal
+                open={!!modal}
+                title={modal?.title || ''}
+                onClose={() => setModal(null)}
+                footer={<button className="btn-primary" onClick={() => setModal(null)}>Đã hiểu</button>}
+            >
+                <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>{modal?.message}</p>
+            </AppModal>
             <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <Link href="/dashboard/clients" style={{ color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem' }}>

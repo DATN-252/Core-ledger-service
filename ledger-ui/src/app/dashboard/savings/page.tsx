@@ -4,6 +4,7 @@ import { getAllSavingsAccounts, getBranches, savingsCommand } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPiggyBank, faCheck, faLock } from '@fortawesome/free-solid-svg-icons';
 import { Pagination } from '@/components/Pagination';
+import AppModal from '@/components/AppModal';
 
 const STATUS_BADGE: Record<string, string> = {
     ACTIVE: 'badge-active',
@@ -24,6 +25,7 @@ export default function SavingsPage() {
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [totalElements, setTotalElements] = useState(0);
+    const [modal, setModal] = useState<{ title: string; message: string } | null>(null);
 
     useEffect(() => { getBranches().then(setBranches).catch(() => setBranches([])); }, []);
     useEffect(() => { loadAccounts(); }, [page, search, status, branchId, sortBy, sortDir]);
@@ -49,12 +51,25 @@ export default function SavingsPage() {
     async function handleCommand(id: string, command: 'activate' | 'lock') {
         setActionLoading(id + command);
         try { await savingsCommand(id, command); await loadAccounts(); }
-        catch (e: any) { alert(e.message); }
+        catch (e: any) {
+            setModal({
+                title: 'Không thể thực hiện thao tác',
+                message: e.message || 'Đã có lỗi xảy ra.',
+            });
+        }
         finally { setActionLoading(null); }
     }
 
     return (
         <div className="animate-fade-in">
+            <AppModal
+                open={!!modal}
+                title={modal?.title || ''}
+                onClose={() => setModal(null)}
+                footer={<button className="btn-primary" onClick={() => setModal(null)}>Đã hiểu</button>}
+            >
+                <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>{modal?.message}</p>
+            </AppModal>
             <div style={{ marginBottom: '2rem' }}>
                 <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
                     <FontAwesomeIcon icon={faPiggyBank} style={{ marginRight: '0.5rem' }} />

@@ -5,6 +5,7 @@ import { registerCustomer } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faMobileAlt } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
+import AppModal from '@/components/AppModal';
 
 export default function RegisterAppAccountPage({ params }: { params: Promise<{ clientId: string }> }) {
     const { clientId } = use(params);
@@ -14,22 +15,32 @@ export default function RegisterAppAccountPage({ params }: { params: Promise<{ c
 
     const [password, setPassword] = useState('');
     const [isRegistering, setIsRegistering] = useState(false);
+    const [modal, setModal] = useState<{ title: string; message: string; onClose?: () => void } | null>(null);
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!password || password.length < 6) {
-            alert('Mật khẩu đăng nhập phải có ít nhất 6 ký tự.');
+            setModal({
+                title: 'Mật khẩu chưa hợp lệ',
+                message: 'Mật khẩu đăng nhập phải có ít nhất 6 ký tự.',
+            });
             return;
         }
 
         setIsRegistering(true);
         try {
             const res = await registerCustomer(clientId, password);
-            alert(`Tạo tài khoản Mobile App thành công! Tên đăng nhập là số điện thoại của khách hàng: ${res.username || ''}`);
-            router.push(`/dashboard/clients/${clientId}`);
+            setModal({
+                title: 'Tạo tài khoản Mobile App thành công',
+                message: `Tên đăng nhập mặc định là số điện thoại của khách hàng: ${res.username || ''}`,
+                onClose: () => router.push(`/dashboard/clients/${clientId}`),
+            });
         } catch (error: any) {
-            alert(error.message || 'Lỗi khi tạo tài khoản App');
+            setModal({
+                title: 'Không thể tạo tài khoản App',
+                message: error.message || 'Lỗi khi tạo tài khoản App',
+            });
         } finally {
             setIsRegistering(false);
         }
@@ -37,6 +48,22 @@ export default function RegisterAppAccountPage({ params }: { params: Promise<{ c
 
     return (
         <div className="animate-fade-in" style={{ maxWidth: '600px', margin: '0 auto' }}>
+            <AppModal
+                open={!!modal}
+                title={modal?.title || ''}
+                onClose={() => {
+                    const next = modal?.onClose;
+                    setModal(null);
+                    next?.();
+                }}
+                footer={<button className="btn-primary" onClick={() => {
+                    const next = modal?.onClose;
+                    setModal(null);
+                    next?.();
+                }}>Đã hiểu</button>}
+            >
+                <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>{modal?.message}</p>
+            </AppModal>
             <div style={{ marginBottom: '2rem' }}>
                 <Link href={`/dashboard/clients/${clientId}`} style={{ color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
                     <FontAwesomeIcon icon={faArrowLeft} /> Quay lại chi tiết khách hàng
