@@ -63,50 +63,84 @@ public class InternalFraudAlertController {
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("clientId", clientId);
             result.put("paymentId", request.getPaymentId());
+            result.put("riskLevel", request.getRiskLevel());
 
+            boolean pushSent = false;
+            String pushErrorMessage = null;
             try {
                 int sentCount = pushNotificationService.sendToClientTokens(clientId, "Canh bao gian lan", body, data);
-                result.put("channel", "PUSH");
-                result.put("sentCount", sentCount);
-                return ResponseEntity.ok(ApiResponse.success("Gui fraud alert notification thanh cong", result));
+                pushSent = true;
+                result.put("pushSent", true);
+                result.put("pushSentCount", sentCount);
             } catch (Exception pushError) {
-                log.warn("Push fraud alert failed for client {}: {}", clientId, pushError.getMessage());
+                pushErrorMessage = pushError.getMessage();
+                result.put("pushSent", false);
+                result.put("pushError", pushErrorMessage);
+                log.warn("Push fraud alert failed for client {}: {}", clientId, pushErrorMessage);
             }
 
-            Client client = clientRepository.findByClientId(clientId)
-                    .orElseThrow(() -> new RuntimeException("Khong tim thay khach hang de gui email"));
-            FraudAlertEmailActionService.EmailActionLinks links = fraudAlertEmailActionService.createLinks(
-                    request.getFraudAlertId(),
-                    clientId,
-                    request.getAccountId(),
-                    request.getPaymentId(),
-                    request.getMaskedPan(),
-                    request.getMerchantName(),
-                    request.getAmount(),
-                    request.getCurrency(),
-                    request.getRiskLevel()
-            );
-            EmailService.EmailSendResult emailSendResult = emailService.sendFraudAlertEmail(
-                    client,
-                    request.getFraudAlertId(),
-                    request.getPaymentId(),
-                    request.getMerchantName(),
-                    request.getAmount(),
-                    request.getCurrency(),
-                    request.getRiskLevel(),
-                    links.confirmUrl(),
-                    links.rejectUrl()
-            );
-            result.put("channel", "EMAIL");
-            result.put("recipient", emailSendResult.recipient());
-            result.put("providerMessageId", emailSendResult.providerMessageId());
-            result.put("confirmUrl", links.confirmUrl());
-            result.put("rejectUrl", links.rejectUrl());
+            boolean sendEmail = isHighRisk(request.getRiskLevel()) || !pushSent;
+            if (sendEmail) {
+                Client client = clientRepository.findByClientId(clientId)
+                        .orElseThrow(() -> new RuntimeException("Khong tim thay khach hang de gui email"));
+                FraudAlertEmailActionService.EmailActionLinks links = fraudAlertEmailActionService.createLinks(
+                        request.getFraudAlertId(),
+                        clientId,
+                        request.getAccountId(),
+                        request.getPaymentId(),
+                        request.getMaskedPan(),
+                        request.getMerchantName(),
+                        request.getAmount(),
+                        request.getCurrency(),
+                        request.getRiskLevel()
+                );
+                EmailService.EmailSendResult emailSendResult = emailService.sendFraudAlertEmail(
+                        client,
+                        request.getFraudAlertId(),
+                        request.getPaymentId(),
+                        request.getMerchantName(),
+                        request.getAmount(),
+                        request.getCurrency(),
+                        request.getRiskLevel(),
+                        links.confirmUrl(),
+                        links.rejectUrl()
+                );
+                result.put("emailSent", true);
+                result.put("emailRecipient", emailSendResult.recipient());
+                result.put("emailProviderMessageId", emailSendResult.providerMessageId());
+                result.put("confirmUrl", links.confirmUrl());
+                result.put("rejectUrl", links.rejectUrl());
+            } else {
+                result.put("emailSent", false);
+            }
+
+            if (!pushSent && !Boolean.TRUE.equals(result.get("emailSent"))) {
+                throw new RuntimeException(pushErrorMessage != null ? pushErrorMessage : "Khong the gui push hoac email");
+            }
+
+            result.put("channel", resolveChannel(pushSent, Boolean.TRUE.equals(result.get("emailSent"))));
             return ResponseEntity.ok(ApiResponse.success("Gui fraud alert notification thanh cong", result));
         } catch (Exception e) {
             log.error("Error sending fraud alert notification: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
+    }
+
+    private boolean isHighRisk(String riskLevel) {
+        return riskLevel != null && "HIGH".equalsIgnoreCase(riskLevel.trim());
+    }
+
+    private String resolveChannel(boolean pushSent, boolean emailSent) {
+        if (pushSent && emailSent) {
+            return "PUSH_AND_EMAIL";
+        }
+        if (pushSent) {
+            return "PUSH";
+        }
+        if (emailSent) {
+            return "EMAIL";
+        }
+        return "NONE";
     }
 
     private String resolveClientId(String accountId, String accountType) {
