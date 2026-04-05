@@ -20,6 +20,8 @@ import com.bkbank.ledger.repository.LoanAccountRepository;
 import com.bkbank.ledger.repository.SavingsAccountRepository;
 import com.bkbank.ledger.repository.TransactionRepository;
 import com.bkbank.ledger.repository.UserRepository;
+import com.bkbank.ledger.service.BranchService;
+import com.bkbank.ledger.service.MerchantService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -45,10 +47,15 @@ public class DemoDataSeeder implements CommandLineRunner {
     private final TransactionRepository transactionRepository;
     private final CreditCardStatementRepository creditCardStatementRepository;
     private final PasswordEncoder passwordEncoder;
+    private final BranchService branchService;
+    private final MerchantService merchantService;
 
     @Override
     @Transactional
     public void run(String... args) {
+        branchService.ensureDefaultBranches();
+        merchantService.createDemoMerchantsIfNotExist();
+
         Client clientOne = seedClient(
                 "CLI_001",
                 "Nguyen Van A",
@@ -191,9 +198,9 @@ public class DemoDataSeeder implements CommandLineRunner {
                         Transaction.createDeposit("S0011", 15_000.0, "USD", 15_000.0),
                         "DEMO-SAV-DEPOSIT-001",
                         LocalDateTime.now().minusDays(20).withHour(9).withMinute(0),
-                        "M001",
-                        "BKBank Branch Hanoi",
-                        "Branch",
+                        null,
+                        null,
+                        "BRANCH",
                         "00",
                         "Approved"
                 )
@@ -201,11 +208,21 @@ public class DemoDataSeeder implements CommandLineRunner {
         createTransactionIfMissing(
                 "DEMO-SAV-WITHDRAW-001",
                 buildTransaction(
-                        Transaction.createWithdrawal("S0011", 2_650.0, "USD", 12_350.0, "M002", "AEON Mall", "Hanoi", null, null),
+                        Transaction.createWithdrawal(
+                                "S0011",
+                                2_650.0,
+                                "USD",
+                                12_350.0,
+                                "SP0002",
+                                "Siêu thị GO",
+                                "38 Nguyen Van Linh, Tan Phong, District 7",
+                                10.8231,
+                                106.6297
+                        ),
                         "DEMO-SAV-WITHDRAW-001",
                         LocalDateTime.now().minusDays(5).withHour(15).withMinute(20),
-                        "M002",
-                        "AEON Mall",
+                        "SP0002",
+                        "Siêu thị GO",
                         "POS",
                         "00",
                         "Approved"
@@ -222,11 +239,21 @@ public class DemoDataSeeder implements CommandLineRunner {
         createTransactionIfMissing(
                 "DEMO-LOAN-CHARGE-001",
                 buildTransaction(
-                        Transaction.createCharge("C0013", 2_400.0, "USD", 2_400.0, "M100", "Apple Store", "Online", null, null),
+                        Transaction.createCharge(
+                                "C0013",
+                                2_400.0,
+                                "USD",
+                                2_400.0,
+                                "SP0001",
+                                "Điện lực EVN",
+                                "11 Cua Bac, Truc Bach, Ba Dinh",
+                                21.0285,
+                                105.8542
+                        ),
                         "DEMO-LOAN-CHARGE-001",
                         statementStart.atTime(10, 15),
-                        "M100",
-                        "Apple Store",
+                        "SP0001",
+                        "Điện lực EVN",
                         "ECOM",
                         "00",
                         "Approved"
@@ -235,12 +262,22 @@ public class DemoDataSeeder implements CommandLineRunner {
         createTransactionIfMissing(
                 "DEMO-LOAN-CHARGE-002",
                 buildTransaction(
-                        Transaction.createCharge("C0013", 890.0, "USD", 3_290.0, "M101", "Amazon", "Online", null, null),
+                        Transaction.createCharge(
+                                "C0013",
+                                890.0,
+                                "USD",
+                                3_290.0,
+                                "SPD001",
+                                "Metro Fresh",
+                                "120 Nguyen Hue, Ben Nghe, District 1",
+                                10.7768,
+                                106.7002
+                        ),
                         "DEMO-LOAN-CHARGE-002",
                         statementStart.plusDays(6).atTime(13, 45),
-                        "M101",
-                        "Amazon",
-                        "ECOM",
+                        "SPD001",
+                        "Metro Fresh",
+                        "POS",
                         "00",
                         "Approved"
                 )
@@ -261,11 +298,22 @@ public class DemoDataSeeder implements CommandLineRunner {
         createTransactionIfMissing(
                 "DEMO-LOAN-FAILED-001",
                 buildTransaction(
-                        Transaction.createFailedCharge("C0013", 900.0, "USD", 2_690.0, "M102", "Steam", "Online", null, null, "Credit limit exceeded"),
+                        Transaction.createFailedCharge(
+                                "C0013",
+                                900.0,
+                                "USD",
+                                2_690.0,
+                                "SPD005",
+                                "River Bookstore",
+                                "14 Hoa Binh, Tan An, Ninh Kieu",
+                                10.0358,
+                                105.7806,
+                                "Credit limit exceeded"
+                        ),
                         "DEMO-LOAN-FAILED-001",
                         statementStart.plusDays(17).atTime(21, 10),
-                        "M102",
-                        "Steam",
+                        "SPD005",
+                        "River Bookstore",
                         "ECOM",
                         "51",
                         "Credit limit exceeded"
@@ -274,12 +322,22 @@ public class DemoDataSeeder implements CommandLineRunner {
         createTransactionIfMissing(
                 "DEMO-LOAN-CHARGE-003",
                 buildTransaction(
-                        Transaction.createCharge("C0013", 1_820.0, "USD", 4_510.0, "M103", "Booking.com", "Online", null, null),
+                        Transaction.createCharge(
+                                "C0013",
+                                1_820.0,
+                                "USD",
+                                4_510.0,
+                                "SPD003",
+                                "Blue Cinema",
+                                "25 Tran Phu, Hai Chau 1, Hai Chau",
+                                16.0678,
+                                108.2213
+                        ),
                         "DEMO-LOAN-CHARGE-003",
                         statementStart.plusDays(24).atTime(18, 0),
-                        "M103",
-                        "Booking.com",
-                        "ECOM",
+                        "SPD003",
+                        "Blue Cinema",
+                        "POS",
                         "00",
                         "Approved"
                 )
