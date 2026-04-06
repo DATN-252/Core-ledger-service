@@ -1,5 +1,6 @@
 package com.bkbank.ledger.service;
 
+import com.bkbank.ledger.dto.MerchantCreateRequest;
 import com.bkbank.ledger.entity.CityReference;
 import com.bkbank.ledger.entity.Branch;
 import com.bkbank.ledger.entity.Merchant;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Locale;
 import java.util.List;
 
 @Service
@@ -47,6 +49,52 @@ public class MerchantService {
         }
         
         return merchant;
+    }
+
+    @Transactional
+    public Merchant createMerchant(MerchantCreateRequest request) {
+        if (request.getMerchantId() == null || request.getMerchantId().isBlank()) {
+            throw new RuntimeException("Merchant ID is required");
+        }
+        if (request.getName() == null || request.getName().isBlank()) {
+            throw new RuntimeException("Merchant name is required");
+        }
+        if (request.getCityName() == null || request.getCityName().isBlank()) {
+            throw new RuntimeException("City name is required");
+        }
+        if (request.getCountry() == null || request.getCountry().isBlank()) {
+            throw new RuntimeException("Country is required");
+        }
+        if (request.getCityPopulation() == null || request.getCityPopulation() <= 0) {
+            throw new RuntimeException("City population must be greater than 0");
+        }
+        if (merchantRepository.findByMerchantId(request.getMerchantId()).isPresent()) {
+            throw new RuntimeException("Merchant ID already exists");
+        }
+
+        CityReference cityReference = resolveCityReference(request);
+
+        Merchant merchant = new Merchant();
+        merchant.setMerchantId(request.getMerchantId().trim());
+        merchant.setName(request.getName().trim());
+        merchant.setCategory(trimToNull(request.getCategory()));
+        merchant.setAddressLine(trimToNull(request.getAddressLine()));
+        merchant.setWard(trimToNull(request.getWard()));
+        merchant.setDistrict(trimToNull(request.getDistrict()));
+        merchant.setPostalCode(trimToNull(request.getPostalCode()));
+        merchant.setLatitude(request.getLatitude());
+        merchant.setLongitude(request.getLongitude());
+        merchant.setCityReference(cityReference);
+        merchant.setStatus(Merchant.MerchantStatus.ACTIVE);
+        merchant.setSettlementAccountNumber(resolveSettlementAccountNumber(request));
+        merchant.setSettlementAccountName(trimToNull(request.getSettlementAccountName()) != null
+                ? request.getSettlementAccountName().trim()
+                : merchant.getName());
+        merchant.setSettlementBankName(trimToNull(request.getSettlementBankName()) != null
+                ? request.getSettlementBankName().trim()
+                : Merchant.DEFAULT_SETTLEMENT_BANK_NAME);
+        merchant.setSettlementAccount(ensureSettlementAccount(merchant));
+        return merchantRepository.save(merchant);
     }
     
     /**
@@ -165,6 +213,21 @@ public class MerchantService {
         return savingsAccountRepository.save(account);
     }
 
+    private CityReference resolveCityReference(MerchantCreateRequest request) {
+        return cityReferenceRepository
+                .findByCityNameIgnoreCaseAndCountryIgnoreCase(request.getCityName().trim(), request.getCountry().trim())
+                .orElseGet(() -> {
+                    CityReference city = new CityReference();
+                    city.setCityCode(buildCityCode(request.getMerchantId(), request.getCityName(), request.getCountry()));
+                    city.setCityName(request.getCityName().trim());
+                    city.setCountry(request.getCountry().trim());
+                    city.setPopulation(request.getCityPopulation());
+                    city.setLatitude(request.getLatitude());
+                    city.setLongitude(request.getLongitude());
+                    return cityReferenceRepository.save(city);
+                });
+    }
+
     private Client ensureSettlementClient(Merchant merchant) {
         String merchantClientId = "MERCHANT_" + merchant.getMerchantId();
         return clientRepository.findByClientId(merchantClientId).orElseGet(() -> {
@@ -196,5 +259,31 @@ public class MerchantService {
         String digits = merchantId != null ? merchantId.replaceAll("\\D", "") : "";
         String padded = digits + "0000000";
         return ("090" + padded).substring(0, 10);
+    }
+
+    private String resolveSettlementAccountNumber(MerchantCreateRequest request) {
+        String explicit = trimToNull(request.getSettlementAccountNumber());
+        if (explicit != null) {
+            return explicit;
+        }
+        String digits = request.getMerchantId().replaceAll("\\D", "");
+        String padded = digits + "0000000000";
+        return ("13" + padded).substring(0, 10);
+    }
+
+    private String buildCityCode(String merchantId, String cityName, String country) {
+        String base = ((country != null ? country : "") + "_" + (cityName != null ? cityName : "") + "_" + (merchantId != null ? merchantId : ""))
+                .toUpperCase(Locale.ROOT)
+                .replaceAll("[^A-Z0-9]+", "_")
+                .replaceAll("^_+|_+$", "");
+        return base.length() <= 32 ? base : base.substring(0, 32);
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

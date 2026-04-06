@@ -236,6 +236,13 @@ export async function getMerchantDetail(merchantId: string) {
   return request<any>(`/merchants/${merchantId}`);
 }
 
+export async function createMerchant(data: any) {
+  return request<any>('/merchants', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
 export async function getMerchantTransactions(merchantId: string, page = 0, size = 20) {
   return request<any>(`/merchants/${merchantId}/transactions?page=${page}&size=${size}`);
 }
@@ -318,6 +325,13 @@ export async function getClientSavingsAccounts(clientId: string) {
 
 export async function createClient(data: any) {
   return request<any>('/clients', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateClient(clientId: string, data: any) {
+  return request<any>(`/clients/${clientId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
 }
 
 // ─── Cards (CMS) ──────────────────────────────────────────────────────────────

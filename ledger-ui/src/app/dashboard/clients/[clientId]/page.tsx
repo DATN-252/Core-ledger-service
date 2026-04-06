@@ -2,7 +2,7 @@
 import { useEffect, useState, use } from 'react';
 import { depositToSavingsAccount, getClientAccounts, getTransactions } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faArrowRight, faUser, faCreditCard, faPiggyBank, faHistory, faLocationDot, faMobileAlt, faMoneyBillTransfer } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faArrowRight, faUser, faCreditCard, faPiggyBank, faHistory, faLocationDot, faMobileAlt, faMoneyBillTransfer, faPenToSquare } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
 import { getDisplayCounterpartyName, getDisplayTransactionType, isNegativeTransaction, isPositiveTransaction } from '@/lib/transactionDisplay';
 import AppModal from '@/components/AppModal';
@@ -111,6 +111,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
         return '—';
     };
 
+    const getTransactionRowKey = (tx: any, index: number) => {
+        return [
+            tx.id ?? 'no-id',
+            tx.accountNumber ?? 'no-account',
+            tx.transactionDate ?? 'no-date',
+            index,
+        ].join('-');
+    };
+
     return (
         <div className="animate-fade-in">
             <AppModal
@@ -138,13 +147,22 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                     </p>
                 </div>
 
-                <Link
-                    href={`/dashboard/clients/${clientId}/register-app?clientName=${encodeURIComponent(clientName)}`}
-                    className="btn-primary"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', textDecoration: 'none' }}>
-                    <FontAwesomeIcon icon={faMobileAlt} />
-                    Tạo tài khoản App
-                </Link>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Link
+                        href={`/dashboard/clients/${clientId}/edit`}
+                        className="btn-secondary"
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', textDecoration: 'none' }}>
+                        <FontAwesomeIcon icon={faPenToSquare} />
+                        Chỉnh sửa
+                    </Link>
+                    <Link
+                        href={`/dashboard/clients/${clientId}/register-app?clientName=${encodeURIComponent(clientName)}`}
+                        className="btn-primary"
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', textDecoration: 'none' }}>
+                        <FontAwesomeIcon icon={faMobileAlt} />
+                        Tạo tài khoản App
+                    </Link>
+                </div>
             </div>
 
             <div style={{ display: 'grid', gap: '2rem', gridTemplateColumns: '1fr 1fr', marginBottom: '2rem' }}>
@@ -304,8 +322,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                                 </tr>
                             </thead>
                             <tbody>
-                                {transactions.map((tx: any) => (
-                                    <tr key={tx.id}>
+                                {transactions.map((tx: any, index: number) => (
+                                    <tr key={getTransactionRowKey(tx, index)}>
                                         <td className="transaction-cell-id">#{tx.id}</td>
                                         <td className="transaction-cell-time">{new Date(tx.transactionDate).toLocaleString('vi-VN')}</td>
                                         <td className="transaction-cell-account">

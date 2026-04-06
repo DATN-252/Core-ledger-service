@@ -1,5 +1,6 @@
 package com.bkbank.ledger.controller;
 
+import com.bkbank.ledger.dto.MerchantCreateRequest;
 import com.bkbank.ledger.dto.response.AutoSettlementRunResponse;
 import com.bkbank.ledger.dto.response.MerchantSettlementAdjustmentResponse;
 import com.bkbank.ledger.dto.response.MerchantSettlementBatchResponse;
@@ -50,6 +51,23 @@ public class MerchantController {
     private final TransactionRepository transactionRepository;
     private final SettlementAdjustmentService settlementAdjustmentService;
     private final SettlementService settlementService;
+
+    @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> createMerchant(@RequestBody MerchantCreateRequest request) {
+        try {
+            Merchant merchant = merchantService.createMerchant(request);
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("merchantId", merchant.getMerchantId());
+            response.put("name", merchant.getName());
+            response.put("status", merchant.getStatus());
+            response.put("settlementAccountNumber", merchant.getResolvedSettlementAccountNumber());
+            response.put("message", "Merchant created successfully");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'TELLER', 'SYSTEM')")
