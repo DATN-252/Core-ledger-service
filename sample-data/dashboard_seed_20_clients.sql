@@ -25,6 +25,7 @@ DELETE FROM clients WHERE client_id LIKE 'CLI_DASH_%';
 DELETE FROM merchants
 WHERE
     merchant_id IN (
+        'FRD001',
         'SPD001',
         'SPD002',
         'SPD003',
@@ -32,7 +33,9 @@ WHERE
         'SPD005'
     );
 
-DELETE FROM city_reference WHERE city_code LIKE 'DASH_%';
+DELETE FROM city_reference
+WHERE city_code LIKE 'DASH_%'
+   OR city_code = 'FRD_RVA';
 
 INSERT INTO
     city_reference (
@@ -82,6 +85,14 @@ VALUES (
         1240000,
         10.0452,
         105.7469
+    ),
+    (
+        'FRD_RVA',
+        'Richmond',
+        'USA',
+        5927,
+        37.480372,
+        -77.34958
     )
 ON CONFLICT (city_code) DO
 UPDATE
@@ -120,6 +131,8 @@ FROM (
                 'SPD004', 'Harbor Cafe', 'food_dining', '9 Tran Hung Dao', 'Hoang Van Thu', 'Hong Bang', '180000', 20.8611, 106.6823, 'DASH_HP'
             ), (
                 'SPD005', 'River Bookstore', 'shopping_net', '14 Hoa Binh', 'Tan An', 'Ninh Kieu', '900000', 10.0358, 105.7806, 'DASH_CT'
+            ), (
+                'FRD001', 'High Risk Electronics', 'shopping_pos', '901 Broad St', 'Downtown', 'Richmond', '23219', 37.480372, -77.34958, 'FRD_RVA'
             )
     ) AS v (
         merchant_id, name, category, address_line, ward, district, postal_code, latitude, longitude, city_code

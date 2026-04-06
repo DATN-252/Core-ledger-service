@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getAllLoans, getBranches, loanCommand } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCreditCard, faCheck, faLock, faLockOpen, faFileInvoiceDollar } from '@fortawesome/free-solid-svg-icons';
+import { faCreditCard, faCheck, faLock, faLockOpen, faFileInvoiceDollar, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { Pagination } from '@/components/Pagination';
 import AppModal from '@/components/AppModal';
 
@@ -179,7 +179,7 @@ export default function LoansPage() {
                                                             disabled={!!actionLoading}
                                                             onClick={() => handleCommand(loan.id || loan.accountNo, 'activate')}
                                                         >
-                                                            {actionLoading === (loan.id || loan.accountNo) + 'activate' ? '⏳' : <><FontAwesomeIcon icon={faCheck} /> Kích hoạt</>}
+                                                            {actionLoading === (loan.id || loan.accountNo) + 'activate' ? <FontAwesomeIcon icon={faSpinner} spin /> : <><FontAwesomeIcon icon={faCheck} /> Kích hoạt</>}
                                                         </button>
                                                     )}
                                                     {status === 'ACTIVE' && (
@@ -188,7 +188,7 @@ export default function LoansPage() {
                                                             disabled={!!actionLoading}
                                                             onClick={() => handleCommand(loan.id || loan.accountNo, 'lock')}
                                                         >
-                                                            {actionLoading === (loan.id || loan.accountNo) + 'lock' ? '⏳' : <><FontAwesomeIcon icon={faLock} /> Khóa</>}
+                                                            {actionLoading === (loan.id || loan.accountNo) + 'lock' ? <FontAwesomeIcon icon={faSpinner} spin /> : <><FontAwesomeIcon icon={faLock} /> Khóa</>}
                                                         </button>
                                                     )}
                                                     {status === 'LOCKED' && (
@@ -197,7 +197,7 @@ export default function LoansPage() {
                                                             disabled={!!actionLoading}
                                                             onClick={() => handleCommand(loan.id || loan.accountNo, 'unlock')}
                                                         >
-                                                            {actionLoading === (loan.id || loan.accountNo) + 'unlock' ? '⏳' : <><FontAwesomeIcon icon={faLockOpen} /> Mở khóa</>}
+                                                            {actionLoading === (loan.id || loan.accountNo) + 'unlock' ? <FontAwesomeIcon icon={faSpinner} spin /> : <><FontAwesomeIcon icon={faLockOpen} /> Mở khóa</>}
                                                         </button>
                                                     )}
                                                 </div>

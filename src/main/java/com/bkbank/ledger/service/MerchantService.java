@@ -59,6 +59,7 @@ public class MerchantService {
         CityReference danang = upsertCity("VN_DAD", "Da Nang", "Vietnam", 1_250_000, 16.0471, 108.2068);
         CityReference haiphong = upsertCity("VN_HPH", "Hai Phong", "Vietnam", 2_050_000, 20.8449, 106.6881);
         CityReference cantho = upsertCity("VN_CTH", "Can Tho", "Vietnam", 1_240_000, 10.0452, 105.7469);
+        CityReference richmondFraudTest = upsertCity("US_RVA_FRD", "Richmond", "USA", 5_927, 37.480372, -77.34958);
 
         upsertMerchant("SP0001", "Điện lực EVN", "UTILITY",
                 "11 Cua Bac", "Truc Bach", "Ba Dinh", "100000",
@@ -84,6 +85,9 @@ public class MerchantService {
         upsertMerchant("SPD005", "River Bookstore", "shopping_net",
                 "14 Hoa Binh", "Tan An", "Ninh Kieu", "900000",
                 10.0358, 105.7806, cantho, "1200000005");
+        upsertMerchant("FRD001", "High Risk Electronics", "shopping_pos",
+                "901 Broad St", "Downtown", "Richmond", "23219",
+                37.480372, -77.34958, richmondFraudTest, "1300000001");
         log.info("Demo merchants and city reference data initialized successfully.");
     }
 

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { getAllSavingsAccounts, getBranches, savingsCommand } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPiggyBank, faCheck, faLock } from '@fortawesome/free-solid-svg-icons';
+import { faPiggyBank, faCheck, faLock, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { Pagination } from '@/components/Pagination';
 import AppModal from '@/components/AppModal';
 
@@ -158,12 +158,12 @@ export default function SavingsPage() {
                                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                                     {status === 'PENDING' && (
                                                         <button className="btn-success" disabled={!!actionLoading} onClick={() => handleCommand(acc.id, 'activate')}>
-                                                            {actionLoading === acc.id + 'activate' ? '⏳' : <><FontAwesomeIcon icon={faCheck} /> Kích hoạt</>}
+                                                            {actionLoading === acc.id + 'activate' ? <FontAwesomeIcon icon={faSpinner} spin /> : <><FontAwesomeIcon icon={faCheck} /> Kích hoạt</>}
                                                         </button>
                                                     )}
                                                     {status === 'ACTIVE' && (
                                                         <button className="btn-danger" disabled={!!actionLoading} onClick={() => handleCommand(acc.id, 'lock')}>
-                                                            {actionLoading === acc.id + 'lock' ? '⏳' : <><FontAwesomeIcon icon={faLock} /> Khóa</>}
+                                                            {actionLoading === acc.id + 'lock' ? <FontAwesomeIcon icon={faSpinner} spin /> : <><FontAwesomeIcon icon={faLock} /> Khóa</>}
                                                         </button>
                                                     )}
                                                 </div>

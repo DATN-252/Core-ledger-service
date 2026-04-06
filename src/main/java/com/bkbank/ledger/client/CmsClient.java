@@ -68,6 +68,39 @@ public class CmsClient {
         }
     }
 
+    public Map<String, Object> getCard(Long cardId) {
+        try {
+            String url = cmsUrl + "/api/internal/cards/" + cardId;
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Internal-Api-Key", cmsApiKey);
+            HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
+
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    requestEntity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+
+            return response.getBody();
+        } catch (Exception e) {
+            log.error("Failed to fetch card {} from CMS: {}", cardId, e.getMessage());
+            return null;
+        }
+    }
+
+    public Map<String, Object> blockCard(Long cardId) {
+        return postCardLifecycleAction(cardId, "block");
+    }
+
+    public Map<String, Object> unblockCard(Long cardId) {
+        return postCardLifecycleAction(cardId, "unblock");
+    }
+
+    public Map<String, Object> cancelCard(Long cardId) {
+        return postCardLifecycleAction(cardId, "cancel");
+    }
+
     public List<Map<String, Object>> getFraudAlertsByAccountIds(List<String> accountIds) {
         if (accountIds == null || accountIds.isEmpty()) {
             return List.of();
@@ -207,6 +240,26 @@ public class CmsClient {
             return response.getBody();
         } catch (Exception e) {
             log.error("Failed to {} fraud alert {} in CMS: {}", action, alertId, e.getMessage());
+            return null;
+        }
+    }
+
+    private Map<String, Object> postCardLifecycleAction(Long cardId, String action) {
+        try {
+            String url = cmsUrl + "/api/internal/cards/" + cardId + "/" + action;
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Internal-Api-Key", cmsApiKey);
+            HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
+
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    requestEntity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+            return response.getBody();
+        } catch (Exception e) {
+            log.error("Failed to {} card {} in CMS: {}", action, cardId, e.getMessage());
             return null;
         }
     }

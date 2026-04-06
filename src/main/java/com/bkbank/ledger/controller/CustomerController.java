@@ -372,6 +372,63 @@ public class CustomerController {
         }
     }
 
+    @PostMapping("/me/cards/{cardId}/lock")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> lockMyCard(
+            Authentication authentication,
+            @PathVariable Long cardId) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+            getOwnedCard(client, cardId);
+            Map<String, Object> response = cmsClient.blockCard(cardId);
+            if (response == null) {
+                throw new RuntimeException("Khong the khoa the");
+            }
+            return ResponseEntity.ok(ApiResponse.success("Khoa the thanh cong", response));
+        } catch (Exception e) {
+            log.error("Error locking card: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @PostMapping("/me/cards/{cardId}/unlock")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> unlockMyCard(
+            Authentication authentication,
+            @PathVariable Long cardId) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+            getOwnedCard(client, cardId);
+            Map<String, Object> response = cmsClient.unblockCard(cardId);
+            if (response == null) {
+                throw new RuntimeException("Khong the mo khoa the");
+            }
+            return ResponseEntity.ok(ApiResponse.success("Mo khoa the thanh cong", response));
+        } catch (Exception e) {
+            log.error("Error unlocking card: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @PostMapping("/me/cards/{cardId}/cancel")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> cancelMyCard(
+            Authentication authentication,
+            @PathVariable Long cardId) {
+        try {
+            Client client = getAuthenticatedClient(authentication);
+            getOwnedCard(client, cardId);
+            Map<String, Object> response = cmsClient.cancelCard(cardId);
+            if (response == null) {
+                throw new RuntimeException("Khong the huy the");
+            }
+            return ResponseEntity.ok(ApiResponse.success("Huy the thanh cong", response));
+        } catch (Exception e) {
+            log.error("Error cancelling card: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
     private void enrichCardWithAccountData(Map<String, Object> card,
                                            Map<String, SavingsAccount> savingsByAccount,
                                            Map<String, LoanAccount> loansByAccount) {
@@ -449,6 +506,19 @@ public class CustomerController {
             throw new RuntimeException("Khong tim thay fraud alert cua khach hang");
         }
         return alert;
+    }
+
+    private Map<String, Object> getOwnedCard(Client client, Long cardId) {
+        List<String> accountIds = getClientAccountIds(client);
+        Map<String, Object> card = cmsClient.getCard(cardId);
+        if (card == null) {
+            throw new RuntimeException("Khong tim thay the");
+        }
+        String accountId = stringValue(card.get("accountId"));
+        if (accountId == null || !accountIds.contains(accountId)) {
+            throw new RuntimeException("Khong tim thay the cua khach hang");
+        }
+        return card;
     }
 
     /**

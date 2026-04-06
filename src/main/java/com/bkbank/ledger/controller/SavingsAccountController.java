@@ -97,6 +97,7 @@ public class SavingsAccountController {
             response.put("accountBalance", account.getBalance());
             response.put("currency", Map.of("code", account.getCurrency()));
             response.put("status", Map.of("value", account.getStatus().name()));
+            response.put("clientId", account.getClient() != null ? account.getClient().getClientId() : null);
             response.put("clientName", account.getClientName());
             response.put("branchId", account.getBranchId());
             response.put("branchName", account.getBranchName());
