@@ -9,6 +9,8 @@ import {
     getCounterpartyColumnTitle,
     getDisplayCounterpartyId,
     getDisplayCounterpartyName,
+    getTransactionFailureSummary,
+    getTransactionStatusBadge,
     getDisplayTransactionType,
     isNegativeTransaction,
     isPositiveTransaction,
@@ -68,19 +70,6 @@ export default function TransactionsPage() {
 
     const formatTransactionType = (txn: any) => {
         return getDisplayTransactionType(txn);
-    };
-
-    const formatStatus = (status: string) => {
-        switch (status) {
-            case 'FAILED':
-                return { label: 'THẤT BẠI', className: '', style: { backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)' } };
-            case 'REVERSED':
-                return { label: 'ĐÃ ĐẢO', className: 'badge-pending', style: {} };
-            case 'REFUNDED':
-                return { label: 'ĐÃ HOÀN', className: 'badge-pending', style: {} };
-            default:
-                return { label: 'THÀNH CÔNG', className: 'badge-active', style: {} };
-        }
     };
 
     return (
@@ -197,11 +186,19 @@ export default function TransactionsPage() {
                                         </td>
                                         <td>
                                             {(() => {
-                                                const badge = formatStatus(txn.status);
+                                                const badge = getTransactionStatusBadge(txn);
+                                                const failureSummary = getTransactionFailureSummary(txn);
                                                 return (
-                                                    <span className={`badge ${badge.className}`} style={badge.style}>
-                                                        {badge.label}
-                                                    </span>
+                                                    <div>
+                                                        <span className={`badge ${badge.className}`} style={badge.style}>
+                                                            {badge.label}
+                                                        </span>
+                                                        {failureSummary ? (
+                                                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.375rem', maxWidth: '220px', lineHeight: 1.4 }}>
+                                                                {failureSummary}
+                                                            </div>
+                                                        ) : null}
+                                                    </div>
                                                 );
                                             })()}
                                         </td>

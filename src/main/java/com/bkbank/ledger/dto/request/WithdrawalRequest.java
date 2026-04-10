@@ -33,4 +33,5 @@ public class WithdrawalRequest {
     private String externalReference;
     private String responseCode;
     private String responseMessage;
+    private String paymentNote;
 }

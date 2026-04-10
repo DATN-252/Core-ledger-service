@@ -12,6 +12,9 @@ import lombok.NoArgsConstructor;
 public class PaymentErrorDetail {
     private String errorCode;
     private String responseCode;
+    private String responseMessage;
+    private String errorTitle;
+    private String errorHint;
     private int httpStatus;
     private boolean retryable;
     private String paymentId;

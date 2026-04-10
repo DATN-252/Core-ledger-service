@@ -4,7 +4,14 @@ import { depositToSavingsAccount, getClientAccounts, getTransactions } from '@/l
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faArrowRight, faUser, faCreditCard, faPiggyBank, faHistory, faLocationDot, faMobileAlt, faMoneyBillTransfer, faPenToSquare } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
-import { getDisplayCounterpartyName, getDisplayTransactionType, isNegativeTransaction, isPositiveTransaction } from '@/lib/transactionDisplay';
+import {
+    getDisplayCounterpartyName,
+    getDisplayTransactionType,
+    getTransactionFailureSummary,
+    getTransactionStatusBadge,
+    isNegativeTransaction,
+    isPositiveTransaction,
+} from '@/lib/transactionDisplay';
 import AppModal from '@/components/AppModal';
 
 export default function ClientDetailPage({ params }: { params: Promise<{ clientId: string }> }) {
@@ -89,19 +96,6 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
     };
 
     const formatType = (tx: any) => getDisplayTransactionType(tx);
-
-    const formatStatus = (status: string) => {
-        switch (status) {
-            case 'FAILED':
-                return { label: 'THẤT BẠI', className: '', style: { backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)' } };
-            case 'REVERSED':
-                return { label: 'ĐÃ ĐẢO', className: 'badge-pending', style: {} };
-            case 'REFUNDED':
-                return { label: 'ĐÃ HOÀN', className: 'badge-pending', style: {} };
-            default:
-                return { label: 'THÀNH CÔNG', className: 'badge-active', style: {} };
-        }
-    };
 
     const formatLocation = (tx: any) => {
         if (tx.location) return tx.location;
@@ -350,11 +344,19 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
                                         </td>
                                         <td>
                                             {(() => {
-                                                const badge = formatStatus(tx.status);
+                                                const badge = getTransactionStatusBadge(tx);
+                                                const failureSummary = getTransactionFailureSummary(tx);
                                                 return (
-                                                    <span className={`badge ${badge.className}`} style={badge.style}>
-                                                        {badge.label}
-                                                    </span>
+                                                    <div>
+                                                        <span className={`badge ${badge.className}`} style={badge.style}>
+                                                            {badge.label}
+                                                        </span>
+                                                        {failureSummary ? (
+                                                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.375rem', maxWidth: '180px', lineHeight: 1.4 }}>
+                                                                {failureSummary}
+                                                            </div>
+                                                        ) : null}
+                                                    </div>
                                                 );
                                             })()}
                                         </td>

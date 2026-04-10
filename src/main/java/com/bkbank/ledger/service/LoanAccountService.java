@@ -51,7 +51,7 @@ public class LoanAccountService {
     public LoanAccount addCharge(String accountNumber, Double amount, String merchantId, String merchantName, String cardNetwork,
                                  String location, Double latitude, Double longitude, String paymentId, String idempotencyKey,
                                  String originalTransactionId, String channel, String authCode, String stan, String rrn,
-                                 String externalReference, String responseCode, String responseMessage) {
+                                 String externalReference, String responseCode, String responseMessage, String paymentNote) {
         log.info("Adding charge of {} to loan account {} at merchant {} with network {} (Location: {})", amount, accountNumber, merchantName, cardNetwork, location);
         
         LoanAccount account = getAccount(accountNumber);
@@ -63,6 +63,7 @@ public class LoanAccountService {
             failedTx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
                     responseCode != null ? responseCode : "96",
                     responseMessage != null ? responseMessage : "Account inactive");
+            applyPaymentNote(failedTx, paymentNote);
             transactionLoggingService.logTransaction(failedTx);
             throw new RuntimeException("Loan account is not active");
         }
@@ -74,6 +75,7 @@ public class LoanAccountService {
             failedTx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
                     responseCode != null ? responseCode : "51",
                     responseMessage != null ? responseMessage : "Credit limit exceeded");
+            applyPaymentNote(failedTx, paymentNote);
             transactionLoggingService.logTransaction(failedTx);
             throw new RuntimeException("Credit limit exceeded");
         }
@@ -88,6 +90,7 @@ public class LoanAccountService {
         tx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference,
                 responseCode != null ? responseCode : "00",
                 responseMessage != null ? responseMessage : "Approved");
+        applyPaymentNote(tx, paymentNote);
         Transaction savedTx = transactionRepository.save(tx);
         transactionNotificationEventPublisher.publish(savedTx.getId());
         
@@ -114,6 +117,19 @@ public class LoanAccountService {
         
         log.info("Payment processed. New outstanding: {}", savedAccount.getPrincipalOutstanding());
         return savedAccount;
+    }
+
+    private void applyPaymentNote(Transaction tx, String paymentNote) {
+        if (paymentNote == null || paymentNote.isBlank()) {
+            return;
+        }
+        String trimmed = paymentNote.trim();
+        String baseDescription = tx.getDescription();
+        if (baseDescription == null || baseDescription.isBlank()) {
+            tx.setDescription(trimmed);
+            return;
+        }
+        tx.setDescription(baseDescription + " - " + trimmed);
     }
 
     @Transactional

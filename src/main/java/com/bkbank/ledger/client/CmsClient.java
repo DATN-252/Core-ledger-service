@@ -192,6 +192,7 @@ public class CmsClient {
             payload.put("idempotencyKey", request.getIdempotencyKey());
             payload.put("originalTransactionId", request.getOriginalTransactionId());
             payload.put("channel", request.getChannel());
+            payload.put("paymentNote", request.getPaymentNote());
 
             HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(payload, headers);
 

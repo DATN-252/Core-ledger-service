@@ -175,6 +175,7 @@ public class TransactionController {
         String externalReference = (String) body.getOrDefault("externalReference", null);
         String responseCode = (String) body.getOrDefault("responseCode", "96");
         String responseMessage = (String) body.getOrDefault("responseMessage", failureReason);
+        String paymentNote = (String) body.getOrDefault("paymentNote", null);
         String currency = (String) body.getOrDefault("currency", resolveAccountCurrency(accountNumber, accountType));
 
         Transaction tx;
@@ -189,6 +190,10 @@ public class TransactionController {
         }
         tx.setCardNetwork(cardNetwork);
         tx.applyReferenceData(paymentId, idempotencyKey, originalTransactionId, channel, authCode, stan, rrn, externalReference, responseCode, responseMessage);
+        if (paymentNote != null && !paymentNote.isBlank()) {
+            String baseDescription = tx.getDescription();
+            tx.setDescription((baseDescription != null && !baseDescription.isBlank() ? baseDescription + " - " : "") + paymentNote.trim());
+        }
 
         transactionLoggingService.logTransaction(tx);
         log.info("Logged failed transaction for account {} - reason: {}", accountNumber, failureReason);

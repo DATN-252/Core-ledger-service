@@ -149,7 +149,8 @@ public class SavingsAccountController {
                         request.getRrn(),
                         request.getExternalReference(),
                         request.getResponseCode(),
-                        request.getResponseMessage()
+                        request.getResponseMessage(),
+                        request.getPaymentNote()
                 );
             } else if ("deposit".equalsIgnoreCase(command)) {
                 account = savingsAccountService.deposit(accountId, request.getTransactionAmount());

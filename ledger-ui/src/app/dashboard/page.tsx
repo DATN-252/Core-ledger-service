@@ -7,7 +7,14 @@ import {
     faArrowTrendUp, faArrowTrendDown, faBuildingColumns, faChartBar, faArrowRight
 } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
-import { getDisplayCounterpartyName, getDisplayTransactionType, isNegativeTransaction, isPositiveTransaction } from '@/lib/transactionDisplay';
+import {
+    getDisplayCounterpartyName,
+    getDisplayTransactionType,
+    getTransactionFailureSummary,
+    getTransactionStatusBadge,
+    isNegativeTransaction,
+    isPositiveTransaction,
+} from '@/lib/transactionDisplay';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, Legend, BarChart, Bar
@@ -144,19 +151,6 @@ export default function DashboardPage() {
 
     const formatTransactionType = (txn: any) => {
         return getDisplayTransactionType(txn);
-    };
-
-    const formatStatus = (status: string) => {
-        switch (status) {
-            case 'FAILED':
-                return { label: 'THẤT BẠI', className: '', style: { backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)' } };
-            case 'REVERSED':
-                return { label: 'ĐÃ ĐẢO', className: 'badge-pending', style: {} };
-            case 'REFUNDED':
-                return { label: 'ĐÃ HOÀN', className: 'badge-pending', style: {} };
-            default:
-                return { label: 'THÀNH CÔNG', className: 'badge-active', style: {} };
-        }
     };
 
     if (loading) {
@@ -427,11 +421,19 @@ export default function DashboardPage() {
                                         </td>
                                         <td>
                                             {(() => {
-                                                const badge = formatStatus(txn.status);
+                                                const badge = getTransactionStatusBadge(txn);
+                                                const failureSummary = getTransactionFailureSummary(txn);
                                                 return (
-                                                    <span className={`badge ${badge.className}`} style={badge.style}>
-                                                        {badge.label}
-                                                    </span>
+                                                    <div>
+                                                        <span className={`badge ${badge.className}`} style={badge.style}>
+                                                            {badge.label}
+                                                        </span>
+                                                        {failureSummary ? (
+                                                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.375rem', maxWidth: '180px', lineHeight: 1.4 }}>
+                                                                {failureSummary}
+                                                            </div>
+                                                        ) : null}
+                                                    </div>
                                                 );
                                             })()}
                                         </td>

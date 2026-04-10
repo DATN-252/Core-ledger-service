@@ -27,6 +27,7 @@ public class PaymentRequest {
     private String idempotencyKey;
     private String originalTransactionId;
     private String channel;
+    private String paymentNote;
 
     public String getCardNumber() {
         return cardNumber;
@@ -170,5 +171,13 @@ public class PaymentRequest {
 
     public void setChannel(String channel) {
         this.channel = channel;
+    }
+
+    public String getPaymentNote() {
+        return paymentNote;
+    }
+
+    public void setPaymentNote(String paymentNote) {
+        this.paymentNote = paymentNote;
     }
 }

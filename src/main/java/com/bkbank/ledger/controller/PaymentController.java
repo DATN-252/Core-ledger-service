@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -50,9 +51,11 @@ public class PaymentController {
                     "merchantId or recipientAccount is required",
                     "INVALID_REQUEST",
                     null,
+                    "merchantId or recipientAccount is required",
                     false,
                     null,
-                    null);
+                    null,
+                    Map.of());
         }
 
         try {
@@ -95,18 +98,22 @@ public class PaymentController {
                     e.getMessage(),
                     "INVALID_REQUEST",
                     null,
+                    e.getMessage(),
                     false,
                     null,
-                    null);
+                    null,
+                    Map.of());
         } catch (Exception e) {
             log.error("Preview processing error: {}", e.getMessage());
             return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Internal Server Error: " + e.getMessage(),
                     "SYSTEM_ERROR",
                     "96",
+                    e.getMessage(),
                     true,
                     null,
-                    null);
+                    null,
+                    Map.of());
         }
     }
 
@@ -123,7 +130,10 @@ public class PaymentController {
             String merchantName = merchant.getName();
             String inferredNetwork = firstNonBlank(request.getCardNetwork(), inferCardNetwork(request.getCardNumber()));
             String resolvedCardType = firstNonBlank(request.getCardType(), resolveCardTypeFromNetwork(inferredNetwork));
-            Map<String, Object> cmsResponse = cmsClient.authorizePayment(request, merchant);
+            Map<String, Object> cmsResponse = normalizeCmsResponse(cmsClient.authorizePayment(request, merchant));
+            LocalDateTime now = LocalDateTime.now();
+            String transactionTime = now.format(DATE_TIME_FORMATTER);
+            String transactionId = buildTransactionId();
 
             Boolean approved = (Boolean) cmsResponse.get("approved");
             String responseCode = stringValue(cmsResponse.get("responseCode"));
@@ -151,18 +161,18 @@ public class PaymentController {
             cmsResponse.put("cardType", firstNonBlank(stringValue(cmsResponse.get("cardType")), resolvedCardType));
             cmsResponse.put("cardNetwork", firstNonBlank(stringValue(cmsResponse.get("cardNetwork")), inferredNetwork));
             cmsResponse.put("maskedCardNumber", firstNonBlank(stringValue(cmsResponse.get("maskedPan")), maskCardNumber(request.getCardNumber())));
+            cmsResponse.putIfAbsent("transactionTime", transactionTime);
+            cmsResponse.putIfAbsent("transactionId", transactionId);
+            cmsResponse.putIfAbsent("paymentNote", request.getPaymentNote());
 
             if (Boolean.TRUE.equals(approved)) {
-                LocalDateTime now = LocalDateTime.now();
-                cmsResponse.put("transactionTime", now.format(DATE_TIME_FORMATTER));
-                cmsResponse.put("transactionId", "TXN" + System.currentTimeMillis() + (int) (Math.random() * 1000));
-
                 return ResponseEntity.ok(ApiResponse.success("Payment successful", cmsResponse));
             }
             return declinedResponse(responseCode,
                     responseMessage != null ? responseMessage : "Unknown error",
                     request.getPaymentId(),
-                    request.getIdempotencyKey());
+                    request.getIdempotencyKey(),
+                    buildFailureContext(cmsResponse));
 
         } catch (PaymentErrorRuntimeException e) {
             return e.response;
@@ -171,18 +181,22 @@ public class PaymentController {
                     e.getMessage(),
                     "INVALID_REQUEST",
                     null,
+                    e.getMessage(),
                     false,
                     request.getPaymentId(),
-                    request.getIdempotencyKey());
+                    request.getIdempotencyKey(),
+                    buildRequestContext(request, null));
         } catch (Exception e) {
             log.error("Payment processing error: {}", e.getMessage());
             return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Internal Server Error: " + e.getMessage(),
                     "SYSTEM_ERROR",
                     "96",
+                    e.getMessage(),
                     true,
                     request.getPaymentId(),
-                    request.getIdempotencyKey());
+                    request.getIdempotencyKey(),
+                    buildRequestContext(request, null));
         }
     }
 
@@ -331,27 +345,33 @@ public class PaymentController {
                     e.getMessage(),
                     "INVALID_REQUEST",
                     null,
+                    e.getMessage(),
                     false,
                     request.getPaymentId(),
-                    request.getIdempotencyKey());
+                    request.getIdempotencyKey(),
+                    Map.of());
         } catch (RuntimeException e) {
             log.error("{} failed: {}", adjustmentType, e.getMessage());
             return errorResponse(HttpStatus.NOT_FOUND,
                     e.getMessage(),
                     "TRANSACTION_NOT_FOUND",
                     null,
+                    e.getMessage(),
                     false,
                     request.getPaymentId(),
-                    request.getIdempotencyKey());
+                    request.getIdempotencyKey(),
+                    Map.of());
         } catch (Exception e) {
             log.error("{} processing error: {}", adjustmentType, e.getMessage(), e);
             return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Internal Server Error: " + e.getMessage(),
                     "SYSTEM_ERROR",
                     "96",
+                    e.getMessage(),
                     true,
                     request.getPaymentId(),
-                    request.getIdempotencyKey());
+                    request.getIdempotencyKey(),
+                    Map.of());
         }
     }
 
@@ -367,9 +387,11 @@ public class PaymentController {
                     ex.getMessage(),
                     "MERCHANT_INVALID",
                     "03",
+                    ex.getMessage(),
                     false,
                     paymentId,
-                    idempotencyKey
+                    idempotencyKey,
+                    Map.of()
             ));
         }
     }
@@ -377,25 +399,33 @@ public class PaymentController {
     private ResponseEntity<ApiResponse<Map<String, Object>>> declinedResponse(String responseCode,
                                                                               String responseMessage,
                                                                               String paymentId,
-                                                                              String idempotencyKey) {
+                                                                              String idempotencyKey,
+                                                                              Map<String, Object> extraResult) {
         String normalizedCode = responseCode != null ? responseCode : "96";
         String errorCode = mapErrorCode(normalizedCode, responseMessage);
         HttpStatus httpStatus = mapHttpStatus(normalizedCode);
         boolean retryable = isRetryable(normalizedCode);
         String message = "Payment failed: " + responseMessage;
-        return errorResponse(httpStatus, message, errorCode, normalizedCode, retryable, paymentId, idempotencyKey);
+        return errorResponse(httpStatus, message, errorCode, normalizedCode, responseMessage, retryable, paymentId, idempotencyKey, extraResult);
     }
 
     private ResponseEntity<ApiResponse<Map<String, Object>>> errorResponse(HttpStatus httpStatus,
                                                                            String message,
                                                                            String errorCode,
                                                                            String responseCode,
+                                                                           String responseMessage,
                                                                            boolean retryable,
                                                                            String paymentId,
-                                                                           String idempotencyKey) {
+                                                                           String idempotencyKey,
+                                                                           Map<String, Object> extraResult) {
+        String errorTitle = resolveErrorTitle(errorCode);
+        String errorHint = resolveErrorHint(errorCode, retryable);
         PaymentErrorDetail detail = PaymentErrorDetail.builder()
                 .errorCode(errorCode)
                 .responseCode(responseCode)
+                .responseMessage(responseMessage)
+                .errorTitle(errorTitle)
+                .errorHint(errorHint)
                 .httpStatus(httpStatus.value())
                 .retryable(retryable)
                 .paymentId(paymentId)
@@ -405,10 +435,16 @@ public class PaymentController {
         Map<String, Object> result = new HashMap<>();
         result.put("errorCode", detail.getErrorCode());
         result.put("responseCode", detail.getResponseCode());
+        result.put("responseMessage", detail.getResponseMessage());
+        result.put("errorTitle", detail.getErrorTitle());
+        result.put("errorHint", detail.getErrorHint());
         result.put("httpStatus", detail.getHttpStatus());
         result.put("retryable", detail.isRetryable());
         result.put("paymentId", detail.getPaymentId());
         result.put("idempotencyKey", detail.getIdempotencyKey());
+        if (extraResult != null && !extraResult.isEmpty()) {
+            result.putAll(extraResult);
+        }
 
         return ResponseEntity.status(httpStatus)
                 .body(ApiResponse.<Map<String, Object>>builder()
@@ -419,6 +455,13 @@ public class PaymentController {
     }
 
     private String mapErrorCode(String responseCode, String responseMessage) {
+        String normalizedMessage = responseMessage != null ? responseMessage.toLowerCase() : "";
+        if ("62".equals(responseCode) || normalizedMessage.contains("linked loan account is not active")
+                || normalizedMessage.contains("linked savings account is not active")
+                || normalizedMessage.contains("loan account is not active")
+                || normalizedMessage.contains("account is not active")) {
+            return "LINKED_ACCOUNT_INACTIVE";
+        }
         if ("14".equals(responseCode)) {
             return "INVALID_CARD";
         }
@@ -455,6 +498,46 @@ public class PaymentController {
         return "SYSTEM_ERROR";
     }
 
+    private String resolveErrorTitle(String errorCode) {
+        if (errorCode == null) {
+            return "Giao dịch thất bại";
+        }
+        return switch (errorCode) {
+            case "LINKED_ACCOUNT_INACTIVE" -> "Tài khoản liên kết chưa kích hoạt";
+            case "INVALID_CARD" -> "Thẻ không hợp lệ";
+            case "INVALID_CVV" -> "CVV không đúng";
+            case "INVALID_EXPIRATION_DATE" -> "Ngày hết hạn không hợp lệ";
+            case "EXPIRED_CARD" -> "Thẻ đã hết hạn";
+            case "INSUFFICIENT_FUNDS" -> "Không đủ số dư";
+            case "CREDIT_LIMIT_EXCEEDED" -> "Vượt hạn mức tín dụng";
+            case "DUPLICATE_REQUEST" -> "Yêu cầu trùng lặp";
+            case "CARD_RESTRICTED" -> "Thẻ đang bị hạn chế";
+            case "SUSPECTED_FRAUD" -> "Nghi ngờ gian lận";
+            case "MERCHANT_INVALID" -> "Merchant không hợp lệ";
+            default -> "Lỗi hệ thống";
+        };
+    }
+
+    private String resolveErrorHint(String errorCode, boolean retryable) {
+        if (errorCode == null) {
+            return retryable ? "Vui lòng thử lại sau ít phút." : "Vui lòng kiểm tra lại thông tin giao dịch.";
+        }
+        return switch (errorCode) {
+            case "LINKED_ACCOUNT_INACTIVE" -> "Kích hoạt tài khoản liên kết trước khi thanh toán.";
+            case "INVALID_CARD" -> "Kiểm tra lại số thẻ và thử lại.";
+            case "INVALID_CVV" -> "Kiểm tra lại mã CVV ở mặt sau thẻ.";
+            case "INVALID_EXPIRATION_DATE" -> "Kiểm tra lại định dạng ngày hết hạn MM/YY.";
+            case "EXPIRED_CARD" -> "Sử dụng thẻ khác hoặc gia hạn thẻ.";
+            case "INSUFFICIENT_FUNDS" -> "Nạp thêm tiền hoặc chọn tài khoản khác.";
+            case "CREDIT_LIMIT_EXCEEDED" -> "Giảm số tiền hoặc thanh toán dư nợ trước.";
+            case "DUPLICATE_REQUEST" -> "Yêu cầu này đã được xử lý trước đó.";
+            case "CARD_RESTRICTED" -> "Liên hệ ngân hàng hoặc mở khóa thẻ trước khi thử lại.";
+            case "SUSPECTED_FRAUD" -> "Xác minh giao dịch hoặc liên hệ ngân hàng nếu đây là giao dịch hợp lệ.";
+            case "MERCHANT_INVALID" -> "Kiểm tra lại merchant hoặc chọn đơn vị chấp nhận khác.";
+            default -> retryable ? "Vui lòng thử lại sau ít phút." : "Vui lòng liên hệ hỗ trợ nếu lỗi tiếp tục xảy ra.";
+        };
+    }
+
     private HttpStatus mapHttpStatus(String responseCode) {
         if ("94".equals(responseCode)) {
             return HttpStatus.CONFLICT;
@@ -489,6 +572,107 @@ public class PaymentController {
         }
 
         return "USD";
+    }
+
+    private Map<String, Object> normalizeCmsResponse(Map<String, Object> cmsResponse) {
+        if (cmsResponse == null) {
+            return Map.of(
+                    "approved", false,
+                    "responseCode", "96",
+                    "responseMessage", "System error: Empty CMS response"
+            );
+        }
+
+        Object nestedResult = cmsResponse.get("result");
+        if (nestedResult instanceof Map<?, ?> nestedMap) {
+            Map<String, Object> normalized = new HashMap<>();
+            nestedMap.forEach((key, value) -> normalized.put(String.valueOf(key), value));
+
+            if (!normalized.containsKey("approved")) {
+                normalized.put("approved", false);
+            }
+
+            if (!normalized.containsKey("responseCode")) {
+                Object topLevelCode = cmsResponse.get("responseCode");
+                if (topLevelCode != null) {
+                    normalized.put("responseCode", topLevelCode);
+                }
+            }
+
+            if (!normalized.containsKey("responseMessage")) {
+                Object topLevelMessage = cmsResponse.get("responseMessage");
+                if (topLevelMessage == null) {
+                    topLevelMessage = cmsResponse.get("message");
+                }
+                if (topLevelMessage != null) {
+                    normalized.put("responseMessage", topLevelMessage);
+                }
+            }
+
+            return normalized;
+        }
+
+        return cmsResponse;
+    }
+
+    private Map<String, Object> buildFailureContext(Map<String, Object> cmsResponse) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        putIfPresent(context, "transactionId", cmsResponse.get("transactionId"));
+        putIfPresent(context, "transactionTime", cmsResponse.get("transactionTime"));
+        putIfPresent(context, "merchantId", cmsResponse.get("merchantId"));
+        putIfPresent(context, "merchantName", cmsResponse.get("merchantName"));
+        putIfPresent(context, "merchantAddress", cmsResponse.get("merchantAddress"));
+        putIfPresent(context, "recipientAccount", cmsResponse.get("recipientAccount"));
+        putIfPresent(context, "recipientName", cmsResponse.get("recipientName"));
+        putIfPresent(context, "bankName", cmsResponse.get("bankName"));
+        putIfPresent(context, "amount", cmsResponse.get("amount"));
+        putIfPresent(context, "fee", cmsResponse.get("fee"));
+        putIfPresent(context, "totalAmount", cmsResponse.get("totalAmount"));
+        putIfPresent(context, "currency", cmsResponse.get("currency"));
+        putIfPresent(context, "cardType", cmsResponse.get("cardType"));
+        putIfPresent(context, "cardNetwork", cmsResponse.get("cardNetwork"));
+        putIfPresent(context, "maskedCardNumber", cmsResponse.get("maskedCardNumber"));
+        putIfPresent(context, "latitude", cmsResponse.get("latitude"));
+        putIfPresent(context, "longitude", cmsResponse.get("longitude"));
+        putIfPresent(context, "merchantLatitude", cmsResponse.get("merchantLatitude"));
+        putIfPresent(context, "merchantLongitude", cmsResponse.get("merchantLongitude"));
+        putIfPresent(context, "paymentNote", cmsResponse.get("paymentNote"));
+        return context;
+    }
+
+    private Map<String, Object> buildRequestContext(PaymentRequest request, Merchant merchant) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put("transactionId", buildTransactionId());
+        context.put("transactionTime", LocalDateTime.now().format(DATE_TIME_FORMATTER));
+        putIfPresent(context, "merchantId", request.getMerchantId());
+        putIfPresent(context, "merchantName", merchant != null ? merchant.getName() : null);
+        putIfPresent(context, "merchantAddress", merchant != null ? merchant.getDisplayAddress() : null);
+        putIfPresent(context, "recipientAccount", merchant != null ? merchant.getResolvedSettlementAccountNumber() : null);
+        putIfPresent(context, "recipientName", merchant != null ? merchant.getResolvedSettlementAccountName() : null);
+        putIfPresent(context, "bankName", merchant != null ? merchant.getResolvedSettlementBankName() : null);
+        putIfPresent(context, "amount", request.getAmount());
+        context.put("fee", 0);
+        putIfPresent(context, "totalAmount", request.getAmount());
+        putIfPresent(context, "currency", firstNonBlank(request.getCurrency(), "VND"));
+        putIfPresent(context, "cardType", request.getCardType());
+        putIfPresent(context, "cardNetwork", firstNonBlank(request.getCardNetwork(), inferCardNetwork(request.getCardNumber())));
+        putIfPresent(context, "maskedCardNumber", maskCardNumber(request.getCardNumber()));
+        putIfPresent(context, "latitude", request.getLatitude());
+        putIfPresent(context, "longitude", request.getLongitude());
+        putIfPresent(context, "merchantLatitude", merchant != null ? merchant.getLatitude() : null);
+        putIfPresent(context, "merchantLongitude", merchant != null ? merchant.getLongitude() : null);
+        putIfPresent(context, "paymentNote", request.getPaymentNote());
+        return context;
+    }
+
+    private void putIfPresent(Map<String, Object> target, String key, Object value) {
+        if (value != null) {
+            target.put(key, value);
+        }
+    }
+
+    private String buildTransactionId() {
+        return "TXN" + System.currentTimeMillis() + (int) (Math.random() * 1000);
     }
 
     private static class PaymentErrorRuntimeException extends RuntimeException {

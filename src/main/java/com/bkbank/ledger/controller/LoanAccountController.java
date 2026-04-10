@@ -257,7 +257,8 @@ public class LoanAccountController {
                     request.getRrn(),
                     request.getExternalReference(),
                     request.getResponseCode(),
-                    request.getResponseMessage()
+                    request.getResponseMessage(),
+                    request.getPaymentNote()
             );
             
             // Fineract-style response

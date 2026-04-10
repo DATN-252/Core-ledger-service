@@ -5,7 +5,15 @@ import { useEffect, useState } from 'react';
 import { getTransactionDetail } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faLocationDot, faReceipt } from '@fortawesome/free-solid-svg-icons';
-import { getDisplayCounterpartyId, getDisplayCounterpartyName, getDisplayTransactionType, isStatementPaymentTransaction } from '@/lib/transactionDisplay';
+import {
+    getDisplayCounterpartyId,
+    getDisplayCounterpartyName,
+    getDisplayTransactionType,
+    getTransactionFailureCode,
+    getTransactionFailureMessage,
+    getTransactionStatusBadge,
+    isStatementPaymentTransaction,
+} from '@/lib/transactionDisplay';
 
 type TransactionDetailPageProps = {
     params: Promise<{ id: string }>;
@@ -34,6 +42,9 @@ export default function TransactionDetailPage({ params }: TransactionDetailPageP
 
     const counterpartyIdLabel = txn && isStatementPaymentTransaction(txn) ? 'Đích thanh toán' : 'Merchant ID';
     const counterpartyNameLabel = txn && isStatementPaymentTransaction(txn) ? 'Loại đối tác' : 'Merchant name';
+    const statusBadge = txn ? getTransactionStatusBadge(txn) : null;
+    const failureCode = txn ? getTransactionFailureCode(txn) : '';
+    const failureMessage = txn ? getTransactionFailureMessage(txn) : '';
 
     const detailRows = txn ? [
         ['Mã nội bộ', `#${txn.id}`],
@@ -97,7 +108,18 @@ export default function TransactionDetailPage({ params }: TransactionDetailPageP
                         </div>
                         <div className="stat-card">
                             <div className="stat-label">Trạng thái</div>
-                            <div className="stat-value">{txn.status || '—'}</div>
+                            <div className="stat-value">
+                                {statusBadge ? (
+                                    <span className={`badge ${statusBadge.className}`} style={statusBadge.style}>
+                                        {statusBadge.label}
+                                    </span>
+                                ) : txn.status || '—'}
+                            </div>
+                            {failureMessage ? (
+                                <div className="stat-note" style={{ marginTop: '0.6rem', color: 'var(--text-secondary)' }}>
+                                    {failureCode ? `${failureCode} · ` : ''}{failureMessage}
+                                </div>
+                            ) : null}
                         </div>
                         <div className="stat-card">
                             <div className="stat-label">Tài khoản</div>
@@ -106,6 +128,20 @@ export default function TransactionDetailPage({ params }: TransactionDetailPageP
                     </div>
 
                     <div className="card" style={{ marginBottom: '1.5rem' }}>
+                        {failureMessage ? (
+                            <div style={{
+                                marginBottom: '1rem',
+                                padding: '1rem 1.125rem',
+                                borderRadius: '0.9rem',
+                                border: '1px solid rgba(239, 68, 68, 0.25)',
+                                background: 'rgba(239, 68, 68, 0.08)',
+                            }}>
+                                <div style={{ color: 'var(--error)', fontWeight: 700, marginBottom: '0.3rem' }}>Lỗi giao dịch</div>
+                                <div style={{ color: 'var(--text-primary)', lineHeight: 1.6 }}>
+                                    {failureCode ? `Mã ${failureCode}: ` : ''}{failureMessage}
+                                </div>
+                            </div>
+                        ) : null}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
                             {detailRows.map(([label, value]) => (
                                 <div key={label} style={{ border: '1px solid var(--border)', borderRadius: '0.9rem', padding: '1rem 1.125rem', background: 'rgba(255,255,255,0.02)' }}>

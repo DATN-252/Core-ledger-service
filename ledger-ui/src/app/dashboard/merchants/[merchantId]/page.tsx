@@ -2,7 +2,13 @@
 
 import { useEffect, useState, use } from 'react';
 import { getMerchantDetail, getMerchantTransactions, getSettlementBatches } from '@/lib/api';
-import { getDisplayTransactionType, isNegativeTransaction, isPositiveTransaction } from '@/lib/transactionDisplay';
+import {
+  getDisplayTransactionType,
+  getTransactionFailureSummary,
+  getTransactionStatusBadge,
+  isNegativeTransaction,
+  isPositiveTransaction,
+} from '@/lib/transactionDisplay';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faArrowRight, faLocationDot, faMoneyCheckDollar, faStore } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
@@ -152,9 +158,22 @@ export default function MerchantDetailPage({ params }: { params: Promise<{ merch
                   </td>
                   <td style={{ fontWeight: 700, color: isNegativeTransaction(txn) ? 'var(--warning)' : 'var(--success)' }}>{formatAmount(txn)}</td>
                   <td>
-                    <span className={`badge ${txn.status === 'FAILED' ? 'badge-locked' : 'badge-active'}`}>
-                      {txn.status}
-                    </span>
+                    {(() => {
+                      const badge = getTransactionStatusBadge(txn);
+                      const failureSummary = getTransactionFailureSummary(txn);
+                      return (
+                        <div>
+                          <span className={`badge ${badge.className}`} style={badge.style}>
+                            {badge.label}
+                          </span>
+                          {failureSummary ? (
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.375rem', maxWidth: '180px', lineHeight: 1.4 }}>
+                              {failureSummary}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="transaction-cell-action">
                     <Link href={`/dashboard/transactions/${txn.id}`} className="transaction-detail-link">
@@ -214,3 +233,4 @@ export default function MerchantDetailPage({ params }: { params: Promise<{ merch
     </div>
   );
 }
+
