@@ -38,7 +38,7 @@ public class EmailService {
             throw new IllegalStateException("Email fallback is disabled");
         }
         if (client == null || client.getEmail() == null || client.getEmail().isBlank()) {
-            throw new IllegalArgumentException("Khong tim thay email cua khach hang");
+            throw new IllegalArgumentException("Không tìm thấy email của khách hàng");
         }
         if (mailFrom == null || mailFrom.isBlank()) {
             throw new IllegalStateException("MAIL_FROM is missing");
@@ -49,7 +49,7 @@ public class EmailService {
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
         helper.setFrom(mailFrom.trim());
         helper.setTo(recipient);
-        helper.setSubject("BKBank - Canh bao giao dich nghi ngo");
+        helper.setSubject("BKBank - Cảnh báo giao dịch nghi ngờ");
         helper.setText(
                 buildTextBody(client, merchantName, amount, currency, riskLevel, confirmUrl, rejectUrl),
                 buildHtmlBody(client, merchantName, amount, currency, riskLevel, fraudAlertId, paymentId, confirmUrl, rejectUrl)
@@ -127,7 +127,7 @@ public class EmailService {
                   </div>
                 </div>
                 """.formatted(
-                client.getFullName() != null ? escapeHtml(client.getFullName()) : "quy khach",
+                client.getFullName() != null ? escapeHtml(client.getFullName()) : "quý khách",
                 escapeHtml(amountText),
                 escapeHtml(riskLevel != null ? riskLevel : "UNKNOWN"),
                 escapeHtml(merchantName != null ? merchantName : "merchant không xác định"),

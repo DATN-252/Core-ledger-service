@@ -37,7 +37,7 @@ public class CreditCardStatementService {
         LoanAccount account = loanAccountRepository.findByAccountNumber(accountNumber)
                 .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
 
-        validateBillingDateNotInFuture(billingDate);
+        // validateBillingDateNotInFuture(billingDate);
 
         LocalDate normalizedBillingDate = normalizeBillingDate(billingDate, account.getBillingDayOfMonth());
         if (!normalizedBillingDate.equals(billingDate)) {
@@ -151,7 +151,7 @@ public class CreditCardStatementService {
         LoanAccount account = loanAccountRepository.findByAccountNumber(accountNumber)
                 .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
 
-        validateBillingDateNotInFuture(billingDate);
+        // validateBillingDateNotInFuture(billingDate);
 
         CreditCardStatement snapshot = creditCardStatementRepository.findByAccountNumberAndBillingDate(accountNumber, billingDate)
                 .orElseThrow(() -> new RuntimeException("Statement not found for billingDate: " + billingDate));

@@ -34,7 +34,7 @@ public class PublicFraudAlertActionController {
             return html(renderPreview(preview, token));
         } catch (Exception e) {
             log.warn("Fraud email action preview failed: {}", e.getMessage());
-            return html(renderError("Lien ket khong hop le", e.getMessage()));
+            return html(renderError("Liên kết không hợp lệ", e.getMessage()));
         }
     }
 
@@ -45,7 +45,7 @@ public class PublicFraudAlertActionController {
             return html(renderSuccess(result));
         } catch (Exception e) {
             log.warn("Fraud email action execution failed: {}", e.getMessage());
-            return html(renderError("Khong the xu ly yeu cau", e.getMessage()));
+            return html(renderError("Không thể xử lý yêu cầu", e.getMessage()));
         }
     }
 
