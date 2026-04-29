@@ -43,16 +43,17 @@ public class FraudAlertEmailActionService {
                                         String merchantName,
                                         Double amount,
                                         String currency,
-                                        String riskLevel) {
+                                        String riskLevel,
+                                        Integer expirationMinutesOverride) {
         cancelActiveTokens(fraudAlertId);
 
         String confirmToken = createTokenRecord(
                 fraudAlertId, clientId, accountId, paymentId, maskedPan, merchantName, amount, currency, riskLevel,
-                FraudAlertEmailActionDecision.CONFIRM
+                FraudAlertEmailActionDecision.CONFIRM, expirationMinutesOverride
         );
         String rejectToken = createTokenRecord(
                 fraudAlertId, clientId, accountId, paymentId, maskedPan, merchantName, amount, currency, riskLevel,
-                FraudAlertEmailActionDecision.REJECT
+                FraudAlertEmailActionDecision.REJECT, expirationMinutesOverride
         );
 
         return new EmailActionLinks(buildUrl(confirmToken), buildUrl(rejectToken));
@@ -97,7 +98,8 @@ public class FraudAlertEmailActionService {
                                      Double amount,
                                      String currency,
                                      String riskLevel,
-                                     FraudAlertEmailActionDecision decision) {
+                                     FraudAlertEmailActionDecision decision,
+                                     Integer expirationMinutesOverride) {
         String rawToken = generateRawToken();
         FraudAlertEmailAction action = new FraudAlertEmailAction();
         action.setFraudAlertId(fraudAlertId);
@@ -106,7 +108,10 @@ public class FraudAlertEmailActionService {
         action.setDecision(decision);
         action.setTokenHash(hashToken(rawToken));
         action.setStatus(FraudAlertEmailActionStatus.ACTIVE);
-        action.setExpiresAt(LocalDateTime.now().plusMinutes(expirationMinutes));
+        long effectiveExpirationMinutes = expirationMinutesOverride != null && expirationMinutesOverride > 0
+                ? expirationMinutesOverride
+                : expirationMinutes;
+        action.setExpiresAt(LocalDateTime.now().plusMinutes(effectiveExpirationMinutes));
         action.setPaymentId(paymentId);
         action.setMaskedPan(maskedPan);
         action.setMerchantName(merchantName);
@@ -159,7 +164,7 @@ public class FraudAlertEmailActionService {
                 action.setStatus(FraudAlertEmailActionStatus.EXPIRED);
                 fraudAlertEmailActionRepository.save(action);
             }
-            throw new IllegalStateException("Lien ket nay da het han");
+            throw new IllegalStateException("Liên kết này đã hết hạn");
         }
         return action;
     }

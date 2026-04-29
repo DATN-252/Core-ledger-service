@@ -13,4 +13,5 @@ public class FraudAlertNotificationRequest {
     private String currency;
     private String merchantName;
     private String riskLevel;
+    private Integer emailActionExpirationMinutes;
 }

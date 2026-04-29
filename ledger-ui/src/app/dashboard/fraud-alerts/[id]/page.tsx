@@ -13,6 +13,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faArrowLeft,
   faCircleCheck,
+  faGear,
   faLock,
   faShieldHalved,
   faTriangleExclamation,
@@ -188,10 +189,13 @@ export default function FraudAlertDetailPage() {
             Fraud Alert #{alertDetail.id}
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Xem chi tiết case, phản hồi khách hàng và thao tác khóa thẻ hoặc đóng case.
+            Xem chi tiết case, phản hồi khách hàng và thao tác khóa thẻ hoặc chuyển case sang RESOLVED.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <Link href="/dashboard/fraud-alerts/settings" className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FontAwesomeIcon icon={faGear} /> Settings
+          </Link>
           <button
             className="btn-secondary"
             disabled={submitting || alertDetail.status === 'CARD_LOCKED'}
@@ -202,9 +206,9 @@ export default function FraudAlertDetailPage() {
           <button
             className="btn-secondary"
             disabled={submitting || alertDetail.status === 'RESOLVED'}
-            onClick={() => setActionModal({ action: 'resolve', title: 'Đóng case fraud alert', note: '' })}
+            onClick={() => setActionModal({ action: 'resolve', title: 'Chuyển fraud alert sang RESOLVED', note: '' })}
           >
-            <FontAwesomeIcon icon={faCircleCheck} /> Resolve
+            <FontAwesomeIcon icon={faCircleCheck} /> Chuyển sang RESOLVED
           </button>
           <button
             className="btn-secondary"

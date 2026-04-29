@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getFraudAlerts, getFraudAlertSummary } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faShieldHalved } from '@fortawesome/free-solid-svg-icons';
+import { faEye, faGear, faShieldHalved } from '@fortawesome/free-solid-svg-icons';
 
 const STATUS_BADGE: Record<string, string> = {
   OPEN: 'badge-locked',
@@ -107,13 +107,21 @@ export default function FraudAlertsPage() {
   return (
     <div className="animate-fade-in">
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
-          <FontAwesomeIcon icon={faShieldHalved} style={{ marginRight: '0.5rem' }} />
-          Fraud Alerts
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-          Theo dõi giao dịch nghi ngờ gian lận, trạng thái phản hồi khách hàng và tiến độ xử lý của đội vận hành.
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+              <FontAwesomeIcon icon={faShieldHalved} style={{ marginRight: '0.5rem' }} />
+              Fraud Alerts
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+              Theo dõi giao dịch nghi ngờ gian lận, trạng thái phản hồi khách hàng và tiến độ xử lý của đội vận hành.
+            </p>
+          </div>
+          <Link href="/dashboard/fraud-alerts/settings" className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FontAwesomeIcon icon={faGear} />
+            Fraud Settings
+          </Link>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>

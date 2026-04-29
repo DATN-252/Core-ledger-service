@@ -373,6 +373,24 @@ export async function getFraudAlertDetail(alertId: string | number) {
   return cmsRequest<any>(`/fraud-alerts/${alertId}`);
 }
 
+export async function getFraudSettings() {
+  return cmsRequest<any>('/fraud-alerts/settings');
+}
+
+export async function updateFraudSettings(data: {
+  highRiskEmailActionExpirationMinutes: number;
+  mediumRiskEmailActionExpirationMinutes: number;
+  highRiskNoResponseTimeoutMinutes: number;
+  highRiskNoResponseAction: string;
+  mediumRiskNoResponseTimeoutMinutes: number;
+  mediumRiskNoResponseAction: string;
+}) {
+  return cmsRequest<any>('/fraud-alerts/settings', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
 export async function lockFraudAlertCard(alertId: string | number, note?: string) {
   return cmsRequest<any>(`/fraud-alerts/${alertId}/lock-card`, {
     method: 'POST',

@@ -92,7 +92,8 @@ public class InternalFraudAlertController {
                         request.getMerchantName(),
                         request.getAmount(),
                         request.getCurrency(),
-                        request.getRiskLevel()
+                        request.getRiskLevel(),
+                        request.getEmailActionExpirationMinutes()
                 );
                 EmailService.EmailSendResult emailSendResult = emailService.sendFraudAlertEmail(
                         client,
