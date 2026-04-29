@@ -4,6 +4,8 @@ import com.bkbank.ledger.entity.Transaction;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import org.springframework.data.domain.Page;
@@ -66,4 +68,13 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
             String accountType,
             LocalDateTime after
     );
+
+    @Modifying
+    @Query("""
+            update Transaction t
+            set t.transactionDate = :transactionDate
+            where t.paymentId = :paymentId
+            """)
+    void updateTransactionDateByPaymentId(@Param("paymentId") String paymentId,
+                                          @Param("transactionDate") LocalDateTime transactionDate);
 }

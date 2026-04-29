@@ -21,6 +21,11 @@ spring:
     username: ${DB_USERNAME:ledgeruser}
     password: ${DB_PASSWORD:ledgerpassword}
     driver-class-name: org.postgresql.Driver
+
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-version: ${FLYWAY_BASELINE_VERSION:1}
   
   jpa:
     hibernate:

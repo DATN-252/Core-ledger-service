@@ -161,6 +161,60 @@ public class LoanAccountService {
         return savedTx;
     }
 
+    @Transactional
+    public Transaction applyStatementInterest(String accountNumber,
+                                              Double amount,
+                                              String billingDate,
+                                              Double interestRateMonthly) {
+        log.info("Applying statement interest of {} to loan account {} for billing date {}", amount, accountNumber, billingDate);
+
+        LoanAccount account = getAccount(accountNumber);
+        account.applyStatementInterest(amount);
+        LoanAccount savedAccount = loanAccountRepository.save(account);
+
+        Transaction tx = Transaction.createCharge(accountNumber, amount, savedAccount.getCurrency(), savedAccount.getPrincipalOutstanding(), null, null, null, null, null);
+        tx.assignBranch(savedAccount.getBranchId(), savedAccount.getBranchName());
+        tx.setChannel("STATEMENT_INTEREST");
+        tx.setTransactionType("INTEREST");
+        tx.setDescription("Statement interest"
+                + (billingDate != null && !billingDate.isBlank() ? " for " + billingDate : "")
+                + (interestRateMonthly != null ? " at " + interestRateMonthly + "% monthly" : ""));
+        tx.setExternalReference(billingDate);
+        tx.setResponseCode("00");
+        tx.setResponseMessage("Approved");
+        Transaction savedTx = transactionRepository.save(tx);
+        transactionNotificationEventPublisher.publish(savedTx.getId());
+
+        log.info("Statement interest applied. New outstanding: {}", savedAccount.getPrincipalOutstanding());
+        return savedTx;
+    }
+
+    @Transactional
+    public Transaction applyStatementLateFee(String accountNumber,
+                                             Double amount,
+                                             String billingDate) {
+        log.info("Applying statement late fee of {} to loan account {} for billing date {}", amount, accountNumber, billingDate);
+
+        LoanAccount account = getAccount(accountNumber);
+        account.applyStatementLateFee(amount);
+        LoanAccount savedAccount = loanAccountRepository.save(account);
+
+        Transaction tx = Transaction.createCharge(accountNumber, amount, savedAccount.getCurrency(), savedAccount.getPrincipalOutstanding(), null, null, null, null, null);
+        tx.assignBranch(savedAccount.getBranchId(), savedAccount.getBranchName());
+        tx.setChannel("STATEMENT_LATE_FEE");
+        tx.setTransactionType("LATE_FEE");
+        tx.setDescription("Statement late fee"
+                + (billingDate != null && !billingDate.isBlank() ? " for " + billingDate : ""));
+        tx.setExternalReference(billingDate);
+        tx.setResponseCode("00");
+        tx.setResponseMessage("Approved");
+        Transaction savedTx = transactionRepository.save(tx);
+        transactionNotificationEventPublisher.publish(savedTx.getId());
+
+        log.info("Statement late fee applied. New outstanding: {}", savedAccount.getPrincipalOutstanding());
+        return savedTx;
+    }
+
     /**
      * Apply a refund/reversal against a credit card charge and log it as a dedicated transaction type.
      */
@@ -219,6 +273,8 @@ public class LoanAccountService {
         account.setClient(client);
         account.setBranch(client.getHomeBranch());
         account.setCurrency("USD");
+        account.setStatementInterestRateMonthly(2.5);
+        account.setStatementLateFeeFixed(15.0);
         account.setStatus(com.bkbank.ledger.entity.enums.AccountStatus.PENDING);
         
         LoanAccount savedAccount = loanAccountRepository.save(account);
@@ -228,11 +284,66 @@ public class LoanAccountService {
         return savedAccount;
     }
 
+    @Transactional
+    public LoanAccount updateStatementSettings(String accountNumber,
+                                               Integer billingDayOfMonth,
+                                               Integer paymentDueDays,
+                                               Double minimumPaymentRate,
+                                               Double minimumPaymentFloor,
+                                               Double statementInterestRateMonthly,
+                                               Double statementLateFeeFixed) {
+        LoanAccount account = getAccount(accountNumber);
+
+        validateStatementSettings(
+                billingDayOfMonth,
+                paymentDueDays,
+                minimumPaymentRate,
+                minimumPaymentFloor,
+                statementInterestRateMonthly,
+                statementLateFeeFixed
+        );
+
+        account.setBillingDayOfMonth(billingDayOfMonth);
+        account.setPaymentDueDays(paymentDueDays);
+        account.setMinimumPaymentRate(minimumPaymentRate);
+        account.setMinimumPaymentFloor(minimumPaymentFloor);
+        account.setStatementInterestRateMonthly(statementInterestRateMonthly);
+        account.setStatementLateFeeFixed(statementLateFeeFixed);
+
+        return loanAccountRepository.save(account);
+    }
+
     /**
      * Get transaction history
      */
     public List<Transaction> getTransactionHistory(String accountNumber) {
         return transactionRepository.findByAccountNumberOrderByTransactionDateDesc(accountNumber, Pageable.unpaged()).getContent();
+    }
+
+    private void validateStatementSettings(Integer billingDayOfMonth,
+                                           Integer paymentDueDays,
+                                           Double minimumPaymentRate,
+                                           Double minimumPaymentFloor,
+                                           Double statementInterestRateMonthly,
+                                           Double statementLateFeeFixed) {
+        if (billingDayOfMonth == null || billingDayOfMonth < 1 || billingDayOfMonth > 28) {
+            throw new IllegalArgumentException("billingDayOfMonth must be between 1 and 28");
+        }
+        if (paymentDueDays == null || paymentDueDays < 1 || paymentDueDays > 60) {
+            throw new IllegalArgumentException("paymentDueDays must be between 1 and 60");
+        }
+        if (minimumPaymentRate == null || minimumPaymentRate < 0 || minimumPaymentRate > 100) {
+            throw new IllegalArgumentException("minimumPaymentRate must be between 0 and 100");
+        }
+        if (minimumPaymentFloor == null || minimumPaymentFloor < 0) {
+            throw new IllegalArgumentException("minimumPaymentFloor must be greater than or equal to 0");
+        }
+        if (statementInterestRateMonthly == null || statementInterestRateMonthly < 0 || statementInterestRateMonthly > 100) {
+            throw new IllegalArgumentException("statementInterestRateMonthly must be between 0 and 100");
+        }
+        if (statementLateFeeFixed == null || statementLateFeeFixed < 0) {
+            throw new IllegalArgumentException("statementLateFeeFixed must be greater than or equal to 0");
+        }
     }
 
     /**

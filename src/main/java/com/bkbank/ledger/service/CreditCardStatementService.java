@@ -21,11 +21,11 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 public class CreditCardStatementService {
-
     private final LoanAccountRepository loanAccountRepository;
     private final TransactionRepository transactionRepository;
     private final CreditCardStatementRepository creditCardStatementRepository;
@@ -76,7 +76,9 @@ public class CreditCardStatementService {
             if (!"SUCCESS".equalsIgnoreCase(tx.getStatus())) {
                 continue;
             }
-            if ("CHARGE".equalsIgnoreCase(tx.getTransactionType())) {
+            if ("CHARGE".equalsIgnoreCase(tx.getTransactionType())
+                    || "INTEREST".equalsIgnoreCase(tx.getTransactionType())
+                    || "LATE_FEE".equalsIgnoreCase(tx.getTransactionType())) {
                 totalCharges += safe(tx.getAmount());
             } else if ("REFUND".equalsIgnoreCase(tx.getTransactionType())
                     || "REVERSAL".equalsIgnoreCase(tx.getTransactionType())) {
@@ -122,6 +124,12 @@ public class CreditCardStatementService {
         snapshot.setTotalPayments(roundMoney(totalPayments));
         snapshot.setMinimumDue(minimumDue);
         snapshot.setNewBalance(newBalance);
+        snapshot.setInterestRateMonthly(resolveStatementInterestRate(account));
+        snapshot.setInterestCharged(0.0);
+        snapshot.setInterestAppliedAt(null);
+        snapshot.setLateFeeFixed(resolveStatementLateFee(account));
+        snapshot.setLateFeeCharged(0.0);
+        snapshot.setLateFeeAppliedAt(null);
         snapshot.setAvailableCreditAtBilling(availableCredit);
         snapshot.setTransactionCount(items.size());
         snapshot.setStatementStatus("OPEN");
@@ -306,6 +314,12 @@ public class CreditCardStatementService {
                 statement.getTotalPayments(),
                 statement.getMinimumDue(),
                 statement.getNewBalance(),
+                statement.getInterestRateMonthly(),
+                statement.getInterestCharged(),
+                statement.getInterestAppliedAt(),
+                statement.getLateFeeFixed(),
+                statement.getLateFeeCharged(),
+                statement.getLateFeeAppliedAt(),
                 statement.getAvailableCreditAtBilling(),
                 statement.getTransactionCount(),
                 statement.getStatementStatus(),
@@ -344,7 +358,9 @@ public class CreditCardStatementService {
             if (!"SUCCESS".equalsIgnoreCase(tx.getStatus())) {
                 continue;
             }
-            if ("CHARGE".equalsIgnoreCase(tx.getTransactionType())) {
+            if ("CHARGE".equalsIgnoreCase(tx.getTransactionType())
+                    || "INTEREST".equalsIgnoreCase(tx.getTransactionType())
+                    || "LATE_FEE".equalsIgnoreCase(tx.getTransactionType())) {
                 totalCharges += safe(tx.getAmount());
             } else if ("REFUND".equalsIgnoreCase(tx.getTransactionType())
                     || "REVERSAL".equalsIgnoreCase(tx.getTransactionType())) {
@@ -367,6 +383,14 @@ public class CreditCardStatementService {
         snapshot.setTotalPayments(roundMoney(totalPayments));
         snapshot.setMinimumDue(minimumDue);
         snapshot.setNewBalance(newBalance);
+        snapshot.setInterestRateMonthly(resolveStatementInterestRate(account));
+        if (snapshot.getInterestCharged() == null) {
+            snapshot.setInterestCharged(0.0);
+        }
+        snapshot.setLateFeeFixed(resolveStatementLateFee(account));
+        if (snapshot.getLateFeeCharged() == null) {
+            snapshot.setLateFeeCharged(0.0);
+        }
         snapshot.setAvailableCreditAtBilling(availableCredit);
         snapshot.setTransactionCount(transactions.size());
 
@@ -384,18 +408,17 @@ public class CreditCardStatementService {
                         from,
                         to
                 ).stream()
-                .map(tx -> new LoanStatementItemResponse(
-                        tx.getTransactionDate(),
-                        tx.getPaymentId(),
-                        tx.getTransactionType(),
-                        tx.getMerchantId(),
-                        tx.getMerchantName(),
-                        tx.getAmount(),
-                        tx.getBalanceAfter(),
-                        tx.getStatus(),
-                        tx.getResponseCode(),
-                        tx.getResponseMessage()
-                ))
+                .map(this::toStatementItem)
+                .toList();
+
+        List<LoanStatementItemResponse> postStatementItems = transactionRepository
+                .findByAccountNumberAndAccountTypeAndTransactionDateAfterOrderByTransactionDateAsc(
+                        account.getAccountNumber(),
+                        "LOAN",
+                        snapshot.getBillingDate().atTime(LocalTime.MAX)
+                ).stream()
+                .filter(tx -> isStatementLinkedPostBillingTransaction(snapshot, tx))
+                .map(this::toStatementItem)
                 .toList();
 
         return new CreditCardMonthlyStatementResponse(
@@ -414,6 +437,12 @@ public class CreditCardStatementService {
                 snapshot.getTotalPayments(),
                 snapshot.getMinimumDue(),
                 snapshot.getNewBalance(),
+                snapshot.getInterestRateMonthly(),
+                snapshot.getInterestCharged(),
+                snapshot.getInterestAppliedAt(),
+                snapshot.getLateFeeFixed(),
+                snapshot.getLateFeeCharged(),
+                snapshot.getLateFeeAppliedAt(),
                 snapshot.getAvailableCreditAtBilling(),
                 snapshot.getTransactionCount(),
                 safeInt(account.getBillingDayOfMonth(), 25),
@@ -425,21 +454,144 @@ public class CreditCardStatementService {
                 snapshot.getRemainingMinimumDue(),
                 snapshot.getRemainingBalance(),
                 snapshot.getLastPaymentDate(),
-                items
+                items,
+                postStatementItems
+        );
+    }
+
+    private LoanStatementItemResponse toStatementItem(Transaction tx) {
+        return new LoanStatementItemResponse(
+                tx.getTransactionDate(),
+                tx.getPaymentId(),
+                tx.getTransactionType(),
+                tx.getMerchantId(),
+                tx.getMerchantName(),
+                tx.getAmount(),
+                tx.getBalanceAfter(),
+                tx.getStatus(),
+                tx.getResponseCode(),
+                tx.getResponseMessage()
         );
     }
 
     private CreditCardStatement refreshStatementPaymentStatus(LoanAccount account, CreditCardStatement snapshot) {
-        LocalDateTime afterBilling = snapshot.getBillingDate().atTime(LocalTime.MAX);
+        PostStatementPaymentState paymentState = calculatePostStatementPaymentState(account, snapshot);
+        snapshot = maybeApplyOverdueInterest(account, snapshot, paymentState.remainingBalance());
+
+        paymentState = calculatePostStatementPaymentState(account, snapshot);
+        snapshot = maybeApplyOverdueLateFee(account, snapshot, paymentState.remainingMinimumDue());
+
+        paymentState = calculatePostStatementPaymentState(account, snapshot);
+        String statementStatus = determineStatementStatus(
+                snapshot,
+                paymentState.appliedCreditsAfterStatement(),
+                paymentState.remainingMinimumDue(),
+                paymentState.remainingBalance()
+        );
+
+        snapshot.setPaidAmountAfterStatement(paymentState.paidAmountAfterStatement());
+        snapshot.setRemainingMinimumDue(paymentState.remainingMinimumDue());
+        snapshot.setRemainingBalance(paymentState.remainingBalance());
+        snapshot.setStatementStatus(statementStatus);
+        snapshot.setLastPaymentDate(paymentState.lastPaymentDate());
+
+        return creditCardStatementRepository.save(snapshot);
+    }
+
+    private CreditCardStatement maybeApplyOverdueInterest(LoanAccount account,
+                                                          CreditCardStatement snapshot,
+                                                          double remainingBalanceBeforeInterest) {
+        if (!LocalDate.now().isAfter(snapshot.getDueDate())) {
+            return snapshot;
+        }
+        if (snapshot.getInterestAppliedAt() != null || safe(snapshot.getInterestCharged()) > 0) {
+            return snapshot;
+        }
+        if (remainingBalanceBeforeInterest <= 0) {
+            return snapshot;
+        }
+
+        double monthlyRate = safe(snapshot.getInterestRateMonthly());
+        if (monthlyRate <= 0) {
+            monthlyRate = resolveStatementInterestRate(account);
+        }
+
+        double interestAmount = roundMoney(remainingBalanceBeforeInterest * monthlyRate / 100.0);
+        if (interestAmount <= 0) {
+            return snapshot;
+        }
+
+        loanAccountService.applyStatementInterest(
+                account.getAccountNumber(),
+                interestAmount,
+                snapshot.getBillingDate().toString(),
+                monthlyRate
+        );
+
+        snapshot.setInterestRateMonthly(monthlyRate);
+        snapshot.setInterestCharged(interestAmount);
+        snapshot.setInterestAppliedAt(LocalDateTime.now());
+        creditCardStatementRepository.save(snapshot);
+
+        String accountNumber = account.getAccountNumber();
+        account = loanAccountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
+        snapshot = syncSnapshotFromTransactions(account, snapshot);
+        return snapshot;
+    }
+
+    private CreditCardStatement maybeApplyOverdueLateFee(LoanAccount account,
+                                                         CreditCardStatement snapshot,
+                                                         double remainingMinimumDueBeforeLateFee) {
+        if (!LocalDate.now().isAfter(snapshot.getDueDate())) {
+            return snapshot;
+        }
+        if (snapshot.getLateFeeAppliedAt() != null || safe(snapshot.getLateFeeCharged()) > 0) {
+            return snapshot;
+        }
+        if (remainingMinimumDueBeforeLateFee <= 0) {
+            return snapshot;
+        }
+
+        double lateFeeAmount = roundMoney(safe(snapshot.getLateFeeFixed()));
+        if (lateFeeAmount <= 0) {
+            lateFeeAmount = resolveStatementLateFee(account);
+        }
+        if (lateFeeAmount <= 0) {
+            return snapshot;
+        }
+
+        loanAccountService.applyStatementLateFee(
+                account.getAccountNumber(),
+                lateFeeAmount,
+                snapshot.getBillingDate().toString()
+        );
+
+        snapshot.setLateFeeFixed(lateFeeAmount);
+        snapshot.setLateFeeCharged(lateFeeAmount);
+        snapshot.setLateFeeAppliedAt(LocalDateTime.now());
+        creditCardStatementRepository.save(snapshot);
+
+        String accountNumber = account.getAccountNumber();
+        account = loanAccountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
+        snapshot = syncSnapshotFromTransactions(account, snapshot);
+        return snapshot;
+    }
+
+    private PostStatementPaymentState calculatePostStatementPaymentState(LoanAccount account, CreditCardStatement snapshot) {
         List<Transaction> postStatementTransactions = transactionRepository
                 .findByAccountNumberAndAccountTypeAndTransactionDateAfterOrderByTransactionDateAsc(
                         account.getAccountNumber(),
                         "LOAN",
-                        afterBilling
-                );
+                        snapshot.getBillingDate().atTime(LocalTime.MAX)
+                ).stream()
+                .filter(tx -> isStatementLinkedPostBillingTransaction(snapshot, tx))
+                .toList();
 
         double paidAmountAfterStatement = 0.0;
         double creditedByAdjustmentsAfterStatement = 0.0;
+        double debitedByOverdueChargesAfterStatement = 0.0;
         LocalDateTime lastPaymentDate = null;
 
         for (Transaction tx : postStatementTransactions) {
@@ -452,22 +604,34 @@ public class CreditCardStatementService {
             } else if ("REFUND".equalsIgnoreCase(tx.getTransactionType())
                     || "REVERSAL".equalsIgnoreCase(tx.getTransactionType())) {
                 creditedByAdjustmentsAfterStatement += safe(tx.getAmount());
+            } else if ("INTEREST".equalsIgnoreCase(tx.getTransactionType())
+                    || "LATE_FEE".equalsIgnoreCase(tx.getTransactionType())) {
+                debitedByOverdueChargesAfterStatement += safe(tx.getAmount());
             }
         }
 
         paidAmountAfterStatement = roundMoney(paidAmountAfterStatement);
         double appliedCreditsAfterStatement = roundMoney(paidAmountAfterStatement + creditedByAdjustmentsAfterStatement);
         double remainingMinimumDue = roundMoney(Math.max(safe(snapshot.getMinimumDue()) - appliedCreditsAfterStatement, 0.0));
-        double remainingBalance = roundMoney(Math.max(safe(snapshot.getNewBalance()) - appliedCreditsAfterStatement, 0.0));
-        String statementStatus = determineStatementStatus(snapshot, appliedCreditsAfterStatement, remainingMinimumDue, remainingBalance);
+        double remainingBalance = roundMoney(Math.max(
+                safe(snapshot.getNewBalance()) + debitedByOverdueChargesAfterStatement - appliedCreditsAfterStatement,
+                0.0
+        ));
+        return new PostStatementPaymentState(
+                paidAmountAfterStatement,
+                appliedCreditsAfterStatement,
+                remainingMinimumDue,
+                remainingBalance,
+                lastPaymentDate
+        );
+    }
 
-        snapshot.setPaidAmountAfterStatement(paidAmountAfterStatement);
-        snapshot.setRemainingMinimumDue(remainingMinimumDue);
-        snapshot.setRemainingBalance(remainingBalance);
-        snapshot.setStatementStatus(statementStatus);
-        snapshot.setLastPaymentDate(lastPaymentDate);
-
-        return creditCardStatementRepository.save(snapshot);
+    private boolean isStatementLinkedPostBillingTransaction(CreditCardStatement snapshot, Transaction tx) {
+        String statementReference = snapshot.getBillingDate() != null ? snapshot.getBillingDate().toString() : null;
+        if (statementReference == null) {
+            return false;
+        }
+        return Objects.equals(statementReference, tx.getExternalReference());
     }
 
     private String determineStatementStatus(CreditCardStatement snapshot,
@@ -539,5 +703,24 @@ public class CreditCardStatementService {
 
     private double roundMoney(double value) {
         return Math.round(value * 100.0) / 100.0;
+    }
+
+    private double resolveStatementInterestRate(LoanAccount account) {
+        double configuredRate = safe(account.getStatementInterestRateMonthly());
+        return configuredRate > 0 ? configuredRate : 2.5;
+    }
+
+    private double resolveStatementLateFee(LoanAccount account) {
+        double configuredFee = safe(account.getStatementLateFeeFixed());
+        return configuredFee > 0 ? configuredFee : 15.0;
+    }
+
+    private record PostStatementPaymentState(
+            double paidAmountAfterStatement,
+            double appliedCreditsAfterStatement,
+            double remainingMinimumDue,
+            double remainingBalance,
+            LocalDateTime lastPaymentDate
+    ) {
     }
 }

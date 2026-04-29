@@ -55,6 +55,24 @@ public class CreditCardStatement {
     @Column(name = "new_balance", nullable = false)
     private Double newBalance;
 
+    @Column(name = "interest_rate_monthly", nullable = false)
+    private Double interestRateMonthly = 2.5;
+
+    @Column(name = "interest_charged", nullable = false)
+    private Double interestCharged = 0.0;
+
+    @Column(name = "interest_applied_at")
+    private LocalDateTime interestAppliedAt;
+
+    @Column(name = "late_fee_fixed", nullable = false)
+    private Double lateFeeFixed = 15.0;
+
+    @Column(name = "late_fee_charged", nullable = false)
+    private Double lateFeeCharged = 0.0;
+
+    @Column(name = "late_fee_applied_at")
+    private LocalDateTime lateFeeAppliedAt;
+
     @Column(name = "available_credit_at_billing", nullable = false)
     private Double availableCreditAtBilling;
 

@@ -264,10 +264,11 @@ BEGIN
         INSERT INTO loan_accounts (
             account_number, principal, principal_outstanding, currency,
             billing_day_of_month, payment_due_days, minimum_payment_rate,
-            minimum_payment_floor, status, client_id, created_at, updated_at
+            minimum_payment_floor, statement_interest_rate_monthly, statement_late_fee_fixed,
+            status, client_id, created_at, updated_at
         )
         VALUES (
-            v_loan_account, v_credit_limit, 0, 'USD', v_billing_day, 20, 5, 15,
+            v_loan_account, v_credit_limit, 0, 'USD', v_billing_day, 20, 5, 15, 2.5, 15,
             'ACTIVE', v_client_pk, v_created_at + INTERVAL '2 day', v_created_at + INTERVAL '2 day'
         );
 
@@ -536,6 +537,12 @@ INSERT INTO
         total_payments,
         minimum_due,
         new_balance,
+        interest_rate_monthly,
+        interest_charged,
+        interest_applied_at,
+        late_fee_fixed,
+        late_fee_charged,
+        late_fee_applied_at,
         available_credit_at_billing,
         transaction_count,
         statement_status,
@@ -554,7 +561,10 @@ WITH
             billing_day_of_month,
             payment_due_days,
             minimum_payment_rate,
-            minimum_payment_floor
+            minimum_payment_floor,
+            statement_interest_rate_monthly,
+            statement_late_fee_fixed,
+            RIGHT(account_number, 2)::INT AS account_idx
         FROM loan_accounts
         WHERE
             account_number LIKE 'C51%'
@@ -562,10 +572,13 @@ WITH
     periods AS (
         SELECT
             sl.account_number,
+            sl.account_idx,
             sl.principal,
             sl.payment_due_days,
             sl.minimum_payment_rate,
             sl.minimum_payment_floor,
+            sl.statement_interest_rate_monthly,
+            sl.statement_late_fee_fixed,
             CASE
                 WHEN sl.billing_day_of_month <= 20 THEN MAKE_DATE(
                     2026,
@@ -595,6 +608,7 @@ WITH
     statement_values AS (
         SELECT
             p.account_number,
+            p.account_idx,
             (
                 p.previous_billing_date + INTERVAL '1 day'
             )::DATE AS statement_period_start,
@@ -613,6 +627,8 @@ WITH
             p.principal,
             p.minimum_payment_rate,
             p.minimum_payment_floor,
+            p.statement_interest_rate_monthly,
+            p.statement_late_fee_fixed,
             COALESCE(
                 after_payments.paid_after_statement,
                 0
@@ -675,114 +691,158 @@ WITH
                     )
                     AND t.transaction_date < TIMESTAMP '2026-03-21 00:00:00'
             ) after_payments ON TRUE
-    )
-SELECT
-    sv.account_number,
-    sv.statement_period_start,
-    sv.statement_period_end,
-    sv.billing_date,
-    sv.due_date,
-    ROUND(
-        sv.previous_balance::NUMERIC,
-        2
-    )::DOUBLE PRECISION,
-    ROUND(sv.total_charges::NUMERIC, 2)::DOUBLE PRECISION,
-    ROUND(sv.total_payments::NUMERIC, 2)::DOUBLE PRECISION,
-    ROUND(
-        CASE
-            WHEN (
-                sv.previous_balance + sv.total_charges - sv.total_payments
-            ) <= 0 THEN 0
-            ELSE LEAST(
+    ),
+    statement_metrics AS (
+        SELECT
+            sv.*,
+            ROUND(
                 (
                     sv.previous_balance + sv.total_charges - sv.total_payments
-                ),
-                GREATEST(
-                    (
+                )::NUMERIC,
+                2
+            )::DOUBLE PRECISION AS base_new_balance,
+            ROUND(
+                CASE
+                    WHEN (
                         sv.previous_balance + sv.total_charges - sv.total_payments
-                    ) * sv.minimum_payment_rate / 100.0,
-                    sv.minimum_payment_floor
-                )
+                    ) <= 0 THEN 0
+                    ELSE LEAST(
+                        (
+                            sv.previous_balance + sv.total_charges - sv.total_payments
+                        ),
+                        GREATEST(
+                            (
+                                sv.previous_balance + sv.total_charges - sv.total_payments
+                            ) * sv.minimum_payment_rate / 100.0,
+                            sv.minimum_payment_floor
+                        )
+                    )
+                END::NUMERIC,
+                2
+            )::DOUBLE PRECISION AS base_minimum_due,
+            (sv.account_idx % 4) AS scenario_key
+        FROM statement_values sv
+    ),
+    statement_final AS (
+        SELECT
+            sm.*,
+            ROUND(
+                CASE
+                    WHEN sm.scenario_key = 3 THEN sm.base_new_balance
+                    WHEN sm.scenario_key = 1 THEN LEAST(
+                        sm.base_new_balance,
+                        GREATEST(
+                            sm.base_minimum_due * 0.45,
+                            25
+                        )
+                    )
+                    ELSE 0
+                END::NUMERIC,
+                2
+            )::DOUBLE PRECISION AS scenario_paid_after_statement,
+            ROUND(
+                CASE
+                    WHEN sm.scenario_key = 0 THEN GREATEST(
+                        sm.base_new_balance,
+                        0
+                    ) * sm.statement_interest_rate_monthly / 100.0
+                    ELSE 0
+                END::NUMERIC,
+                2
+            )::DOUBLE PRECISION AS scenario_interest_charged,
+            ROUND(
+                CASE
+                    WHEN sm.scenario_key = 0 THEN sm.statement_late_fee_fixed
+                    ELSE 0
+                END::NUMERIC,
+                2
+            )::DOUBLE PRECISION AS scenario_late_fee_charged
+        FROM statement_metrics sm
+    )
+SELECT
+    sf.account_number,
+    sf.statement_period_start,
+    sf.statement_period_end,
+    sf.billing_date,
+    sf.due_date,
+    ROUND(
+        sf.previous_balance::NUMERIC,
+        2
+    )::DOUBLE PRECISION,
+    ROUND(sf.total_charges::NUMERIC, 2)::DOUBLE PRECISION,
+    ROUND(sf.total_payments::NUMERIC, 2)::DOUBLE PRECISION,
+    sf.base_minimum_due,
+    sf.base_new_balance,
+    sf.statement_interest_rate_monthly,
+    sf.scenario_interest_charged,
+    CASE
+        WHEN sf.scenario_key = 0 THEN (
+            sf.due_date + TIME '09:00:00' + INTERVAL '1 day'
+        )::TIMESTAMP
+        ELSE NULL
+    END,
+    sf.statement_late_fee_fixed,
+    sf.scenario_late_fee_charged,
+    CASE
+        WHEN sf.scenario_key = 0 THEN (
+            sf.due_date + TIME '09:10:00' + INTERVAL '1 day'
+        )::TIMESTAMP
+        ELSE NULL
+    END,
+    ROUND(
+        (
+            sf.principal - sf.base_new_balance
+        )::NUMERIC,
+        2
+    )::DOUBLE PRECISION,
+    sf.transaction_count,
+    CASE
+        WHEN sf.scenario_key = 3 THEN 'PAID'
+        WHEN sf.scenario_key = 0 THEN 'OVERDUE'
+        WHEN sf.scenario_key = 1 THEN 'PARTIALLY_PAID'
+        ELSE 'OPEN'
+    END,
+    ROUND(
+        sf.scenario_paid_after_statement::NUMERIC,
+        2
+    )::DOUBLE PRECISION,
+    ROUND(
+        CASE
+            WHEN sf.scenario_key = 3 THEN 0
+            WHEN sf.scenario_key = 1 THEN GREATEST(
+                sf.base_minimum_due - sf.scenario_paid_after_statement,
+                0
             )
+            ELSE sf.base_minimum_due
         END::NUMERIC,
         2
     )::DOUBLE PRECISION,
     ROUND(
-        (
-            sv.previous_balance + sv.total_charges - sv.total_payments
-        )::NUMERIC,
-        2
-    )::DOUBLE PRECISION,
-    ROUND(
-        (
-            sv.principal - (
-                sv.previous_balance + sv.total_charges - sv.total_payments
+        CASE
+            WHEN sf.scenario_key = 3 THEN 0
+            WHEN sf.scenario_key = 1 THEN GREATEST(
+                sf.base_new_balance - sf.scenario_paid_after_statement,
+                0
             )
-        )::NUMERIC,
+            WHEN sf.scenario_key = 0 THEN GREATEST(
+                sf.base_new_balance - sf.scenario_paid_after_statement,
+                0
+            ) + sf.scenario_interest_charged + sf.scenario_late_fee_charged
+            ELSE sf.base_new_balance
+        END::NUMERIC,
         2
     )::DOUBLE PRECISION,
-    sv.transaction_count,
     CASE
-        WHEN GREATEST(
-            (
-                sv.previous_balance + sv.total_charges - sv.total_payments
-            ) - sv.paid_after_statement,
-            0
-        ) <= 0 THEN 'PAID'
-        WHEN DATE '2026-03-20' > sv.due_date
-        AND GREATEST(
-            LEAST(
-                (
-                    sv.previous_balance + sv.total_charges - sv.total_payments
-                ),
-                GREATEST(
-                    (
-                        sv.previous_balance + sv.total_charges - sv.total_payments
-                    ) * sv.minimum_payment_rate / 100.0,
-                    sv.minimum_payment_floor
-                )
-            ) - sv.paid_after_statement,
-            0
-        ) > 0 THEN 'OVERDUE'
-        WHEN sv.paid_after_statement > 0 THEN 'PARTIALLY_PAID'
-        ELSE 'OPEN'
+        WHEN sf.scenario_key IN (1, 3) THEN (
+            sf.billing_date + TIME '09:30:00' + INTERVAL '2 day'
+        )::TIMESTAMP
+        ELSE NULL
     END,
-    ROUND(
-        sv.paid_after_statement::NUMERIC,
-        2
-    )::DOUBLE PRECISION,
-    ROUND(
-        GREATEST(
-            LEAST(
-                (
-                    sv.previous_balance + sv.total_charges - sv.total_payments
-                ),
-                GREATEST(
-                    (
-                        sv.previous_balance + sv.total_charges - sv.total_payments
-                    ) * sv.minimum_payment_rate / 100.0,
-                    sv.minimum_payment_floor
-                )
-            ) - sv.paid_after_statement,
-            0
-        )::NUMERIC,
-        2
-    )::DOUBLE PRECISION,
-    ROUND(
-        GREATEST(
-            (
-                sv.previous_balance + sv.total_charges - sv.total_payments
-            ) - sv.paid_after_statement,
-            0
-        )::NUMERIC,
-        2
-    )::DOUBLE PRECISION,
-    sv.last_payment_date,
     (
-        sv.billing_date + TIME '18:00:00'
+        sf.billing_date + TIME '18:00:00'
     )::TIMESTAMP,
     TIMESTAMP '2026-03-20 09:00:00'
-FROM statement_values sv
+FROM statement_final sf
 ON CONFLICT (account_number, billing_date) DO
 UPDATE
 SET
@@ -794,6 +854,12 @@ SET
     total_payments = EXCLUDED.total_payments,
     minimum_due = EXCLUDED.minimum_due,
     new_balance = EXCLUDED.new_balance,
+    interest_rate_monthly = EXCLUDED.interest_rate_monthly,
+    interest_charged = EXCLUDED.interest_charged,
+    interest_applied_at = EXCLUDED.interest_applied_at,
+    late_fee_fixed = EXCLUDED.late_fee_fixed,
+    late_fee_charged = EXCLUDED.late_fee_charged,
+    late_fee_applied_at = EXCLUDED.late_fee_applied_at,
     available_credit_at_billing = EXCLUDED.available_credit_at_billing,
     transaction_count = EXCLUDED.transaction_count,
     statement_status = EXCLUDED.statement_status,

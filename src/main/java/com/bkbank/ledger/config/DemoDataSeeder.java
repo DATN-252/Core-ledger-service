@@ -93,9 +93,11 @@ public class DemoDataSeeder implements CommandLineRunner {
 
         seedLoanAccount(clientOne, "C0013", 10_000.0, 4_410.0, 25);
         seedLoanAccount(clientTwo, "C0024", 15_000.0, 2_200.0, 15);
+        seedLoanAccount(clientOne, "C0035", 12_000.0, 0.0, 10);
+        seedLoanAccount(clientTwo, "C0046", 8_000.0, 2_203.38, 5);
 
         seedSavingsTransactions();
-        seedLoanTransactionsAndStatement();
+        seedLoanStatementScenarios();
 
         log.info("Demo ledger data seeded successfully");
     }
@@ -172,11 +174,7 @@ public class DemoDataSeeder implements CommandLineRunner {
     }
 
     private void seedLoanAccount(Client client, String accountNumber, Double principal, Double outstanding, Integer billingDay) {
-        if (loanAccountRepository.existsByAccountNumber(accountNumber)) {
-            return;
-        }
-
-        LoanAccount account = new LoanAccount();
+        LoanAccount account = loanAccountRepository.findByAccountNumber(accountNumber).orElseGet(LoanAccount::new);
         account.setAccountNumber(accountNumber);
         account.setPrincipal(principal);
         account.setPrincipalOutstanding(outstanding);
@@ -185,6 +183,8 @@ public class DemoDataSeeder implements CommandLineRunner {
         account.setPaymentDueDays(20);
         account.setMinimumPaymentRate(5.0);
         account.setMinimumPaymentFloor(10.0);
+        account.setStatementInterestRateMonthly(2.5);
+        account.setStatementLateFeeFixed(15.0);
         account.setStatus(AccountStatus.ACTIVE);
         account.setClient(client);
         account.setBranch(client.getHomeBranch());
@@ -230,11 +230,19 @@ public class DemoDataSeeder implements CommandLineRunner {
         );
     }
 
-    private void seedLoanTransactionsAndStatement() {
-        LocalDate latestBillingDate = latestBillingDate(25);
-        LocalDate previousBillingDate = latestBillingDate.minusMonths(1).withDayOfMonth(25);
+    private void seedLoanStatementScenarios() {
+        seedPartiallyPaidScenario();
+        seedOpenScenario();
+        seedPaidScenario();
+        seedOverdueScenario();
+    }
+
+    private void seedPartiallyPaidScenario() {
+        LocalDate billingDate = latestBillingDate(25);
+        LocalDate previousBillingDate = billingDate.minusMonths(1).withDayOfMonth(25);
         LocalDate statementStart = previousBillingDate.plusDays(1);
-        LocalDate dueDate = latestBillingDate.plusDays(20);
+        LocalDate dueDate = billingDate.plusDays(20);
+        LocalDateTime postStatementPaymentDate = billingDate.plusDays(2).atTime(8, 45);
 
         createTransactionIfMissing(
                 "DEMO-LOAN-CHARGE-001",
@@ -347,7 +355,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 buildTransaction(
                         Transaction.createPayment("C0013", 100.0, "USD", 4_410.0),
                         "DEMO-LOAN-PAYMENT-AFTER-001",
-                        latestBillingDate.plusDays(5).atTime(8, 45),
+                        postStatementPaymentDate,
                         null,
                         null,
                         "MOBILE",
@@ -356,28 +364,526 @@ public class DemoDataSeeder implements CommandLineRunner {
                 )
         );
 
-        if (creditCardStatementRepository.findByAccountNumberAndBillingDate("C0013", latestBillingDate).isPresent()) {
-            return;
-        }
+        saveOrUpdateStatement(
+                "C0013",
+                statementStart,
+                billingDate,
+                dueDate,
+                0.0,
+                5_110.0,
+                600.0,
+                225.5,
+                4_510.0,
+                2.5,
+                0.0,
+                null,
+                15.0,
+                0.0,
+                null,
+                5_490.0,
+                5,
+                "PARTIALLY_PAID",
+                100.0,
+                125.5,
+                4_410.0,
+                postStatementPaymentDate
+        );
+    }
 
-        CreditCardStatement statement = new CreditCardStatement();
-        statement.setAccountNumber("C0013");
+    private void seedOpenScenario() {
+        LocalDate billingDate = latestBillingDate(15);
+        LocalDate previousBillingDate = billingDate.minusMonths(1).withDayOfMonth(15);
+        LocalDate statementStart = previousBillingDate.plusDays(1);
+        LocalDate dueDate = billingDate.plusDays(20);
+
+        createTransactionIfMissing(
+                "DEMO-LOAN-OPEN-CHARGE-001",
+                buildTransaction(
+                        Transaction.createCharge(
+                                "C0024",
+                                1_500.0,
+                                "USD",
+                                1_500.0,
+                                "SPD007",
+                                "Green Pharmacy",
+                                "88 Hai Ba Trung, District 1",
+                                10.7829,
+                                106.7009
+                        ),
+                        "DEMO-LOAN-OPEN-CHARGE-001",
+                        statementStart.plusDays(2).atTime(11, 5),
+                        "SPD007",
+                        "Green Pharmacy",
+                        "POS",
+                        "00",
+                        "Approved"
+                )
+        );
+        createTransactionIfMissing(
+                "DEMO-LOAN-OPEN-CHARGE-002",
+                buildTransaction(
+                        Transaction.createCharge(
+                                "C0024",
+                                700.0,
+                                "USD",
+                                2_200.0,
+                                "SPD008",
+                                "Cloud Electronics",
+                                "12 Truong Dinh, District 3",
+                                10.7796,
+                                106.6924
+                        ),
+                        "DEMO-LOAN-OPEN-CHARGE-002",
+                        statementStart.plusDays(11).atTime(16, 20),
+                        "SPD008",
+                        "Cloud Electronics",
+                        "ECOM",
+                        "00",
+                        "Approved"
+                )
+        );
+
+        saveOrUpdateStatement(
+                "C0024",
+                statementStart,
+                billingDate,
+                dueDate,
+                0.0,
+                2_200.0,
+                0.0,
+                110.0,
+                2_200.0,
+                2.5,
+                0.0,
+                null,
+                15.0,
+                0.0,
+                null,
+                12_800.0,
+                2,
+                "OPEN",
+                0.0,
+                110.0,
+                2_200.0,
+                null
+        );
+    }
+
+    private void seedPaidScenario() {
+        LocalDate billingDate = latestBillingDate(10);
+        LocalDate previousBillingDate = billingDate.minusMonths(1).withDayOfMonth(10);
+        LocalDate statementStart = previousBillingDate.plusDays(1);
+        LocalDate dueDate = billingDate.plusDays(20);
+        LocalDateTime paidAt = billingDate.plusDays(2).atTime(14, 10);
+
+        createTransactionIfMissing(
+                "DEMO-LOAN-PAID-CHARGE-001",
+                buildTransaction(
+                        Transaction.createCharge(
+                                "C0035",
+                                1_200.0,
+                                "USD",
+                                1_200.0,
+                                "SPD009",
+                                "Fresh Mart",
+                                "99 Nguyen Trai, Thanh Xuan",
+                                21.0037,
+                                105.8119
+                        ),
+                        "DEMO-LOAN-PAID-CHARGE-001",
+                        statementStart.plusDays(1).atTime(10, 0),
+                        "SPD009",
+                        "Fresh Mart",
+                        "POS",
+                        "00",
+                        "Approved"
+                )
+        );
+        createTransactionIfMissing(
+                "DEMO-LOAN-PAID-CHARGE-002",
+                buildTransaction(
+                        Transaction.createCharge(
+                                "C0035",
+                                600.0,
+                                "USD",
+                                1_800.0,
+                                "SPD010",
+                                "Travel Air",
+                                "1 Bach Dang, Hai Chau",
+                                16.0544,
+                                108.2022
+                        ),
+                        "DEMO-LOAN-PAID-CHARGE-002",
+                        statementStart.plusDays(9).atTime(19, 15),
+                        "SPD010",
+                        "Travel Air",
+                        "ECOM",
+                        "00",
+                        "Approved"
+                )
+        );
+        createTransactionIfMissing(
+                "DEMO-LOAN-PAID-PAYMENT-001",
+                buildTransaction(
+                        Transaction.createPayment("C0035", 1_800.0, "USD", 0.0),
+                        "DEMO-LOAN-PAID-PAYMENT-001",
+                        paidAt,
+                        null,
+                        null,
+                        "MOBILE",
+                        "00",
+                        "Approved"
+                )
+        );
+
+        saveOrUpdateStatement(
+                "C0035",
+                statementStart,
+                billingDate,
+                dueDate,
+                0.0,
+                1_800.0,
+                0.0,
+                90.0,
+                1_800.0,
+                2.5,
+                0.0,
+                null,
+                15.0,
+                0.0,
+                null,
+                10_200.0,
+                2,
+                "PAID",
+                1_800.0,
+                0.0,
+                0.0,
+                paidAt
+        );
+    }
+
+    private void seedOverdueScenario() {
+        LocalDate billingDate = latestBillingDate(5);
+        LocalDate previousBillingDate = billingDate.minusMonths(1).withDayOfMonth(5);
+        LocalDate previousStatementStart = previousBillingDate.minusMonths(1).withDayOfMonth(5).plusDays(1);
+        LocalDate previousDueDate = previousBillingDate.plusDays(20);
+        LocalDate statementStart = previousBillingDate.plusDays(1);
+        LocalDate dueDate = billingDate.plusDays(20);
+        LocalDateTime previousInterestAppliedAt = previousDueDate.plusDays(1).atTime(9, 0);
+        LocalDateTime previousLateFeeAppliedAt = previousDueDate.plusDays(1).atTime(9, 15);
+        LocalDateTime interestAppliedAt = dueDate.plusDays(1).atTime(9, 0);
+        LocalDateTime lateFeeAppliedAt = dueDate.plusDays(1).atTime(9, 15);
+
+        createTransactionIfMissing(
+                "DEMO-LOAN-OVERDUE-PREV-CHARGE-001",
+                buildTransaction(
+                        Transaction.createCharge(
+                                "C0046",
+                                450.0,
+                                "USD",
+                                450.0,
+                                "SPD013",
+                                "Sun Market",
+                                "22 Hung Vuong, Hue",
+                                16.4634,
+                                107.5903
+                        ),
+                        "DEMO-LOAN-OVERDUE-PREV-CHARGE-001",
+                        previousStatementStart.plusDays(4).atTime(10, 20),
+                        "SPD013",
+                        "Sun Market",
+                        "POS",
+                        "00",
+                        "Approved"
+                )
+        );
+        createTransactionIfMissing(
+                "DEMO-LOAN-OVERDUE-PREV-CHARGE-002",
+                buildTransaction(
+                        Transaction.createCharge(
+                                "C0046",
+                                350.0,
+                                "USD",
+                                800.0,
+                                "SPD014",
+                                "City Books",
+                                "30 Le Loi, Hue",
+                                16.4702,
+                                107.5848
+                        ),
+                        "DEMO-LOAN-OVERDUE-PREV-CHARGE-002",
+                        previousStatementStart.plusDays(20).atTime(18, 5),
+                        "SPD014",
+                        "City Books",
+                        "ECOM",
+                        "00",
+                        "Approved"
+                )
+        );
+        createTransactionIfMissing(
+                "DEMO-LOAN-OVERDUE-PREV-INTEREST-001",
+                buildTransaction(
+                        Transaction.createCharge(
+                                "C0046",
+                                20.0,
+                                "USD",
+                                820.0,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null
+                        ),
+                        "DEMO-LOAN-OVERDUE-PREV-INTEREST-001",
+                        previousInterestAppliedAt,
+                        null,
+                        null,
+                        "STATEMENT_INTEREST",
+                        "00",
+                        "Approved"
+                )
+        );
+        createTransactionIfMissing(
+                "DEMO-LOAN-OVERDUE-PREV-LATEFEE-001",
+                buildTransaction(
+                        Transaction.createCharge(
+                                "C0046",
+                                15.0,
+                                "USD",
+                                835.0,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null
+                        ),
+                        "DEMO-LOAN-OVERDUE-PREV-LATEFEE-001",
+                        previousLateFeeAppliedAt,
+                        null,
+                        null,
+                        "STATEMENT_LATE_FEE",
+                        "00",
+                        "Approved"
+                )
+        );
+
+        createTransactionIfMissing(
+                "DEMO-LOAN-OVERDUE-CHARGE-001",
+                buildTransaction(
+                        Transaction.createCharge(
+                                "C0046",
+                                800.0,
+                                "USD",
+                                1_600.0,
+                                "SPD011",
+                                "Medicare Plus",
+                                "7 Le Loi, Hue",
+                                16.4637,
+                                107.5909
+                        ),
+                        "DEMO-LOAN-OVERDUE-CHARGE-001",
+                        statementStart.plusDays(2).atTime(9, 45),
+                        "SPD011",
+                        "Medicare Plus",
+                        "POS",
+                        "00",
+                        "Approved"
+                )
+        );
+        createTransactionIfMissing(
+                "DEMO-LOAN-OVERDUE-CHARGE-002",
+                buildTransaction(
+                        Transaction.createCharge(
+                                "C0046",
+                                500.0,
+                                "USD",
+                                2_100.0,
+                                "SPD012",
+                                "Ocean Store",
+                                "15 Vo Nguyen Giap, Son Tra",
+                                16.0777,
+                                108.2433
+                        ),
+                        "DEMO-LOAN-OVERDUE-CHARGE-002",
+                        statementStart.plusDays(18).atTime(20, 10),
+                        "SPD012",
+                        "Ocean Store",
+                        "ECOM",
+                        "00",
+                        "Approved"
+                )
+        );
+        createTransactionIfMissing(
+                "DEMO-LOAN-OVERDUE-INTEREST-001",
+                buildTransaction(
+                        Transaction.createCharge(
+                                "C0046",
+                                53.38,
+                                "USD",
+                                2_188.38,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null
+                        ),
+                        "DEMO-LOAN-OVERDUE-INTEREST-001",
+                        interestAppliedAt,
+                        null,
+                        null,
+                        "STATEMENT_INTEREST",
+                        "00",
+                        "Approved"
+                )
+        );
+        createTransactionIfMissing(
+                "DEMO-LOAN-OVERDUE-LATEFEE-001",
+                buildTransaction(
+                        Transaction.createCharge(
+                                "C0046",
+                                15.0,
+                                "USD",
+                                2_203.38,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null
+                        ),
+                        "DEMO-LOAN-OVERDUE-LATEFEE-001",
+                        lateFeeAppliedAt,
+                        null,
+                        null,
+                        "STATEMENT_LATE_FEE",
+                        "00",
+                        "Approved"
+                )
+        );
+
+        transactionRepository.findByPaymentId("DEMO-LOAN-OVERDUE-PREV-INTEREST-001").ifPresent(tx -> {
+            tx.setTransactionType("INTEREST");
+            tx.setDescription("Statement interest");
+            tx.setExternalReference(previousBillingDate.toString());
+            transactionRepository.save(tx);
+        });
+        transactionRepository.findByPaymentId("DEMO-LOAN-OVERDUE-PREV-LATEFEE-001").ifPresent(tx -> {
+            tx.setTransactionType("LATE_FEE");
+            tx.setDescription("Statement late fee");
+            tx.setExternalReference(previousBillingDate.toString());
+            transactionRepository.save(tx);
+        });
+        transactionRepository.findByPaymentId("DEMO-LOAN-OVERDUE-INTEREST-001").ifPresent(tx -> {
+            tx.setTransactionType("INTEREST");
+            tx.setDescription("Statement interest");
+            tx.setExternalReference(billingDate.toString());
+            transactionRepository.save(tx);
+        });
+        transactionRepository.findByPaymentId("DEMO-LOAN-OVERDUE-LATEFEE-001").ifPresent(tx -> {
+            tx.setTransactionType("LATE_FEE");
+            tx.setDescription("Statement late fee");
+            tx.setExternalReference(billingDate.toString());
+            transactionRepository.save(tx);
+        });
+
+        saveOrUpdateStatement(
+                "C0046",
+                previousStatementStart,
+                previousBillingDate,
+                previousDueDate,
+                0.0,
+                800.0,
+                0.0,
+                40.0,
+                800.0,
+                2.5,
+                20.0,
+                previousInterestAppliedAt,
+                15.0,
+                15.0,
+                previousLateFeeAppliedAt,
+                7_200.0,
+                2,
+                "OVERDUE",
+                0.0,
+                40.0,
+                835.0,
+                null
+        );
+
+        saveOrUpdateStatement(
+                "C0046",
+                statementStart,
+                billingDate,
+                dueDate,
+                800.0,
+                1_335.0,
+                0.0,
+                106.75,
+                2_135.0,
+                2.5,
+                53.38,
+                interestAppliedAt,
+                15.0,
+                15.0,
+                lateFeeAppliedAt,
+                5_865.0,
+                4,
+                "OVERDUE",
+                0.0,
+                106.75,
+                2_203.38,
+                null
+        );
+    }
+
+    private void saveOrUpdateStatement(String accountNumber,
+                                       LocalDate statementStart,
+                                       LocalDate billingDate,
+                                       LocalDate dueDate,
+                                       Double previousBalance,
+                                       Double totalCharges,
+                                       Double totalPayments,
+                                       Double minimumDue,
+                                       Double newBalance,
+                                       Double interestRateMonthly,
+                                       Double interestCharged,
+                                       LocalDateTime interestAppliedAt,
+                                       Double lateFeeFixed,
+                                       Double lateFeeCharged,
+                                       LocalDateTime lateFeeAppliedAt,
+                                       Double availableCreditAtBilling,
+                                       Integer transactionCount,
+                                       String statementStatus,
+                                       Double paidAmountAfterStatement,
+                                       Double remainingMinimumDue,
+                                       Double remainingBalance,
+                                       LocalDateTime lastPaymentDate) {
+        CreditCardStatement statement = creditCardStatementRepository
+                .findByAccountNumberAndBillingDate(accountNumber, billingDate)
+                .orElseGet(CreditCardStatement::new);
+        statement.setAccountNumber(accountNumber);
         statement.setStatementPeriodStart(statementStart);
-        statement.setStatementPeriodEnd(latestBillingDate);
-        statement.setBillingDate(latestBillingDate);
+        statement.setStatementPeriodEnd(billingDate);
+        statement.setBillingDate(billingDate);
         statement.setDueDate(dueDate);
-        statement.setPreviousBalance(0.0);
-        statement.setTotalCharges(5_110.0);
-        statement.setTotalPayments(600.0);
-        statement.setMinimumDue(225.5);
-        statement.setNewBalance(4_510.0);
-        statement.setAvailableCreditAtBilling(5_490.0);
-        statement.setTransactionCount(5);
-        statement.setStatementStatus(LocalDate.now().isAfter(dueDate) ? "OVERDUE" : "PARTIALLY_PAID");
-        statement.setPaidAmountAfterStatement(100.0);
-        statement.setRemainingMinimumDue(125.5);
-        statement.setRemainingBalance(4_410.0);
-        statement.setLastPaymentDate(latestBillingDate.plusDays(5).atTime(8, 45));
+        statement.setPreviousBalance(previousBalance);
+        statement.setTotalCharges(totalCharges);
+        statement.setTotalPayments(totalPayments);
+        statement.setMinimumDue(minimumDue);
+        statement.setNewBalance(newBalance);
+        statement.setInterestRateMonthly(interestRateMonthly);
+        statement.setInterestCharged(interestCharged);
+        statement.setInterestAppliedAt(interestAppliedAt);
+        statement.setLateFeeFixed(lateFeeFixed);
+        statement.setLateFeeCharged(lateFeeCharged);
+        statement.setLateFeeAppliedAt(lateFeeAppliedAt);
+        statement.setAvailableCreditAtBilling(availableCreditAtBilling);
+        statement.setTransactionCount(transactionCount);
+        statement.setStatementStatus(statementStatus);
+        statement.setPaidAmountAfterStatement(paidAmountAfterStatement);
+        statement.setRemainingMinimumDue(remainingMinimumDue);
+        statement.setRemainingBalance(remainingBalance);
+        statement.setLastPaymentDate(lastPaymentDate);
         creditCardStatementRepository.save(statement);
     }
 
@@ -413,10 +919,43 @@ public class DemoDataSeeder implements CommandLineRunner {
     }
 
     private void createTransactionIfMissing(String paymentId, Transaction transaction) {
-        if (transactionRepository.findByPaymentId(paymentId).isPresent()) {
-            return;
-        }
-        transactionRepository.save(transaction);
+        transactionRepository.findByPaymentId(paymentId).ifPresentOrElse(existing -> {
+            existing.setAccountNumber(transaction.getAccountNumber());
+            existing.setAccountType(transaction.getAccountType());
+            existing.setTransactionType(transaction.getTransactionType());
+            existing.setAmount(transaction.getAmount());
+            existing.setCurrency(transaction.getCurrency());
+            existing.setIdempotencyKey(transaction.getIdempotencyKey());
+            existing.setOriginalTransactionId(transaction.getOriginalTransactionId());
+            existing.setChannel(transaction.getChannel());
+            existing.setTransactionDate(transaction.getTransactionDate());
+            existing.setDescription(transaction.getDescription());
+            existing.setBalanceAfter(transaction.getBalanceAfter());
+            existing.setMerchantId(transaction.getMerchantId());
+            existing.setMerchantName(transaction.getMerchantName());
+            existing.setBranchId(transaction.getBranchId());
+            existing.setBranchName(transaction.getBranchName());
+            existing.setLocation(transaction.getLocation());
+            existing.setLatitude(transaction.getLatitude());
+            existing.setLongitude(transaction.getLongitude());
+            existing.setCardNetwork(transaction.getCardNetwork());
+            existing.setAuthCode(transaction.getAuthCode());
+            existing.setStan(transaction.getStan());
+            existing.setRrn(transaction.getRrn());
+            existing.setExternalReference(transaction.getExternalReference());
+            existing.setResponseCode(transaction.getResponseCode());
+            existing.setResponseMessage(transaction.getResponseMessage());
+            existing.setStatus(transaction.getStatus());
+            transactionRepository.save(existing);
+            if (transaction.getTransactionDate() != null) {
+                transactionRepository.updateTransactionDateByPaymentId(paymentId, transaction.getTransactionDate());
+            }
+        }, () -> {
+            transactionRepository.save(transaction);
+            if (transaction.getTransactionDate() != null) {
+                transactionRepository.updateTransactionDateByPaymentId(paymentId, transaction.getTransactionDate());
+            }
+        });
     }
 
     private LocalDate latestBillingDate(int billingDay) {

@@ -47,6 +47,12 @@ public class LoanAccount {
     @Column(name = "minimum_payment_floor", nullable = false)
     private Double minimumPaymentFloor = 10.0;
 
+    @Column(name = "statement_interest_rate_monthly", nullable = false)
+    private Double statementInterestRateMonthly = 2.5;
+
+    @Column(name = "statement_late_fee_fixed", nullable = false)
+    private Double statementLateFeeFixed = 15.0;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private AccountStatus status = AccountStatus.PENDING;
@@ -191,6 +197,34 @@ public class LoanAccount {
         }
         if (!hasSufficientCredit(amount)) {
             throw new IllegalArgumentException("Credit limit exceeded");
+        }
+        this.principalOutstanding += amount;
+    }
+
+    /**
+     * Apply system-generated statement interest.
+     * Locked accounts still accrue interest, but pending/closed accounts do not.
+     */
+    public void applyStatementInterest(Double amount) {
+        if (status == AccountStatus.PENDING || status == AccountStatus.CLOSED) {
+            throw new IllegalStateException("Account cannot accrue statement interest. Status: " + status);
+        }
+        if (amount == null || amount <= 0) {
+            throw new IllegalArgumentException("Interest amount must be greater than 0");
+        }
+        this.principalOutstanding += amount;
+    }
+
+    /**
+     * Apply a fixed late fee to an overdue statement.
+     * Locked accounts still accrue late fees, but pending/closed accounts do not.
+     */
+    public void applyStatementLateFee(Double amount) {
+        if (status == AccountStatus.PENDING || status == AccountStatus.CLOSED) {
+            throw new IllegalStateException("Account cannot accrue statement late fee. Status: " + status);
+        }
+        if (amount == null || amount <= 0) {
+            throw new IllegalArgumentException("Late fee amount must be greater than 0");
         }
         this.principalOutstanding += amount;
     }

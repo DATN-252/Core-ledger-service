@@ -54,7 +54,10 @@ public class StatementService {
 
         List<LoanStatementItemResponse> items = transactions.stream()
                 .map(tx -> {
-                    if ("CHARGE".equalsIgnoreCase(tx.getTransactionType()) && "SUCCESS".equalsIgnoreCase(tx.getStatus())) {
+                    if (("CHARGE".equalsIgnoreCase(tx.getTransactionType())
+                            || "INTEREST".equalsIgnoreCase(tx.getTransactionType())
+                            || "LATE_FEE".equalsIgnoreCase(tx.getTransactionType()))
+                            && "SUCCESS".equalsIgnoreCase(tx.getStatus())) {
                         return new LoanStatementItemResponse(
                                 tx.getTransactionDate(),
                                 tx.getPaymentId(),
@@ -101,7 +104,9 @@ public class StatementService {
             if (!"SUCCESS".equalsIgnoreCase(tx.getStatus())) {
                 continue;
             }
-            if ("CHARGE".equalsIgnoreCase(tx.getTransactionType())) {
+            if ("CHARGE".equalsIgnoreCase(tx.getTransactionType())
+                    || "INTEREST".equalsIgnoreCase(tx.getTransactionType())
+                    || "LATE_FEE".equalsIgnoreCase(tx.getTransactionType())) {
                 totalCharges += safe(tx.getAmount());
             } else if ("REFUND".equalsIgnoreCase(tx.getTransactionType())
                     || "REVERSAL".equalsIgnoreCase(tx.getTransactionType())) {

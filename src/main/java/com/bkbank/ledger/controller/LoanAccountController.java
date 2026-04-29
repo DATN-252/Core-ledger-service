@@ -1,6 +1,7 @@
 package com.bkbank.ledger.controller;
 
 import com.bkbank.ledger.dto.ChargeRequest;
+import com.bkbank.ledger.dto.request.LoanStatementSettingsUpdateRequest;
 import com.bkbank.ledger.dto.request.StatementPaymentRequest;
 import com.bkbank.ledger.dto.response.CreditCardMonthlyStatementResponse;
 import com.bkbank.ledger.dto.response.CreditCardStatementSummaryResponse;
@@ -82,6 +83,8 @@ public class LoanAccountController {
             m.put("clientName", account.getClientName());
             m.put("branchId", account.getBranchId());
             m.put("branchName", account.getBranchName());
+            m.put("statementInterestRateMonthly", account.getStatementInterestRateMonthly());
+            m.put("statementLateFeeFixed", account.getStatementLateFeeFixed());
             m.put("createdAt", account.getCreatedAt());
             return m;
         });
@@ -118,6 +121,8 @@ public class LoanAccountController {
             response.put("paymentDueDays", account.getPaymentDueDays());
             response.put("minimumPaymentRate", account.getMinimumPaymentRate());
             response.put("minimumPaymentFloor", account.getMinimumPaymentFloor());
+            response.put("statementInterestRateMonthly", account.getStatementInterestRateMonthly());
+            response.put("statementLateFeeFixed", account.getStatementLateFeeFixed());
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -142,6 +147,39 @@ public class LoanAccountController {
             return ResponseEntity.ok(statement);
         } catch (Exception e) {
             log.error("Get statement failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/loans/{loanId}/statement-settings")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> updateStatementSettings(
+            @PathVariable String loanId,
+            @RequestBody LoanStatementSettingsUpdateRequest request
+    ) {
+        try {
+            LoanAccount account = loanAccountService.updateStatementSettings(
+                    loanId,
+                    request.getBillingDayOfMonth(),
+                    request.getPaymentDueDays(),
+                    request.getMinimumPaymentRate(),
+                    request.getMinimumPaymentFloor(),
+                    request.getStatementInterestRateMonthly(),
+                    request.getStatementLateFeeFixed()
+            );
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("accountNumber", account.getAccountNumber());
+            response.put("billingDayOfMonth", account.getBillingDayOfMonth());
+            response.put("paymentDueDays", account.getPaymentDueDays());
+            response.put("minimumPaymentRate", account.getMinimumPaymentRate());
+            response.put("minimumPaymentFloor", account.getMinimumPaymentFloor());
+            response.put("statementInterestRateMonthly", account.getStatementInterestRateMonthly());
+            response.put("statementLateFeeFixed", account.getStatementLateFeeFixed());
+            response.put("message", "Statement settings updated successfully");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Update statement settings failed: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }

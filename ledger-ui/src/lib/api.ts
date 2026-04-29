@@ -158,6 +158,23 @@ export async function generateLoanMonthlyStatement(loanId: string, billingDate: 
   });
 }
 
+export async function updateLoanStatementSettings(
+  loanId: string,
+  data: {
+    billingDayOfMonth: number;
+    paymentDueDays: number;
+    minimumPaymentRate: number;
+    minimumPaymentFloor: number;
+    statementInterestRateMonthly: number;
+    statementLateFeeFixed: number;
+  },
+) {
+  return request<any>(`/loans/${loanId}/statement-settings`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
 export async function payLoanMonthlyStatement(
   loanId: string,
   billingDate: string,

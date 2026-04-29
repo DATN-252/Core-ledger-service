@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faCalendarDays, faFileInvoiceDollar, faRotate } from '@fortawesome/free-solid-svg-icons';
-import { generateLoanMonthlyStatement, getLoan, getLoanMonthlyStatements } from '@/lib/api';
+import { generateLoanMonthlyStatement, getLoan, getLoanMonthlyStatements, updateLoanStatementSettings } from '@/lib/api';
 
 const STATEMENT_STATUS_BADGE: Record<string, string> = {
     OPEN: 'badge-pending',
@@ -23,6 +23,9 @@ const STATEMENT_STATUS_LABEL: Record<string, string> = {
 
 function formatMoney(value: number | null | undefined, currency = 'USD') {
     return `${Number(value || 0).toLocaleString('en-US')} ${currency}`;
+}
+function formatRate(value: number | null | undefined) {
+    return `${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}%/tháng`;
 }
 
 function toDateInputValue(date = new Date()) {
@@ -67,7 +70,16 @@ export default function LoanStatementsPage() {
     const [billingDate, setBillingDate] = useState('');
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [savingSettings, setSavingSettings] = useState(false);
     const [error, setError] = useState('');
+    const [settingsForm, setSettingsForm] = useState({
+        billingDayOfMonth: '25',
+        paymentDueDays: '20',
+        minimumPaymentRate: '5',
+        minimumPaymentFloor: '10',
+        statementInterestRateMonthly: '2.5',
+        statementLateFeeFixed: '15',
+    });
 
     useEffect(() => {
         loadData();
@@ -83,6 +95,14 @@ export default function LoanStatementsPage() {
             ]);
             setLoan(loanData);
             setStatements(statementData || []);
+            setSettingsForm({
+                billingDayOfMonth: String(loanData?.billingDayOfMonth ?? 25),
+                paymentDueDays: String(loanData?.paymentDueDays ?? 20),
+                minimumPaymentRate: String(loanData?.minimumPaymentRate ?? 5),
+                minimumPaymentFloor: String(loanData?.minimumPaymentFloor ?? 10),
+                statementInterestRateMonthly: String(loanData?.statementInterestRateMonthly ?? 2.5),
+                statementLateFeeFixed: String(loanData?.statementLateFeeFixed ?? 15),
+            });
             if (loanData?.billingDayOfMonth) {
                 setBillingDate(getSuggestedBillingDate(Number(loanData.billingDayOfMonth)));
             }
@@ -91,6 +111,27 @@ export default function LoanStatementsPage() {
             setStatements([]);
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function handleSaveSettings(e: React.FormEvent) {
+        e.preventDefault();
+        setSavingSettings(true);
+        setError('');
+        try {
+            await updateLoanStatementSettings(loanId, {
+                billingDayOfMonth: Number(settingsForm.billingDayOfMonth),
+                paymentDueDays: Number(settingsForm.paymentDueDays),
+                minimumPaymentRate: Number(settingsForm.minimumPaymentRate),
+                minimumPaymentFloor: Number(settingsForm.minimumPaymentFloor),
+                statementInterestRateMonthly: Number(settingsForm.statementInterestRateMonthly),
+                statementLateFeeFixed: Number(settingsForm.statementLateFeeFixed),
+            });
+            await loadData();
+        } catch (e: any) {
+            setError(e.message || 'Không thể cập nhật cấu hình sao kê');
+        } finally {
+            setSavingSettings(false);
         }
     }
 
@@ -166,32 +207,75 @@ export default function LoanStatementsPage() {
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Billing day</div>
                         <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{billingDayOfMonth || '—'}</div>
                     </div>
+                    <div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Lãi suất sao kê</div>
+                        <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{formatRate(loan?.statementInterestRateMonthly)}</div>
+                    </div>
                 </div>
 
                 <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.35rem' }}>Generate sao kê</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.35rem' }}>Cấu hình sao kê</div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-                        {billingDayOfMonth
-                            ? `Chỉ có thể tạo sao kê vào ngày ${billingDayOfMonth} của từng tháng.`
-                            : 'Chọn billing date để tạo snapshot sao kê.'}
+                        Chỉnh billing day, thời gian đến hạn, tỷ lệ tối thiểu, lãi suất và phí trễ hạn cho tài khoản này.
                     </p>
 
-                    <form onSubmit={handleGenerate} style={{ display: 'flex', gap: '0.75rem', alignItems: 'end', flexWrap: 'wrap' }}>
-                        <div style={{ minWidth: '220px' }}>
-                            <label className="info-label" style={{ display: 'block', marginBottom: '0.4rem' }}>Billing Date</label>
-                            <input
-                                className="input"
-                                type="date"
-                                value={billingDate}
-                                onChange={e => setBillingDate(e.target.value)}
-                                required
-                            />
+                    <form onSubmit={handleSaveSettings} style={{ marginBottom: '1.25rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', marginBottom: '0.9rem' }}>
+                            <div>
+                                <label className="info-label" style={{ display: 'block', marginBottom: '0.4rem' }}>Billing day</label>
+                                <input className="input" type="number" min={1} max={28} value={settingsForm.billingDayOfMonth} onChange={e => setSettingsForm((current: any) => ({ ...current, billingDayOfMonth: e.target.value }))} required />
+                            </div>
+                            <div>
+                                <label className="info-label" style={{ display: 'block', marginBottom: '0.4rem' }}>Số ngày đến hạn</label>
+                                <input className="input" type="number" min={1} max={60} value={settingsForm.paymentDueDays} onChange={e => setSettingsForm((current: any) => ({ ...current, paymentDueDays: e.target.value }))} required />
+                            </div>
+                            <div>
+                                <label className="info-label" style={{ display: 'block', marginBottom: '0.4rem' }}>Tỷ lệ tối thiểu (%)</label>
+                                <input className="input" type="number" min={0} max={100} step="0.01" value={settingsForm.minimumPaymentRate} onChange={e => setSettingsForm((current: any) => ({ ...current, minimumPaymentRate: e.target.value }))} required />
+                            </div>
+                            <div>
+                                <label className="info-label" style={{ display: 'block', marginBottom: '0.4rem' }}>Mức sàn tối thiểu</label>
+                                <input className="input" type="number" min={0} step="0.01" value={settingsForm.minimumPaymentFloor} onChange={e => setSettingsForm((current: any) => ({ ...current, minimumPaymentFloor: e.target.value }))} required />
+                            </div>
+                            <div>
+                                <label className="info-label" style={{ display: 'block', marginBottom: '0.4rem' }}>Lãi suất sao kê (%/tháng)</label>
+                                <input className="input" type="number" min={0} max={100} step="0.01" value={settingsForm.statementInterestRateMonthly} onChange={e => setSettingsForm((current: any) => ({ ...current, statementInterestRateMonthly: e.target.value }))} required />
+                            </div>
+                            <div>
+                                <label className="info-label" style={{ display: 'block', marginBottom: '0.4rem' }}>Phí trễ hạn cố định</label>
+                                <input className="input" type="number" min={0} step="0.01" value={settingsForm.statementLateFeeFixed} onChange={e => setSettingsForm((current: any) => ({ ...current, statementLateFeeFixed: e.target.value }))} required />
+                            </div>
                         </div>
-                        <button className="btn-primary" type="submit" disabled={submitting}>
-                            <FontAwesomeIcon icon={faRotate} />
-                            {submitting ? 'Đang xử lý...' : 'Generate'}
+                        <button className="btn-primary" type="submit" disabled={savingSettings}>
+                            {savingSettings ? 'Đang lưu...' : 'Lưu cấu hình sao kê'}
                         </button>
                     </form>
+
+                    <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.35rem' }}>Generate sao kê</div>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                            {billingDayOfMonth
+                                ? `Chỉ có thể tạo sao kê vào ngày ${billingDayOfMonth} của từng tháng.`
+                                : 'Chọn billing date để tạo snapshot sao kê.'}
+                        </p>
+
+                        <form onSubmit={handleGenerate} style={{ display: 'flex', gap: '0.75rem', alignItems: 'end', flexWrap: 'wrap' }}>
+                            <div style={{ minWidth: '220px' }}>
+                                <label className="info-label" style={{ display: 'block', marginBottom: '0.4rem' }}>Billing Date</label>
+                                <input
+                                    className="input"
+                                    type="date"
+                                    value={billingDate}
+                                    onChange={e => setBillingDate(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <button className="btn-primary" type="submit" disabled={submitting}>
+                                <FontAwesomeIcon icon={faRotate} />
+                                {submitting ? 'Đang xử lý...' : 'Generate'}
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
 
@@ -217,6 +301,7 @@ export default function LoanStatementsPage() {
                                     <th>Trạng thái</th>
                                     <th>Ngày đến hạn</th>
                                     <th>Dư nợ cuối kỳ</th>
+                                    <th>Lãi đã áp</th>
                                     <th>Còn phải trả tối thiểu</th>
                                     <th>Còn dư nợ</th>
                                     <th>Số GD</th>
@@ -226,7 +311,7 @@ export default function LoanStatementsPage() {
                             <tbody>
                                 {statements.length === 0 ? (
                                     <tr>
-                                        <td colSpan={9} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                                        <td colSpan={10} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                                             Chưa có kỳ sao kê nào
                                         </td>
                                     </tr>
@@ -241,6 +326,12 @@ export default function LoanStatementsPage() {
                                         </td>
                                         <td>{statement.dueDate}</td>
                                         <td style={{ fontWeight: 600 }}>{formatMoney(statement.newBalance, currency)}</td>
+                                        <td>
+                                            <div>{formatMoney(statement.interestCharged, currency)}</div>
+                                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                                                {formatRate(statement.interestRateMonthly)}
+                                            </div>
+                                        </td>
                                         <td>{formatMoney(statement.remainingMinimumDue ?? statement.minimumDue, currency)}</td>
                                         <td>{formatMoney(statement.remainingBalance ?? statement.newBalance, currency)}</td>
                                         <td>{statement.transactionCount || 0}</td>
@@ -263,3 +354,7 @@ export default function LoanStatementsPage() {
         </div>
     );
 }
+
+
+
+

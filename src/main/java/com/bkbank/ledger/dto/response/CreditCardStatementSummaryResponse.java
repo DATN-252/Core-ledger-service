@@ -22,6 +22,12 @@ public class CreditCardStatementSummaryResponse {
     private Double totalPayments;
     private Double minimumDue;
     private Double newBalance;
+    private Double interestRateMonthly;
+    private Double interestCharged;
+    private LocalDateTime interestAppliedAt;
+    private Double lateFeeFixed;
+    private Double lateFeeCharged;
+    private LocalDateTime lateFeeAppliedAt;
     private Double availableCredit;
     private Integer transactionCount;
     private String statementStatus;

@@ -13,6 +13,10 @@ const STATUS_BADGE: Record<string, string> = {
     LOCKED: 'badge-locked',
 };
 
+function formatRate(value: number | null | undefined) {
+    return `${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}%/tháng`;
+}
+
 export default function LoansPage() {
     const [loans, setLoans] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -133,6 +137,7 @@ export default function LoansPage() {
                                     <th>Khách hàng</th>
                                     <th>Chi nhánh</th>
                                     <th>Hạn mức</th>
+                                    <th>Lãi sao kê</th>
                                     <th>Đã dùng</th>
                                     <th>Khả dụng</th>
                                     <th>Trạng thái</th>
@@ -153,6 +158,7 @@ export default function LoansPage() {
                                             <td style={{ fontWeight: 500 }}>{loan.clientName || '—'}</td>
                                             <td>{loan.branchName || '—'}</td>
                                             <td>{limit.toLocaleString('en-US')} {loan.currency?.code || 'USD'}</td>
+                                            <td>{formatRate(loan.statementInterestRateMonthly)}</td>
                                             <td style={{ color: used > 0 ? 'var(--warning)' : 'var(--text-secondary)' }}>
                                                 {used.toLocaleString('en-US')} {loan.currency?.code || 'USD'}
                                             </td>

@@ -16,14 +16,94 @@ const STATEMENT_STATUS_BADGE: Record<string, string> = {
 };
 
 const STATEMENT_STATUS_LABEL: Record<string, string> = {
-    OPEN: 'Chưa thanh toán',
-    PARTIALLY_PAID: 'Đã thanh toán một phần',
-    PAID: 'Đã thanh toán',
-    OVERDUE: 'Quá hạn',
+    OPEN: 'Chua thanh toan',
+    PARTIALLY_PAID: 'Da thanh toan mot phan',
+    PAID: 'Da thanh toan',
+    OVERDUE: 'Qua han',
 };
 
 function formatMoney(value: number | null | undefined, currency = 'USD') {
     return `${Number(value || 0).toLocaleString('en-US')} ${currency}`;
+}
+
+function formatRate(value: number | null | undefined) {
+    return `${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}%/thang`;
+}
+
+function formatDateTime(value: string | null | undefined) {
+    return value ? String(value).replace('T', ' ') : '—';
+}
+
+function parseLocalDate(value: string | null | undefined) {
+    if (!value) return null;
+    const parsed = new Date(`${value}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function dayDiff(from: Date, to: Date) {
+    const msPerDay = 24 * 60 * 60 * 1000;
+    return Math.floor((to.getTime() - from.getTime()) / msPerDay);
+}
+
+function getDuePolicyText(statement: any) {
+    const dueDays = Number(statement?.paymentDueDays ?? 0);
+    if (dueDays > 0) {
+        return `${dueDays} ngay sau ngay sao ke`;
+    }
+    return '—';
+}
+
+function getOverdueText(statement: any) {
+    const dueDate = parseLocalDate(statement?.dueDate);
+    if (!dueDate) {
+        return '—';
+    }
+
+    const today = parseLocalDate(new Date().toISOString().slice(0, 10));
+    if (!today) {
+        return '—';
+    }
+
+    if (statement?.statementStatus === 'OVERDUE') {
+        return `Da qua han ${Math.max(dayDiff(dueDate, today), 1)} ngay`;
+    }
+
+    if (today.getTime() === dueDate.getTime()) {
+        return 'Den han hom nay';
+    }
+
+    if (today.getTime() < dueDate.getTime()) {
+        return `Con ${dayDiff(today, dueDate)} ngay den han`;
+    }
+
+    return 'Qua han';
+}
+
+function getStatementStatusText(statement: any) {
+    const status = statement?.statementStatus;
+    const remainingMinimumDue = Number(statement?.remainingMinimumDue ?? statement?.minimumDue ?? 0);
+    const remainingBalance = Number(statement?.remainingBalance ?? statement?.newBalance ?? 0);
+
+    if (status === 'OVERDUE' && remainingMinimumDue <= 0 && remainingBalance > 0) {
+        return 'Qua han - con phi/lai';
+    }
+
+    return STATEMENT_STATUS_LABEL[status] || status || 'Chua thanh toan';
+}
+
+function getCurrentDueSummary(statement: any, currency: string) {
+    const remainingMinimumDue = Number(statement?.remainingMinimumDue ?? statement?.minimumDue ?? 0);
+    const remainingBalance = Number(statement?.remainingBalance ?? statement?.newBalance ?? 0);
+    const interestCharged = Number(statement?.interestCharged ?? 0);
+    const lateFeeCharged = Number(statement?.lateFeeCharged ?? 0);
+
+    if (remainingBalance <= 0) {
+        return 'Ky sao ke nay da duoc thanh toan du.';
+    }
+    if (remainingMinimumDue <= 0 && (interestCharged > 0 || lateFeeCharged > 0)) {
+        return `Sao ke goc da duoc thanh toan, hien con  phi/lai phat sinh sau han cua ky sao ke nay.`;
+    }
+    return 'Tra toi thieu, toan bo con no cua ky sao ke nay hoac nhap so tien tuy chinh.';
 }
 
 function detailBox(label: string, value: string) {
@@ -36,6 +116,52 @@ function detailBox(label: string, value: string) {
         }}>
             <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.45rem' }}>{label}</div>
             <div style={{ fontWeight: 600, lineHeight: 1.45 }}>{value}</div>
+        </div>
+    );
+}
+
+function renderTransactionTable(items: any[], currency: string, emptyText: string) {
+    return (
+        <div className="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Thoi gian</th>
+                        <th>Payment ID</th>
+                        <th>Loai</th>
+                        <th>Merchant</th>
+                        <th>So tien</th>
+                        <th>Du no sau GD</th>
+                        <th>Trang thai</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {items.length === 0 ? (
+                        <tr>
+                            <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                                {emptyText}
+                            </td>
+                        </tr>
+                    ) : items.map((item: any) => (
+                        <tr key={`${item.paymentId}-${item.transactionDate}-${item.transactionType}`}>
+                            <td style={{ whiteSpace: 'nowrap' }}>{item.transactionDate?.replace('T', ' ') || '—'}</td>
+                            <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>{item.paymentId || '—'}</td>
+                            <td>{item.transactionType || '—'}</td>
+                            <td>
+                                <div style={{ fontWeight: 500 }}>{getDisplayCounterpartyName(item)}</div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{getDisplayCounterpartyId(item)}</div>
+                            </td>
+                            <td>{formatMoney(item.amount, currency)}</td>
+                            <td>{formatMoney(item.balanceAfter, currency)}</td>
+                            <td>
+                                <span className={`badge ${item.status === 'SUCCESS' ? 'badge-active' : item.status === 'FAILED' ? 'badge-locked' : 'badge-pending'}`}>
+                                    {item.status || 'UNKNOWN'}
+                                </span>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
     );
 }
@@ -57,7 +183,7 @@ export default function LoanStatementDetailPage() {
     const [paymentSource, setPaymentSource] = useState('INTERNAL_SAVINGS');
     const [sourceAccountNumber, setSourceAccountNumber] = useState('');
     const [customAmount, setCustomAmount] = useState('');
-    const [paymentNote, setPaymentNote] = useState('Thanh toán sao kê');
+    const [paymentNote, setPaymentNote] = useState('Thanh toan sao ke');
 
     useEffect(() => {
         loadDetail();
@@ -84,7 +210,7 @@ export default function LoanStatementDetailPage() {
                 setSourceAccountNumber('');
             }
         } catch (e: any) {
-            setError(e.message || 'Không thể tải chi tiết sao kê');
+            setError(e.message || 'Khong the tai chi tiet sao ke');
             setStatement(null);
             setLoan(null);
             setSavingsAccounts([]);
@@ -115,16 +241,14 @@ export default function LoanStatementDetailPage() {
             });
 
             setPaymentMessage(
-                `Đã thanh toán ${formatMoney(response.paymentAmount, response.currency)}. Trạng thái mới: ${
-                    STATEMENT_STATUS_LABEL[response.statementStatusAfter] || response.statementStatusAfter
-                }`,
+                `Da thanh toan ${formatMoney(response.paymentAmount, response.currency)}. Trang thai moi: ${STATEMENT_STATUS_LABEL[response.statementStatusAfter] || response.statementStatusAfter}`,
             );
             if (paymentOption === 'CUSTOM') {
                 setCustomAmount('');
             }
             await loadDetail();
         } catch (e: any) {
-            setPaymentError(e.message || 'Không thể thanh toán sao kê');
+            setPaymentError(e.message || 'Khong the thanh toan sao ke');
         } finally {
             setPaymentLoading(false);
         }
@@ -132,8 +256,19 @@ export default function LoanStatementDetailPage() {
 
     const currency = statement?.currency || 'USD';
     const items = statement?.items || [];
-    const isPaid = (statement?.remainingBalance ?? statement?.newBalance ?? 0) <= 0;
+    const postStatementItems = statement?.postStatementItems || [];
+    const remainingMinimumDue = Number(statement?.remainingMinimumDue ?? statement?.minimumDue ?? 0);
+    const remainingBalance = Number(statement?.remainingBalance ?? statement?.newBalance ?? 0);
+    const isPaid = remainingBalance <= 0;
     const canUseInternalSavings = savingsAccounts.length > 0;
+    const accountOutstanding = Number(loan?.principalOutstanding || 0);
+    const hasOnlyOverdueChargesLeft = !isPaid && remainingMinimumDue <= 0 && remainingBalance > 0;
+
+    useEffect(() => {
+        if (hasOnlyOverdueChargesLeft && paymentOption === 'MINIMUM_DUE') {
+            setPaymentOption('STATEMENT_BALANCE');
+        }
+    }, [hasOnlyOverdueChargesLeft, paymentOption]);
 
     return (
         <div className="animate-fade-in">
@@ -141,15 +276,15 @@ export default function LoanStatementDetailPage() {
                 <div>
                     <div style={{ marginBottom: '0.75rem' }}>
                         <Link href={`/dashboard/loans/${loanId}/statements`} className="btn-secondary" style={{ textDecoration: 'none' }}>
-                            <FontAwesomeIcon icon={faArrowLeft} /> Quay lại lịch sử
+                            <FontAwesomeIcon icon={faArrowLeft} /> Quay lai lich su
                         </Link>
                     </div>
                     <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
                         <FontAwesomeIcon icon={faFileInvoiceDollar} style={{ marginRight: '0.5rem' }} />
-                        Chi tiết sao kê
+                        Chi tiet sao ke
                     </h1>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                        Tài khoản {loanId} • Billing date {billingDate}
+                        Tai khoan {loanId} • Billing date {billingDate}
                     </p>
                 </div>
             </div>
@@ -160,33 +295,37 @@ export default function LoanStatementDetailPage() {
 
             {loading ? (
                 <div className="card">
-                    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Đang tải chi tiết sao kê...</div>
+                    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Dang tai chi tiet sao ke...</div>
                 </div>
             ) : !statement ? (
                 <div className="card">
-                    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Không có dữ liệu sao kê.</div>
+                    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Khong co du lieu sao ke.</div>
                 </div>
             ) : (
                 <>
                     <div className="card" style={{ marginBottom: '1rem' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                             <div>
-                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Dư nợ cuối kỳ</div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Du no khi chot sao ke</div>
                                 <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{formatMoney(statement.newBalance, currency)}</div>
                             </div>
                             <div>
-                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Còn phải trả tối thiểu</div>
-                                <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{formatMoney(statement.remainingMinimumDue ?? statement.minimumDue, currency)}</div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Toi thieu con lai</div>
+                                <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{formatMoney(remainingMinimumDue, currency)}</div>
                             </div>
                             <div>
-                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Còn dư nợ</div>
-                                <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{formatMoney(statement.remainingBalance ?? statement.newBalance, currency)}</div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Con no cua ky sao ke nay</div>
+                                <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{formatMoney(remainingBalance, currency)}</div>
                             </div>
                             <div>
-                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Trạng thái</div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Du no toan tai khoan hien tai</div>
+                                <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{formatMoney(accountOutstanding, currency)}</div>
+                            </div>
+                            <div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Trang thai</div>
                                 <div>
                                     <span className={`badge ${STATEMENT_STATUS_BADGE[statement.statementStatus] || 'badge-pending'}`}>
-                                        {STATEMENT_STATUS_LABEL[statement.statementStatus] || statement.statementStatus || 'Chưa thanh toán'}
+                                        {getStatementStatusText(statement)}
                                     </span>
                                 </div>
                             </div>
@@ -195,44 +334,44 @@ export default function LoanStatementDetailPage() {
                         <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--border)', marginTop: '1rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: '1rem' }}>
                                 <div>
-                                    <div style={{ fontSize: '1rem', fontWeight: 600 }}>Thanh toán sao kê</div>
+                                    <div style={{ fontSize: '1rem', fontWeight: 600 }}>Thanh toan sao ke</div>
                                     <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                                        Trả tối thiểu, toàn bộ sao kê hoặc nhập số tiền tùy chỉnh.
+                                        {getCurrentDueSummary(statement, currency)}
                                     </div>
                                 </div>
                                 {loan?.clientId && (
                                     <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
-                                        Khách hàng: {loan.clientName || loan.clientId}
+                                        Khach hang: {loan.clientName || loan.clientId}
                                     </div>
                                 )}
                             </div>
 
                             {isPaid ? (
                                 <div style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-                                    Kỳ sao kê này đã được thanh toán đủ.
+                                    Ky sao ke nay da duoc thanh toan du.
                                 </div>
                             ) : (
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.9rem' }}>
                                     <div>
-                                        <label className="label">Tuỳ chọn thanh toán</label>
+                                        <label className="label">Tuy chon thanh toan</label>
                                         <select className="input" value={paymentOption} onChange={(e) => setPaymentOption(e.target.value)}>
-                                            <option value="MINIMUM_DUE">Thanh toán tối thiểu</option>
-                                            <option value="STATEMENT_BALANCE">Thanh toán toàn bộ sao kê</option>
-                                            <option value="CUSTOM">Thanh toán số khác</option>
+                                            <option value="MINIMUM_DUE" disabled={remainingMinimumDue <= 0}>Thanh toan toi thieu</option>
+                                            <option value="STATEMENT_BALANCE">{hasOnlyOverdueChargesLeft ? 'Thanh toan Con no cua ky sao ke nay' : 'Thanh toan toan bo sao ke'}</option>
+                                            <option value="CUSTOM">Thanh toan so khac</option>
                                         </select>
                                     </div>
 
                                     <div>
-                                        <label className="label">Nguồn thanh toán</label>
+                                        <label className="label">Nguon thanh toan</label>
                                         <select className="input" value={paymentSource} onChange={(e) => setPaymentSource(e.target.value)}>
-                                            <option value="INTERNAL_SAVINGS">Tài khoản debit nội bộ</option>
-                                            <option value="CASH_COUNTER">Thu tiền tại quầy</option>
+                                            <option value="INTERNAL_SAVINGS">Tai khoan debit noi bo</option>
+                                            <option value="CASH_COUNTER">Thu tien tai quay</option>
                                         </select>
                                     </div>
 
                                     {paymentOption === 'CUSTOM' && (
                                         <div>
-                                            <label className="label">Số tiền</label>
+                                            <label className="label">So tien</label>
                                             <input
                                                 className="input"
                                                 type="number"
@@ -240,14 +379,14 @@ export default function LoanStatementDetailPage() {
                                                 step="0.01"
                                                 value={customAmount}
                                                 onChange={(e) => setCustomAmount(e.target.value)}
-                                                placeholder="Nhập số tiền cần trả"
+                                                placeholder="Nhap so tien can tra"
                                             />
                                         </div>
                                     )}
 
                                     {paymentSource === 'INTERNAL_SAVINGS' && (
                                         <div>
-                                            <label className="label">Tài khoản debit</label>
+                                            <label className="label">Tai khoan debit</label>
                                             <select
                                                 className="input"
                                                 value={sourceAccountNumber}
@@ -255,7 +394,7 @@ export default function LoanStatementDetailPage() {
                                                 disabled={!canUseInternalSavings}
                                             >
                                                 {!canUseInternalSavings ? (
-                                                    <option value="">Không có tài khoản ACTIVE</option>
+                                                    <option value="">Khong co tai khoan ACTIVE</option>
                                                 ) : (
                                                     savingsAccounts.map((account: any) => (
                                                         <option key={account.accountNumber} value={account.accountNumber}>
@@ -268,12 +407,12 @@ export default function LoanStatementDetailPage() {
                                     )}
 
                                     <div style={{ gridColumn: '1 / -1' }}>
-                                        <label className="label">Ghi chú</label>
+                                        <label className="label">Ghi chu</label>
                                         <input
                                             className="input"
                                             value={paymentNote}
                                             onChange={(e) => setPaymentNote(e.target.value)}
-                                            placeholder="Ghi chú thanh toán"
+                                            placeholder="Ghi chu thanh toan"
                                         />
                                     </div>
 
@@ -288,14 +427,14 @@ export default function LoanStatementDetailPage() {
                                                 || (paymentOption === 'CUSTOM' && !(Number(customAmount || 0) > 0))
                                             }
                                         >
-                                            {paymentLoading ? 'Đang thanh toán...' : 'Xác nhận thanh toán'}
+                                            {paymentLoading ? 'Dang thanh toan...' : 'Xac nhan thanh toan'}
                                         </button>
                                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
                                             {paymentOption === 'MINIMUM_DUE'
-                                                ? `Sẽ trả ${formatMoney(statement.remainingMinimumDue ?? statement.minimumDue, currency)}`
+                                                ? `Se tra ${formatMoney(remainingMinimumDue, currency)}`
                                                 : paymentOption === 'STATEMENT_BALANCE'
-                                                    ? `Sẽ trả ${formatMoney(statement.remainingBalance ?? statement.newBalance, currency)}`
-                                                    : 'Nhập số tiền tùy chỉnh'}
+                                                    ? `Se tra ${formatMoney(remainingBalance, currency)}`
+                                                    : 'Nhap so tien tuy chinh'}
                                         </div>
                                     </div>
                                 </div>
@@ -304,89 +443,68 @@ export default function LoanStatementDetailPage() {
 
                         <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
                             <div style={{ marginBottom: '1rem' }}>
-                                <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>Thông tin kỳ sao kê</div>
+                                <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>Thong tin ky sao ke</div>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
-                                    {detailBox('Kỳ sao kê', statement.statementPeriod)}
-                                    {detailBox('Ngày sao kê', statement.billingDate)}
-                                    {detailBox('Ngày đến hạn', statement.dueDate)}
-                                    {detailBox('Lần thanh toán gần nhất', statement.lastPaymentDate ? String(statement.lastPaymentDate).replace('T', ' ') : '—')}
+                                    {detailBox('Ky sao ke', statement.statementPeriod)}
+                                    {detailBox('Ngay sao ke', statement.billingDate)}
+                                    {detailBox('Ngay den han', statement.dueDate)}
+                                    {detailBox('Lan thanh toan gan nhat', formatDateTime(statement.lastPaymentDate))}
                                 </div>
                             </div>
 
                             <div style={{ marginBottom: '1rem' }}>
-                                <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>Biến động tài chính</div>
+                                <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>Bien dong tai chinh</div>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
-                                    {detailBox('Dư nợ đầu kỳ', formatMoney(statement.previousBalance, currency))}
-                                    {detailBox('Tổng chi tiêu', formatMoney(statement.totalCharges, currency))}
-                                    {detailBox('Tổng thanh toán', formatMoney(statement.totalPayments, currency))}
-                                    {detailBox('Đã thanh toán sau sao kê', formatMoney(statement.paidAmountAfterStatement, currency))}
-                                    {detailBox('Còn phải trả tối thiểu', formatMoney(statement.remainingMinimumDue, currency))}
-                                    {detailBox('Còn dư nợ', formatMoney(statement.remainingBalance, currency))}
+                                    {detailBox('Du no dau ky', formatMoney(statement.previousBalance, currency))}
+                                    {detailBox('Tong phat sinh trong ky', formatMoney(statement.totalCharges, currency))}
+                                    {detailBox('Tong thanh toan', formatMoney(statement.totalPayments, currency))}
+                                    {detailBox('Da thanh toan sau sao ke', formatMoney(statement.paidAmountAfterStatement, currency))}
+                                    {detailBox('Lai da ap', formatMoney(statement.interestCharged, currency))}
+                                    {detailBox('Phi tre han da ap', formatMoney(statement.lateFeeCharged, currency))}
+                                    {detailBox('Toi thieu con lai', formatMoney(remainingMinimumDue, currency))}
+                                    {detailBox('Con no cua ky sao ke nay', formatMoney(remainingBalance, currency))}
                                 </div>
                             </div>
 
                             <div>
-                                <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>Cấu hình thanh toán</div>
+                                <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>Cau hinh thanh toan</div>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
                                     {detailBox('Billing day', String(statement.billingDayOfMonth ?? '—'))}
-                                    {detailBox('Số ngày đến hạn', String(statement.paymentDueDays ?? '—'))}
+                                    {detailBox('So ngay den han', String(statement.paymentDueDays ?? '—'))}
+                                    {detailBox('Chinh sach den han', getDuePolicyText(statement))}
+                                    {detailBox('Tinh trang qua han', getOverdueText(statement))}
+                                    {detailBox('Lai suat sao ke', formatRate(statement.interestRateMonthly))}
+                                    {detailBox('Thoi diem ap lai', formatDateTime(statement.interestAppliedAt))}
+                                    {detailBox('Phi tre han co dinh', formatMoney(statement.lateFeeFixed, currency))}
+                                    {detailBox('Thoi diem ap phi tre han', formatDateTime(statement.lateFeeAppliedAt))}
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="card">
+                    <div className="card" style={{ marginBottom: '1rem' }}>
                         <div style={{ marginBottom: '1rem' }}>
-                            <div style={{ fontSize: '1rem', fontWeight: 600 }}>Giao dịch trong kỳ</div>
+                            <div style={{ fontSize: '1rem', fontWeight: 600 }}>Giao dich trong ky</div>
                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                                Bao gồm toàn bộ giao dịch nằm trong khoảng sao kê
+                                Bao gom toan bo giao dich nam trong khoang sao ke
                             </div>
                         </div>
+                        {renderTransactionTable(items, currency, 'Khong co giao dich nao trong ky nay')}
+                    </div>
 
-                        <div className="table-container">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Thời gian</th>
-                                        <th>Payment ID</th>
-                                        <th>Loại</th>
-                                        <th>Merchant</th>
-                                        <th>Số tiền</th>
-                                        <th>Dư nợ sau GD</th>
-                                        <th>Trạng thái</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {items.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                                                Không có giao dịch nào trong kỳ này
-                                            </td>
-                                        </tr>
-                                    ) : items.map((item: any) => (
-                                        <tr key={`${item.paymentId}-${item.transactionDate}`}>
-                                            <td style={{ whiteSpace: 'nowrap' }}>{item.transactionDate?.replace('T', ' ') || '—'}</td>
-                                            <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>{item.paymentId || '—'}</td>
-                                            <td>{item.transactionType || '—'}</td>
-                                            <td>
-                                                <div style={{ fontWeight: 500 }}>{getDisplayCounterpartyName(item)}</div>
-                                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{getDisplayCounterpartyId(item)}</div>
-                                            </td>
-                                            <td>{formatMoney(item.amount, currency)}</td>
-                                            <td>{formatMoney(item.balanceAfter, currency)}</td>
-                                            <td>
-                                                <span className={`badge ${item.status === 'SUCCESS' ? 'badge-active' : item.status === 'FAILED' ? 'badge-locked' : 'badge-pending'}`}>
-                                                    {item.status || 'UNKNOWN'}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                    <div className="card">
+                        <div style={{ marginBottom: '1rem' }}>
+                            <div style={{ fontSize: '1rem', fontWeight: 600 }}>Phat sinh sau sao ke</div>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                                Bao gom thanh toan sau sao ke, lai, phi tre han va cac dieu chinh phat sinh sau ngay chot sao ke
+                            </div>
                         </div>
+                        {renderTransactionTable(postStatementItems, currency, 'Khong co phat sinh nao sau sao ke')}
                     </div>
                 </>
             )}
         </div>
     );
 }
+
+
