@@ -289,10 +289,10 @@ export default function SettlementsPage() {
         <div>
           <h1 className="page-title">
             <FontAwesomeIcon icon={faMoneyCheckDollar} style={{ marginRight: '0.5rem' }} />
-            Merchant Settlement
+            Thanh toán merchant
           </h1>
           <p className="page-subtitle">
-            Preview, generate va execute batch settlement T+1 cho merchant.
+            Xem trước, tạo và thực thi settlement batch T+1 cho merchant.
           </p>
         </div>
       </div>
@@ -301,19 +301,19 @@ export default function SettlementsPage() {
 
       <div className="stats-grid" style={{ marginBottom: '1rem' }}>
         <div className="stat-card">
-          <div className="stat-label">Merchant dang chon</div>
+          <div className="stat-label">Merchant đang chọn</div>
           <div className="stat-value">{selectedMerchant?.name || '—'}</div>
-          <div className="stat-note">{selectedMerchant?.merchantId || 'Chua chon merchant'}</div>
+          <div className="stat-note">{selectedMerchant?.merchantId || 'Chưa chọn merchant'}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Settlement account</div>
+          <div className="stat-label">Số tài khoản settlement</div>
           <div className="stat-value" style={{ fontSize: '1rem' }}>{selectedMerchant?.settlementAccountNumber || '—'}</div>
           <div className="stat-note">{selectedMerchant?.settlementAccountName || '—'}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Settlement bank</div>
+          <div className="stat-label">Ngân hàng settlement</div>
           <div className="stat-value" style={{ fontSize: '1rem' }}>{selectedMerchant?.settlementBankName || '—'}</div>
-          <div className="stat-note">So du hien tai: {formatMoney(selectedMerchant?.settlementAccountBalance)}</div>
+          <div className="stat-note">Số dư hiện tại: {formatMoney(selectedMerchant?.settlementAccountBalance)}</div>
         </div>
       </div>
 
@@ -340,7 +340,7 @@ export default function SettlementsPage() {
           <div className="form-field" style={{ display: 'flex', alignItems: 'end' }}>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)', fontSize: '0.875rem', paddingBottom: '0.75rem' }}>
               <input type="checkbox" checked={autoExecute} onChange={(e) => setAutoExecute(e.target.checked)} />
-              Execute ngay sau khi generate
+              Thực thi ngay sau khi tạo
             </label>
           </div>
         </div>
@@ -348,7 +348,7 @@ export default function SettlementsPage() {
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: autoRunResult ? '1rem' : 0 }}>
           <button className="btn-primary" onClick={handleAutoRun} disabled={autoRunning}>
             <FontAwesomeIcon icon={faClockRotateLeft} />
-            {autoRunning ? 'Đang chạy auto settlement...' : 'Run Auto Settlement'}
+            {autoRunning ? 'Đang chạy settlement tự động...' : 'Chạy settlement tự động'}
           </button>
         </div>
 
@@ -356,22 +356,22 @@ export default function SettlementsPage() {
           <div style={{ display: 'grid', gap: '1rem' }}>
             <div className="stats-grid">
               <div className="stat-card">
-                <div className="stat-label">Settlement date</div>
+                <div className="stat-label">Ngày settlement</div>
                 <div className="stat-value" style={{ fontSize: '1.1rem' }}>{autoRunResult.settlementDate}</div>
-                <div className="stat-note">Run at: {formatDateTime(autoRunResult.runAt)}</div>
+                <div className="stat-note">Chạy vào lúc: {formatDateTime(autoRunResult.runAt)}</div>
               </div>
               <div className="stat-card">
-                <div className="stat-label">Generated / Executed</div>
+                <div className="stat-label">Đã tạo / Đã thực thi</div>
                 <div className="stat-value" style={{ fontSize: '1.1rem' }}>{autoRunResult.generatedCount} / {autoRunResult.executedCount}</div>
-                <div className="stat-note">Execute mode: {autoRunResult.autoExecuted ? 'Generate + Execute' : 'Generate only'}</div>
+                <div className="stat-note">Chế độ thực thi: {autoRunResult.autoExecuted ? 'Tạo + Thực thi' : 'Chỉ tạo'}</div>
               </div>
               <div className="stat-card">
-                <div className="stat-label">Skipped</div>
+                <div className="stat-label">Bỏ qua</div>
                 <div className="stat-value" style={{ fontSize: '1.1rem' }}>{autoRunResult.skippedCount}</div>
-                <div className="stat-note">Fee rate: {autoRunResult.feeRate}%</div>
+                <div className="stat-note">Tỷ lệ phí: {autoRunResult.feeRate}%</div>
               </div>
               <div className="stat-card">
-                <div className="stat-label">Failed</div>
+                <div className="stat-label">Thất bại</div>
                 <div className="stat-value" style={{ fontSize: '1.1rem' }}>{autoRunResult.failedCount}</div>
                 <div className="stat-note">{autoRunResult.results?.length || 0} merchant processed</div>
               </div>
@@ -382,10 +382,10 @@ export default function SettlementsPage() {
                 <thead>
                   <tr>
                     <th>Merchant</th>
-                    <th>Status</th>
+                    <th>Trạng thái</th>
                     <th>Message</th>
                     <th>Batch</th>
-                    <th>Execution ref</th>
+                    <th>Tham chiếu thực thi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -420,14 +420,14 @@ export default function SettlementsPage() {
         <div className="card">
           <div style={{ marginBottom: '1rem' }}>
             <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.35rem' }}>Preview / Generate</h2>
-            <p className="page-subtitle">Chon merchant, khoang ngay va phi de tao settlement batch.</p>
+            <p className="page-subtitle">Chọn merchant, khoảng ngày và phí để tạo settlement batch.</p>
           </div>
 
           <div className="form-inline" style={{ marginBottom: '0.9rem' }}>
             <div className="form-field">
               <label className="info-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Merchant</label>
               <select className="input" value={selectedMerchantId} onChange={(e) => { setSelectedMerchantId(e.target.value); setSelectedBatch(null); }}>
-                {loading ? <option>Dang tai...</option> : merchants.map((merchant) => (
+                {loading ? <option>Đang tải...</option> : merchants.map((merchant) => (
                   <option key={merchant.merchantId} value={merchant.merchantId}>
                     {merchant.merchantId} - {merchant.name}
                   </option>
@@ -435,11 +435,11 @@ export default function SettlementsPage() {
               </select>
             </div>
             <div className="form-field">
-              <label className="info-label" style={{ display: 'block', marginBottom: '0.5rem' }}>From date</label>
+              <label className="info-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Từ ngày</label>
               <input className="input" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
             </div>
             <div className="form-field">
-              <label className="info-label" style={{ display: 'block', marginBottom: '0.5rem' }}>To date</label>
+              <label className="info-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Đến ngày</label>
               <input className="input" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
             </div>
             <div className="form-field" style={{ minWidth: '120px', maxWidth: '140px' }}>
@@ -456,19 +456,19 @@ export default function SettlementsPage() {
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             <button className="btn-secondary" onClick={handlePreview} disabled={previewLoading || !selectedMerchantId}>
               <FontAwesomeIcon icon={faRotate} />
-              {previewLoading ? 'Dang preview...' : 'Preview'}
+              {previewLoading ? 'Đang preview...' : 'Preview'}
             </button>
             <button className="btn-primary" onClick={handleGenerate} disabled={previewLoading || !selectedMerchantId}>
               <FontAwesomeIcon icon={faWandMagicSparkles} />
-              {previewLoading ? 'Dang tao batch...' : 'Generate batch'}
+              {previewLoading ? 'Đang tạo batch...' : 'Generate batch'}
             </button>
           </div>
         </div>
 
         <div className="card">
-          <div style={{ marginBottom: '1rem' }}>
+          <div style={{ marginBottom: '1rem ' }}>
             <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.35rem' }}>Preview summary</h2>
-            <p className="page-subtitle">Tong quan so tien merchant se nhan.</p>
+            <p className="page-subtitle">Tổng quan số tiền merchant sẽ nhận.</p>
           </div>
           {preview ? (
             <div className="info-list">
@@ -482,7 +482,7 @@ export default function SettlementsPage() {
               <div className="info-row"><span className="info-label">Projected balance</span><span className="info-value">{formatMoney((preview.settlementAccountBalance || 0) + (preview.netAmount || 0), preview.currency)}</span></div>
             </div>
           ) : (
-            <div className="empty-state">Chua co preview. Bam Preview de tinh settlement.</div>
+            <div className="empty-state">Chưa có preview. Bấm Preview để tính settlement.</div>
           )}
         </div>
       </div>
@@ -491,13 +491,13 @@ export default function SettlementsPage() {
         <div className="card">
           <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
             <div>
-              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.35rem' }}>Settlement batch history</h2>
-              <p className="page-subtitle">Danh sach batch da tao cho merchant duoc chon.</p>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.35rem' }}>Lịch sử settlement batch</h2>
+              <p className="page-subtitle">Danh sách batch đã tạo cho merchant được chọn.</p>
             </div>
           </div>
 
           {batchLoading ? (
-            <div className="empty-state">Dang tai batch history...</div>
+            <div className="empty-state">Đang tải batch history...</div>
           ) : (
             <>
               <div className="table-container">
@@ -516,7 +516,7 @@ export default function SettlementsPage() {
                   <tbody>
                     {batches.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="empty-state">Chua co settlement batch nao.</td>
+                        <td colSpan={7} className="empty-state">Chưa có settlement batch nào.</td>
                       </tr>
                     ) : batches.map((batch) => (
                       <tr key={batch.id}>
@@ -533,7 +533,7 @@ export default function SettlementsPage() {
                         <td>
                           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                             <button className="btn-secondary" style={{ padding: '0.45rem 0.75rem' }} onClick={() => handleViewBatch(batch.id)}>
-                              Chi tiet
+                              Chi tiết
                             </button>
                             {batch.status === 'PENDING' ? (
                               <button
@@ -560,7 +560,7 @@ export default function SettlementsPage() {
         <div className="card">
           <div style={{ marginBottom: '1rem' }}>
             <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.35rem' }}>Batch detail</h2>
-            <p className="page-subtitle">Chon mot batch de xem chi tiet va ket qua execute.</p>
+            <p className="page-subtitle">Chọn một batch để xem chi tiết và kết quả execute.</p>
           </div>
 
           {selectedBatch ? (
@@ -586,12 +586,12 @@ export default function SettlementsPage() {
                     <table className="settlement-table">
                       <thead>
                         <tr>
-                          <th>Txn ID</th>
-                          <th>Thoi gian</th>
-                          <th>Loai</th>
-                          <th>Tai khoan</th>
-                          <th>So tien</th>
-                          <th>Status</th>
+                          <th>ID giao dịch</th>
+                          <th>Thời gian</th>
+                          <th>Loại</th>
+                          <th>Tài khoản</th>
+                          <th>Số tiền</th>
+                          <th>Trạng thái</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -612,7 +612,7 @@ export default function SettlementsPage() {
                     </table>
                   </div>
                 ) : (
-                  <div className="empty-state">Batch nay chua co item detail.</div>
+                  <div className="empty-state">Batch này chưa có item detail.</div>
                 )}
               </div>
 
@@ -624,9 +624,9 @@ export default function SettlementsPage() {
                       <thead>
                         <tr>
                           <th>ID</th>
-                          <th>Loai</th>
+                          <th>Loại</th>
                           <th>Original txn</th>
-                          <th>So tien</th>
+                          <th>Số tiền</th>
                           <th>Status</th>
                         </tr>
                       </thead>
@@ -644,12 +644,12 @@ export default function SettlementsPage() {
                     </table>
                   </div>
                 ) : (
-                  <div className="empty-state">Batch nay khong co adjustment nao.</div>
+                  <div className="empty-state">Batch này không có adjustment nào.</div>
                 )}
               </div>
             </div>
           ) : (
-            <div className="empty-state">Chua chon batch nao.</div>
+            <div className="empty-state">Chưa chọn batch nào.</div>
           )}
         </div>
       </div>
@@ -657,17 +657,17 @@ export default function SettlementsPage() {
       <div className="card" style={{ marginTop: '1rem' }}>
         <div style={{ marginBottom: '1rem' }}>
           <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.35rem' }}>Settlement adjustments</h2>
-          <p className="page-subtitle">Refund/Reversal sau khi batch da settle se duoc khau tru vao ky settlement tiep theo.</p>
+          <p className="page-subtitle">Refund/Reversal sau khi batch đã settle sẽ được khấu trừ vào kỳ settlement tiếp theo.</p>
         </div>
         <div className="table-container">
           <table className="settlement-table">
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Loai</th>
+                <th>Loại</th>
                 <th>Original txn</th>
                 <th>Original batch</th>
-                <th>So tien</th>
+                <th>Số tiền</th>
                 <th>Status</th>
                 <th>Applied batch</th>
                 <th>Created at</th>
@@ -676,7 +676,7 @@ export default function SettlementsPage() {
             <tbody>
               {adjustments.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="empty-state">Chua co settlement adjustment nao.</td>
+                  <td colSpan={8} className="empty-state">Chưa có settlement adjustment nào.</td>
                 </tr>
               ) : adjustments.map((adjustment) => (
                 <tr key={adjustment.id}>

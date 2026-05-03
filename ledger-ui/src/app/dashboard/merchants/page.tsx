@@ -64,12 +64,12 @@ export default function MerchantsPage() {
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
           />
           <select className="input" value={status} onChange={(e) => { setStatus(e.target.value); setPage(0); }}>
-            <option value="ALL">Tat ca trang thai</option>
+            <option value="ALL">Tất cả trạng thái</option>
             <option value="ACTIVE">ACTIVE</option>
             <option value="INACTIVE">INACTIVE</option>
           </select>
           <select className="input" value={category} onChange={(e) => { setCategory(e.target.value); setPage(0); }}>
-            <option value="ALL">Tat ca category</option>
+            <option value="ALL">Tất cả category</option>
             <option value="UTILITY">UTILITY</option>
             <option value="RETAIL">RETAIL</option>
             <option value="shopping_pos">shopping_pos</option>
@@ -81,14 +81,14 @@ export default function MerchantsPage() {
           </select>
           <select className="input" value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(0); }}>
             <option value="merchantId">Merchant ID</option>
-            <option value="name">Ten merchant</option>
+            <option value="name">Tên merchant</option>
             <option value="category">Category</option>
-            <option value="cityName">Thanh pho</option>
-            <option value="status">Trang thai</option>
+            <option value="cityName">Thành phố</option>
+            <option value="status">Trạng thái</option>
           </select>
           <select className="input" value={sortDir} onChange={(e) => { setSortDir(e.target.value); setPage(0); }}>
-            <option value="asc">Tang dan</option>
-            <option value="desc">Giam dan</option>
+            <option value="asc">Tăng dần</option>
+            <option value="desc">Giảm dần</option>
           </select>
         </div>
 
@@ -100,20 +100,20 @@ export default function MerchantsPage() {
               <thead>
                 <tr>
                   <th>Merchant ID</th>
-                  <th>Ten merchant</th>
+                  <th>Tên merchant</th>
                   <th>Category</th>
-                  <th>Dia chi</th>
-                  <th>Settlement account</th>
-                  <th>So du</th>
-                  <th>Trang thai</th>
-                  <th>Thao tac</th>
+                  <th>Địa chỉ</th>
+                  <th>Tài khoản</th>
+                  <th>Số dư</th>
+                  <th>Trạng thái</th>
+                  <th>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {merchants.length === 0 ? (
                   <tr>
                     <td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                      Khong co merchant
+                      Không có merchant
                     </td>
                   </tr>
                 ) : merchants.map((merchant) => (
@@ -137,7 +137,7 @@ export default function MerchantsPage() {
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <Link href={`/dashboard/merchants/${merchant.merchantId}`} className="btn-secondary" style={{ padding: '0.45rem 0.8rem', textDecoration: 'none' }}>
-                          Chi tiet
+                          Chi tiết
                         </Link>
                         <Link href="/dashboard/settlements" className="btn-primary" style={{ padding: '0.45rem 0.8rem', textDecoration: 'none' }}>
                           <FontAwesomeIcon icon={faMoneyCheckDollar} />

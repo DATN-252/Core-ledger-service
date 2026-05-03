@@ -78,10 +78,10 @@ public class PublicFraudAlertActionController {
                   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px 18px;">
                     <div><div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Mã cảnh báo</div><div style="font-size:17px;font-weight:800;color:#0f172a;">#%s</div></div>
                     <div><div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Số tiền</div><div style="font-size:24px;font-weight:800;color:#0f172a;">%s</div></div>
-                    <div><div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Đơn vị chấp nhận thẻ</div><div style="font-size:16px;font-weight:700;color:#1e293b;">%s</div></div>
-                    <div><div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Thẻ</div><div style="font-size:16px;font-weight:700;color:#1e293b;">%s</div></div>
-                    <div><div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Trạng thái case</div><div style="font-size:16px;font-weight:700;color:#1e293b;">%s</div></div>
-                    <div><div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Phản hồi hiện tại</div><div style="font-size:16px;font-weight:700;color:#1e293b;">%s</div></div>
+                    <div><div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Đơn vị chấp nhận thẻ</div><div style="font-size:16px;line-height:1.45;font-weight:700;color:#1e293b;overflow-wrap:anywhere;word-break:break-word;">%s</div></div>
+                    <div><div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Thẻ</div><div style="font-size:16px;line-height:1.45;font-weight:700;color:#1e293b;overflow-wrap:anywhere;word-break:break-word;">%s</div></div>
+                    <div><div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Trạng thái case</div><div style="font-size:15px;line-height:1.45;font-weight:700;color:#1e293b;overflow-wrap:anywhere;word-break:break-word;">%s</div></div>
+                    <div><div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Phản hồi hiện tại</div><div style="font-size:15px;line-height:1.45;font-weight:700;color:#1e293b;overflow-wrap:anywhere;word-break:break-word;">%s</div></div>
                   </div>
                 </div>
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px;">

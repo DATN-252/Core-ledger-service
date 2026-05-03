@@ -92,30 +92,30 @@ export default function NewMerchantPage() {
 
       <div style={{ marginBottom: '2rem' }}>
         <Link href="/dashboard/merchants" style={{ color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
-          <FontAwesomeIcon icon={faArrowLeft} /> Quay lai danh sach merchant
+          <FontAwesomeIcon icon={faArrowLeft} /> Quay lại danh sách merchant
         </Link>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
           <FontAwesomeIcon icon={faStore} style={{ marginRight: '0.5rem' }} />
-          Dang ky merchant
+          Đăng ký merchant
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-          Tao moi don vi chap nhan thanh toan va tai khoan settlement tuong ung.
+          Tạo mới đơn vị chấp nhận thanh toán và tài khoản settlement tương ứng.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="card" style={{ maxWidth: '900px' }}>
-        <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Thong tin merchant</h2>
+        <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Thông tin merchant</h2>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
           <div>
             <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Merchant ID *</label>
             <input required name="merchantId" value={formData.merchantId} onChange={handleChange} className="input" placeholder="SP1001" />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Ten merchant *</label>
+            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Tên merchant *</label>
             <input required name="name" value={formData.name} onChange={handleChange} className="input" placeholder="BKBank Coffee" />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Category *</label>
+            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Danh mục *</label>
             <select required name="category" value={formData.category} onChange={handleChange} className="input">
               <option value="shopping_pos">shopping_pos</option>
               <option value="grocery_pos">grocery_pos</option>
@@ -128,35 +128,35 @@ export default function NewMerchantPage() {
             </select>
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Ma buu chinh</label>
+            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Mã bưu chính</label>
             <input name="postalCode" value={formData.postalCode} onChange={handleChange} className="input" placeholder="700000" />
           </div>
           <div style={{ gridColumn: '1 / -1' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Dia chi *</label>
+            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Địa chỉ *</label>
             <input required name="addressLine" value={formData.addressLine} onChange={handleChange} className="input" placeholder="123 Nguyen Hue" />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Phuong / Xa</label>
+            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Phường / Xã</label>
             <input name="ward" value={formData.ward} onChange={handleChange} className="input" />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Quan / Huyen</label>
+            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Quận / Huyện</label>
             <input name="district" value={formData.district} onChange={handleChange} className="input" />
           </div>
         </div>
 
-        <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Thong tin vi tri</h2>
+        <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Thông tin vị trí</h2>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Thanh pho *</label>
+            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Thành phố *</label>
             <input required name="cityName" value={formData.cityName} onChange={handleChange} className="input" placeholder="Ho Chi Minh City" />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Quoc gia *</label>
+            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Quốc gia *</label>
             <input required name="country" value={formData.country} onChange={handleChange} className="input" />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Dan so thanh pho *</label>
+            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Dân số thành phố *</label>
             <input required type="number" min="1" name="cityPopulation" value={formData.cityPopulation} onChange={handleChange} className="input" placeholder="9300000" />
           </div>
           <div>
@@ -172,25 +172,25 @@ export default function NewMerchantPage() {
         <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Settlement</h2>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>So tai khoan settlement</label>
-            <input name="settlementAccountNumber" value={formData.settlementAccountNumber} onChange={handleChange} className="input" placeholder="De trong de tu sinh" />
+            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Số tài khoản settlement</label>
+            <input name="settlementAccountNumber" value={formData.settlementAccountNumber} onChange={handleChange} className="input" placeholder="Để trống để tự sinh" />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Ten tai khoan settlement</label>
-            <input name="settlementAccountName" value={formData.settlementAccountName} onChange={handleChange} className="input" placeholder="Mac dinh theo ten merchant" />
+            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Tên tài khoản settlement</label>
+            <input name="settlementAccountName" value={formData.settlementAccountName} onChange={handleChange} className="input" placeholder="Mặc định theo tên merchant" />
           </div>
           <div style={{ gridColumn: '1 / -1' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Ngan hang settlement</label>
+            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Ngân hàng settlement</label>
             <input name="settlementBankName" value={formData.settlementBankName} onChange={handleChange} className="input" placeholder="BKBank Merchant Network" />
           </div>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
           <Link href="/dashboard/merchants" className="btn-secondary" style={{ textDecoration: 'none' }}>
-            Huy
+            Hủy
           </Link>
           <button type="submit" disabled={saving} className="btn-primary" style={{ padding: '0.5rem 1.5rem' }}>
-            {saving ? 'Dang luu...' : <><FontAwesomeIcon icon={faFloppyDisk} /> Luu merchant</>}
+            {saving ? 'Đang lưu...' : <><FontAwesomeIcon icon={faFloppyDisk} /> Lưu merchant</>}
           </button>
         </div>
       </form>
