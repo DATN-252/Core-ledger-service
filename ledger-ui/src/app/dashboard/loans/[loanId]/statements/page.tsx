@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faCalendarDays, faFileInvoiceDollar, faRotate } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faFileInvoiceDollar, faRotate } from '@fortawesome/free-solid-svg-icons';
 import { generateLoanMonthlyStatement, getLoan, getLoanMonthlyStatements, updateLoanStatementSettings } from '@/lib/api';
 
 const STATEMENT_STATUS_BADGE: Record<string, string> = {
@@ -24,8 +24,9 @@ const STATEMENT_STATUS_LABEL: Record<string, string> = {
 function formatMoney(value: number | null | undefined, currency = 'USD') {
     return `${Number(value || 0).toLocaleString('en-US')} ${currency}`;
 }
+
 function formatRate(value: number | null | undefined) {
-    return `${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}%/tháng`;
+    return `${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}%/năm`;
 }
 
 function toDateInputValue(date = new Date()) {
@@ -77,7 +78,8 @@ export default function LoanStatementsPage() {
         paymentDueDays: '20',
         minimumPaymentRate: '5',
         minimumPaymentFloor: '10',
-        statementInterestRateMonthly: '2.5',
+        statementInterestRateAnnual: '30',
+        statementLateFeeRate: '4',
         statementLateFeeFixed: '15',
     });
 
@@ -100,7 +102,8 @@ export default function LoanStatementsPage() {
                 paymentDueDays: String(loanData?.paymentDueDays ?? 20),
                 minimumPaymentRate: String(loanData?.minimumPaymentRate ?? 5),
                 minimumPaymentFloor: String(loanData?.minimumPaymentFloor ?? 10),
-                statementInterestRateMonthly: String(loanData?.statementInterestRateMonthly ?? 2.5),
+                statementInterestRateAnnual: String(loanData?.statementInterestRateAnnual ?? 30),
+                statementLateFeeRate: String(loanData?.statementLateFeeRate ?? 4),
                 statementLateFeeFixed: String(loanData?.statementLateFeeFixed ?? 15),
             });
             if (loanData?.billingDayOfMonth) {
@@ -124,7 +127,8 @@ export default function LoanStatementsPage() {
                 paymentDueDays: Number(settingsForm.paymentDueDays),
                 minimumPaymentRate: Number(settingsForm.minimumPaymentRate),
                 minimumPaymentFloor: Number(settingsForm.minimumPaymentFloor),
-                statementInterestRateMonthly: Number(settingsForm.statementInterestRateMonthly),
+                statementInterestRateAnnual: Number(settingsForm.statementInterestRateAnnual),
+                statementLateFeeRate: Number(settingsForm.statementLateFeeRate),
                 statementLateFeeFixed: Number(settingsForm.statementLateFeeFixed),
             });
             await loadData();
@@ -209,7 +213,7 @@ export default function LoanStatementsPage() {
                     </div>
                     <div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Lãi suất sao kê</div>
-                        <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{formatRate(loan?.statementInterestRateMonthly)}</div>
+                        <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{formatRate(loan?.statementInterestRateAnnual)}</div>
                     </div>
                 </div>
 
@@ -238,8 +242,12 @@ export default function LoanStatementsPage() {
                                 <input className="input" type="number" min={0} step="0.01" value={settingsForm.minimumPaymentFloor} onChange={e => setSettingsForm((current: any) => ({ ...current, minimumPaymentFloor: e.target.value }))} required />
                             </div>
                             <div>
-                                <label className="info-label" style={{ display: 'block', marginBottom: '0.4rem' }}>Lãi suất sao kê (%/tháng)</label>
-                                <input className="input" type="number" min={0} max={100} step="0.01" value={settingsForm.statementInterestRateMonthly} onChange={e => setSettingsForm((current: any) => ({ ...current, statementInterestRateMonthly: e.target.value }))} required />
+                                <label className="info-label" style={{ display: 'block', marginBottom: '0.4rem' }}>Lãi suất sao kê (%/năm)</label>
+                                <input className="input" type="number" min={0} max={100} step="0.01" value={settingsForm.statementInterestRateAnnual} onChange={e => setSettingsForm((current: any) => ({ ...current, statementInterestRateAnnual: e.target.value }))} required />
+                            </div>
+                            <div>
+                                <label className="info-label" style={{ display: 'block', marginBottom: '0.4rem' }}>Tỷ lệ phí trễ hạn (%)</label>
+                                <input className="input" type="number" min={0} max={100} step="0.01" value={settingsForm.statementLateFeeRate} onChange={e => setSettingsForm((current: any) => ({ ...current, statementLateFeeRate: e.target.value }))} required />
                             </div>
                             <div>
                                 <label className="info-label" style={{ display: 'block', marginBottom: '0.4rem' }}>Phí trễ hạn cố định</label>
@@ -302,8 +310,8 @@ export default function LoanStatementsPage() {
                                     <th>Ngày đến hạn</th>
                                     <th>Dư nợ cuối kỳ</th>
                                     <th>Lãi đã áp</th>
-                                    <th>Còn phải trả tối thiểu</th>
-                                    <th>Còn dư nợ</th>
+                                    <th>Tối thiểu hiện tại</th>
+                                    <th>Còn nợ kỳ sao kê</th>
                                     <th>Số GD</th>
                                     <th>Thao tác</th>
                                 </tr>
@@ -329,10 +337,15 @@ export default function LoanStatementsPage() {
                                         <td>
                                             <div>{formatMoney(statement.interestCharged, currency)}</div>
                                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                                                {formatRate(statement.interestRateMonthly)}
+                                                {formatRate(statement.interestRateAnnual)}
                                             </div>
                                         </td>
-                                        <td>{formatMoney(statement.remainingMinimumDue ?? statement.minimumDue, currency)}</td>
+                                        <td>
+                                            <div>{formatMoney(statement.remainingMinimumDue ?? statement.totalMinimumDueNow ?? statement.minimumDue, currency)}</div>
+                                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                                                Kỳ này {formatMoney(statement.currentMinimumDue ?? statement.minimumDue, currency)} • Quá hạn {formatMoney(statement.pastDueMinimum, currency)}
+                                            </div>
+                                        </td>
                                         <td>{formatMoney(statement.remainingBalance ?? statement.newBalance, currency)}</td>
                                         <td>{statement.transactionCount || 0}</td>
                                         <td>
@@ -354,7 +367,3 @@ export default function LoanStatementsPage() {
         </div>
     );
 }
-
-
-
-

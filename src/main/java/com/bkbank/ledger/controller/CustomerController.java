@@ -432,7 +432,8 @@ public class CustomerController {
     private void enrichCardWithAccountData(Map<String, Object> card,
                                            Map<String, SavingsAccount> savingsByAccount,
                                            Map<String, LoanAccount> loansByAccount) {
-        String accountId = (String) card.get("accountId");
+        String linkedAccountNumber = stringValue(card.get("linkedAccountNumber"));
+        String accountId = linkedAccountNumber != null ? linkedAccountNumber : (String) card.get("accountId");
         String cardType = stringValue(card.get("cardType"));
 
         if (accountId == null || accountId.isBlank()) {
@@ -514,7 +515,10 @@ public class CustomerController {
         if (card == null) {
             throw new RuntimeException("Khong tim thay the");
         }
-        String accountId = stringValue(card.get("accountId"));
+        String accountId = stringValue(card.get("linkedAccountNumber"));
+        if (accountId == null) {
+            accountId = stringValue(card.get("accountId"));
+        }
         if (accountId == null || !accountIds.contains(accountId)) {
             throw new RuntimeException("Khong tim thay the cua khach hang");
         }

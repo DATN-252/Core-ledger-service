@@ -46,6 +46,7 @@ export default function CardsPage() {
             (!search ||
                 c.cardholderName?.toLowerCase().includes(search.toLowerCase()) ||
                 c.maskedPan?.includes(search) ||
+                c.linkedAccountNumber?.toLowerCase().includes(search.toLowerCase()) ||
                 c.accountId?.toLowerCase().includes(search.toLowerCase())) &&
             (status === 'ALL' || c.status === status) &&
             (cardType === 'ALL' || c.cardType === cardType) &&
@@ -145,7 +146,7 @@ export default function CardsPage() {
                                     <th>Chủ thẻ</th>
                                     <th>Loại Thẻ</th>
                                     <th>Network</th>
-                                    <th>Tài khoản l/kết</th>
+                                    <th>Số tài khoản liên kết</th>
                                     <th>Hạn mức</th>
                                         <th>Dư nợ</th>
                                         <th>Hết hạn</th>
@@ -180,7 +181,7 @@ export default function CardsPage() {
                                                 <CardNetworkLogo network={card.network} />
                                             </td>
                                             <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                                                {card.accountId || '—'}
+                                                {card.linkedAccountNumber || card.accountId || '—'}
                                             </td>
                                             <td>
                                                 <span style={{ color: card.cardType === 'CREDIT' ? 'inherit' : 'var(--text-secondary)' }}>

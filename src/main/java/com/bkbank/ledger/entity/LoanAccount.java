@@ -27,10 +27,10 @@ public class LoanAccount {
     private String accountNumber;
 
     @Column(nullable = false)
-    private Double principal; // Credit limit
+    private Double principal;
 
     @Column(name = "principal_outstanding")
-    private Double principalOutstanding = 0.0; // Current debt
+    private Double principalOutstanding = 0.0;
 
     @Column(name = "currency", nullable = false)
     private String currency = "USD";
@@ -47,8 +47,11 @@ public class LoanAccount {
     @Column(name = "minimum_payment_floor", nullable = false)
     private Double minimumPaymentFloor = 10.0;
 
-    @Column(name = "statement_interest_rate_monthly", nullable = false)
-    private Double statementInterestRateMonthly = 2.5;
+    @Column(name = "statement_interest_rate_annual", nullable = false)
+    private Double statementInterestRateAnnual = 30.0;
+
+    @Column(name = "statement_late_fee_rate", nullable = false)
+    private Double statementLateFeeRate = 4.0;
 
     @Column(name = "statement_late_fee_fixed", nullable = false)
     private Double statementLateFeeFixed = 15.0;
@@ -63,7 +66,6 @@ public class LoanAccount {
     @Column(name = "closed_date")
     private LocalDateTime closedDate;
 
-    // Client relationship (replaces clientName)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;
@@ -79,11 +81,6 @@ public class LoanAccount {
     @LastModifiedDate
     private LocalDateTime updatedAt;
 
-    // ==================== State Machine Methods ====================
-
-    /**
-     * Activate account (PENDING → ACTIVE)
-     */
     public void activate() {
         if (status != AccountStatus.PENDING) {
             throw new IllegalStateException("Can only activate PENDING accounts. Current status: " + status);
@@ -91,9 +88,6 @@ public class LoanAccount {
         this.status = AccountStatus.ACTIVE;
     }
 
-    /**
-     * Lock account (ACTIVE → LOCKED)
-     */
     public void lock(String reason) {
         if (status != AccountStatus.ACTIVE) {
             throw new IllegalStateException("Can only lock ACTIVE accounts. Current status: " + status);
@@ -102,9 +96,6 @@ public class LoanAccount {
         this.lockReason = reason;
     }
 
-    /**
-     * Unlock account (LOCKED → ACTIVE)
-     */
     public void unlock() {
         if (status != AccountStatus.LOCKED) {
             throw new IllegalStateException("Can only unlock LOCKED accounts. Current status: " + status);
@@ -113,10 +104,6 @@ public class LoanAccount {
         this.lockReason = null;
     }
 
-    /**
-     * Close account (ACTIVE/LOCKED → CLOSED)
-     * Validates that outstanding balance is zero before closing
-     */
     public void close() {
         if (status == AccountStatus.CLOSED) {
             throw new IllegalStateException("Account is already closed");
@@ -133,63 +120,34 @@ public class LoanAccount {
         this.closedDate = LocalDateTime.now();
     }
 
-    // ==================== Status Checks ====================
-
-    /**
-     * Check if account is active
-     */
     public boolean isActive() {
         return status == AccountStatus.ACTIVE;
     }
 
-    /**
-     * Check if account can add charges
-     */
     public boolean canAddCharge() {
         return status == AccountStatus.ACTIVE;
     }
 
-    /**
-     * Check if account can make payments
-     * Note: LOCKED accounts can still receive payments
-     */
     public boolean canMakePayment() {
         return status == AccountStatus.ACTIVE || status == AccountStatus.LOCKED;
     }
 
-    /**
-     * Check if account is locked
-     */
     public boolean isLocked() {
         return status == AccountStatus.LOCKED;
     }
 
-    /**
-     * Check if account is closed
-     */
     public boolean isClosed() {
         return status == AccountStatus.CLOSED;
     }
 
-    // ==================== Business Methods ====================
-
-    /**
-     * Get available credit (limit - outstanding)
-     */
     public Double getAvailableCredit() {
         return principal - principalOutstanding;
     }
 
-    /**
-     * Check if has sufficient credit for transaction
-     */
     public boolean hasSufficientCredit(Double amount) {
         return getAvailableCredit() >= amount;
     }
 
-    /**
-     * Add charge to loan (increase outstanding)
-     */
     public void addCharge(Double amount) {
         if (!canAddCharge()) {
             throw new IllegalStateException("Account cannot add charges. Status: " + status +
@@ -201,10 +159,6 @@ public class LoanAccount {
         this.principalOutstanding += amount;
     }
 
-    /**
-     * Apply system-generated statement interest.
-     * Locked accounts still accrue interest, but pending/closed accounts do not.
-     */
     public void applyStatementInterest(Double amount) {
         if (status == AccountStatus.PENDING || status == AccountStatus.CLOSED) {
             throw new IllegalStateException("Account cannot accrue statement interest. Status: " + status);
@@ -215,10 +169,6 @@ public class LoanAccount {
         this.principalOutstanding += amount;
     }
 
-    /**
-     * Apply a fixed late fee to an overdue statement.
-     * Locked accounts still accrue late fees, but pending/closed accounts do not.
-     */
     public void applyStatementLateFee(Double amount) {
         if (status == AccountStatus.PENDING || status == AccountStatus.CLOSED) {
             throw new IllegalStateException("Account cannot accrue statement late fee. Status: " + status);
@@ -229,9 +179,6 @@ public class LoanAccount {
         this.principalOutstanding += amount;
     }
 
-    /**
-     * Make payment (reduce outstanding)
-     */
     public void makePayment(Double amount) {
         if (!canMakePayment()) {
             throw new IllegalStateException("Account cannot make payments. Status: " + status);
@@ -242,18 +189,10 @@ public class LoanAccount {
         this.principalOutstanding -= amount;
     }
 
-    /**
-     * Apply a refund/reversal against an existing card charge.
-     * Locked accounts can still receive credits, but closed/pending accounts cannot.
-     */
     public void applyCardAdjustment(Double amount) {
         makePayment(amount);
     }
 
-    /**
-     * Backward compatibility: Get client name
-     * For API responses to maintain compatibility
-     */
     public String getClientName() {
         return client != null ? client.getFullName() : null;
     }

@@ -165,7 +165,8 @@ export async function updateLoanStatementSettings(
     paymentDueDays: number;
     minimumPaymentRate: number;
     minimumPaymentFloor: number;
-    statementInterestRateMonthly: number;
+    statementInterestRateAnnual: number;
+    statementLateFeeRate: number;
     statementLateFeeFixed: number;
   },
 ) {
@@ -412,14 +413,14 @@ export async function markFraudAlertFalsePositive(alertId: string | number, note
   });
 }
 
-export async function issueDebitCard(data: { pan: string, cvv: string, expirationDate: string, accountId: string, cardholderName: string, network?: string }) {
+export async function issueDebitCard(data: { pan: string, cvv: string, expirationDate: string, linkedAccountNumber: string, cardholderName: string, network?: string }) {
   return cmsRequest<any>('/cards/issue', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export async function issueCreditCard(data: { pan: string, cvv: string, expirationDate: string, creditLimit: number, loanAccountId: string, cardholderName: string, network?: string }) {
+export async function issueCreditCard(data: { pan: string, cvv: string, expirationDate: string, creditLimit: number, linkedAccountNumber: string, cardholderName: string, network?: string }) {
   return cmsRequest<any>('/cards/issue/credit', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -458,3 +459,4 @@ export async function replaceCard(
     body: JSON.stringify(data),
   });
 }
+

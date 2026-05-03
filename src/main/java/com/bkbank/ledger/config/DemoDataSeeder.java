@@ -88,13 +88,13 @@ public class DemoDataSeeder implements CommandLineRunner {
         seedCustomerUser(clientOne, "0333444555", "customer123");
         seedCustomerUser(clientTwo, "0988777666", "customer123");
 
-        seedSavingsAccount(clientOne, "S0011", 12_350.0);
-        seedSavingsAccount(clientTwo, "S0022", 8_400.0);
+        seedSavingsAccount(clientOne, "1000000011", 12_350.0);
+        seedSavingsAccount(clientTwo, "1000000022", 8_400.0);
 
-        seedLoanAccount(clientOne, "C0013", 10_000.0, 4_410.0, 25);
-        seedLoanAccount(clientTwo, "C0024", 15_000.0, 2_200.0, 15);
-        seedLoanAccount(clientOne, "C0035", 12_000.0, 0.0, 10);
-        seedLoanAccount(clientTwo, "C0046", 8_000.0, 2_203.38, 5);
+        seedLoanAccount(clientOne, "2000000013", 10_000.0, 4_410.0, 25);
+        seedLoanAccount(clientTwo, "2000000024", 15_000.0, 2_200.0, 15);
+        seedLoanAccount(clientOne, "2000000035", 12_000.0, 0.0, 10);
+        seedLoanAccount(clientTwo, "2000000046", 8_000.0, 2_203.38, 5);
 
         seedSavingsTransactions();
         seedLoanStatementScenarios();
@@ -183,7 +183,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         account.setPaymentDueDays(20);
         account.setMinimumPaymentRate(5.0);
         account.setMinimumPaymentFloor(10.0);
-        account.setStatementInterestRateMonthly(2.5);
+        account.setStatementInterestRateAnnual(30.0);
         account.setStatementLateFeeFixed(15.0);
         account.setStatus(AccountStatus.ACTIVE);
         account.setClient(client);
@@ -195,7 +195,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         createTransactionIfMissing(
                 "DEMO-SAV-DEPOSIT-001",
                 buildTransaction(
-                        Transaction.createDeposit("S0011", 15_000.0, "USD", 15_000.0),
+                        Transaction.createDeposit("1000000011", 15_000.0, "USD", 15_000.0),
                         "DEMO-SAV-DEPOSIT-001",
                         LocalDateTime.now().minusDays(20).withHour(9).withMinute(0),
                         null,
@@ -209,7 +209,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "DEMO-SAV-WITHDRAW-001",
                 buildTransaction(
                         Transaction.createWithdrawal(
-                                "S0011",
+                                "1000000011",
                                 2_650.0,
                                 "USD",
                                 12_350.0,
@@ -248,7 +248,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "DEMO-LOAN-CHARGE-001",
                 buildTransaction(
                         Transaction.createCharge(
-                                "C0013",
+                                "2000000013",
                                 2_400.0,
                                 "USD",
                                 2_400.0,
@@ -271,7 +271,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "DEMO-LOAN-CHARGE-002",
                 buildTransaction(
                         Transaction.createCharge(
-                                "C0013",
+                                "2000000013",
                                 890.0,
                                 "USD",
                                 3_290.0,
@@ -293,7 +293,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         createTransactionIfMissing(
                 "DEMO-LOAN-PAYMENT-001",
                 buildTransaction(
-                        Transaction.createPayment("C0013", 600.0, "USD", 2_690.0),
+                        Transaction.createPayment("2000000013", 600.0, "USD", 2_690.0),
                         "DEMO-LOAN-PAYMENT-001",
                         statementStart.plusDays(12).atTime(9, 30),
                         null,
@@ -307,7 +307,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "DEMO-LOAN-FAILED-001",
                 buildTransaction(
                         Transaction.createFailedCharge(
-                                "C0013",
+                                "2000000013",
                                 900.0,
                                 "USD",
                                 2_690.0,
@@ -331,7 +331,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "DEMO-LOAN-CHARGE-003",
                 buildTransaction(
                         Transaction.createCharge(
-                                "C0013",
+                                "2000000013",
                                 1_820.0,
                                 "USD",
                                 4_510.0,
@@ -353,7 +353,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         createTransactionIfMissing(
                 "DEMO-LOAN-PAYMENT-AFTER-001",
                 buildTransaction(
-                        Transaction.createPayment("C0013", 100.0, "USD", 4_410.0),
+                        Transaction.createPayment("2000000013", 100.0, "USD", 4_410.0),
                         "DEMO-LOAN-PAYMENT-AFTER-001",
                         postStatementPaymentDate,
                         null,
@@ -365,7 +365,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         );
 
         saveOrUpdateStatement(
-                "C0013",
+                "2000000013",
                 statementStart,
                 billingDate,
                 dueDate,
@@ -374,7 +374,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 600.0,
                 225.5,
                 4_510.0,
-                2.5,
+                30.0,
                 0.0,
                 null,
                 15.0,
@@ -400,7 +400,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "DEMO-LOAN-OPEN-CHARGE-001",
                 buildTransaction(
                         Transaction.createCharge(
-                                "C0024",
+                                "2000000024",
                                 1_500.0,
                                 "USD",
                                 1_500.0,
@@ -423,7 +423,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "DEMO-LOAN-OPEN-CHARGE-002",
                 buildTransaction(
                         Transaction.createCharge(
-                                "C0024",
+                                "2000000024",
                                 700.0,
                                 "USD",
                                 2_200.0,
@@ -444,7 +444,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         );
 
         saveOrUpdateStatement(
-                "C0024",
+                "2000000024",
                 statementStart,
                 billingDate,
                 dueDate,
@@ -453,7 +453,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 0.0,
                 110.0,
                 2_200.0,
-                2.5,
+                30.0,
                 0.0,
                 null,
                 15.0,
@@ -480,7 +480,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "DEMO-LOAN-PAID-CHARGE-001",
                 buildTransaction(
                         Transaction.createCharge(
-                                "C0035",
+                                "2000000035",
                                 1_200.0,
                                 "USD",
                                 1_200.0,
@@ -503,7 +503,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "DEMO-LOAN-PAID-CHARGE-002",
                 buildTransaction(
                         Transaction.createCharge(
-                                "C0035",
+                                "2000000035",
                                 600.0,
                                 "USD",
                                 1_800.0,
@@ -525,7 +525,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         createTransactionIfMissing(
                 "DEMO-LOAN-PAID-PAYMENT-001",
                 buildTransaction(
-                        Transaction.createPayment("C0035", 1_800.0, "USD", 0.0),
+                        Transaction.createPayment("2000000035", 1_800.0, "USD", 0.0),
                         "DEMO-LOAN-PAID-PAYMENT-001",
                         paidAt,
                         null,
@@ -537,7 +537,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         );
 
         saveOrUpdateStatement(
-                "C0035",
+                "2000000035",
                 statementStart,
                 billingDate,
                 dueDate,
@@ -546,7 +546,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 0.0,
                 90.0,
                 1_800.0,
-                2.5,
+                30.0,
                 0.0,
                 null,
                 15.0,
@@ -578,7 +578,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "DEMO-LOAN-OVERDUE-PREV-CHARGE-001",
                 buildTransaction(
                         Transaction.createCharge(
-                                "C0046",
+                                "2000000046",
                                 450.0,
                                 "USD",
                                 450.0,
@@ -601,7 +601,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "DEMO-LOAN-OVERDUE-PREV-CHARGE-002",
                 buildTransaction(
                         Transaction.createCharge(
-                                "C0046",
+                                "2000000046",
                                 350.0,
                                 "USD",
                                 800.0,
@@ -624,7 +624,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "DEMO-LOAN-OVERDUE-PREV-INTEREST-001",
                 buildTransaction(
                         Transaction.createCharge(
-                                "C0046",
+                                "2000000046",
                                 20.0,
                                 "USD",
                                 820.0,
@@ -647,7 +647,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "DEMO-LOAN-OVERDUE-PREV-LATEFEE-001",
                 buildTransaction(
                         Transaction.createCharge(
-                                "C0046",
+                                "2000000046",
                                 15.0,
                                 "USD",
                                 835.0,
@@ -671,7 +671,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "DEMO-LOAN-OVERDUE-CHARGE-001",
                 buildTransaction(
                         Transaction.createCharge(
-                                "C0046",
+                                "2000000046",
                                 800.0,
                                 "USD",
                                 1_600.0,
@@ -694,7 +694,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "DEMO-LOAN-OVERDUE-CHARGE-002",
                 buildTransaction(
                         Transaction.createCharge(
-                                "C0046",
+                                "2000000046",
                                 500.0,
                                 "USD",
                                 2_100.0,
@@ -717,7 +717,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "DEMO-LOAN-OVERDUE-INTEREST-001",
                 buildTransaction(
                         Transaction.createCharge(
-                                "C0046",
+                                "2000000046",
                                 53.38,
                                 "USD",
                                 2_188.38,
@@ -740,7 +740,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 "DEMO-LOAN-OVERDUE-LATEFEE-001",
                 buildTransaction(
                         Transaction.createCharge(
-                                "C0046",
+                                "2000000046",
                                 15.0,
                                 "USD",
                                 2_203.38,
@@ -786,7 +786,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         });
 
         saveOrUpdateStatement(
-                "C0046",
+                "2000000046",
                 previousStatementStart,
                 previousBillingDate,
                 previousDueDate,
@@ -795,7 +795,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 0.0,
                 40.0,
                 800.0,
-                2.5,
+                30.0,
                 20.0,
                 previousInterestAppliedAt,
                 15.0,
@@ -811,7 +811,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         );
 
         saveOrUpdateStatement(
-                "C0046",
+                "2000000046",
                 statementStart,
                 billingDate,
                 dueDate,
@@ -820,7 +820,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 0.0,
                 106.75,
                 2_135.0,
-                2.5,
+                30.0,
                 53.38,
                 interestAppliedAt,
                 15.0,
@@ -845,7 +845,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                                        Double totalPayments,
                                        Double minimumDue,
                                        Double newBalance,
-                                       Double interestRateMonthly,
+                                       Double interestRateAnnual,
                                        Double interestCharged,
                                        LocalDateTime interestAppliedAt,
                                        Double lateFeeFixed,
@@ -871,7 +871,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         statement.setTotalPayments(totalPayments);
         statement.setMinimumDue(minimumDue);
         statement.setNewBalance(newBalance);
-        statement.setInterestRateMonthly(interestRateMonthly);
+        statement.setInterestRateAnnual(interestRateAnnual);
         statement.setInterestCharged(interestCharged);
         statement.setInterestAppliedAt(interestAppliedAt);
         statement.setLateFeeFixed(lateFeeFixed);

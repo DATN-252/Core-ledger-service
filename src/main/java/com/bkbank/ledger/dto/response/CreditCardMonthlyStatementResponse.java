@@ -26,10 +26,17 @@ public class CreditCardMonthlyStatementResponse {
     private Double totalCharges;
     private Double totalPayments;
     private Double minimumDue;
+    private Double currentMinimumDue;
+    private Double pastDueMinimum;
+    private Double totalMinimumDueNow;
+    private Double remainingCurrentMinimumDue;
+    private Double remainingPastDueMinimum;
     private Double newBalance;
-    private Double interestRateMonthly;
+    private Boolean gracePeriodEligible;
+    private Double interestRateAnnual;
     private Double interestCharged;
     private LocalDateTime interestAppliedAt;
+    private Double lateFeeRate;
     private Double lateFeeFixed;
     private Double lateFeeCharged;
     private LocalDateTime lateFeeAppliedAt;

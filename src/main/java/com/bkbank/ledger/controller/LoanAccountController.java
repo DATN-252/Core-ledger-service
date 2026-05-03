@@ -83,7 +83,8 @@ public class LoanAccountController {
             m.put("clientName", account.getClientName());
             m.put("branchId", account.getBranchId());
             m.put("branchName", account.getBranchName());
-            m.put("statementInterestRateMonthly", account.getStatementInterestRateMonthly());
+            m.put("statementInterestRateAnnual", account.getStatementInterestRateAnnual());
+            m.put("statementLateFeeRate", account.getStatementLateFeeRate());
             m.put("statementLateFeeFixed", account.getStatementLateFeeFixed());
             m.put("createdAt", account.getCreatedAt());
             return m;
@@ -121,7 +122,8 @@ public class LoanAccountController {
             response.put("paymentDueDays", account.getPaymentDueDays());
             response.put("minimumPaymentRate", account.getMinimumPaymentRate());
             response.put("minimumPaymentFloor", account.getMinimumPaymentFloor());
-            response.put("statementInterestRateMonthly", account.getStatementInterestRateMonthly());
+            response.put("statementInterestRateAnnual", account.getStatementInterestRateAnnual());
+            response.put("statementLateFeeRate", account.getStatementLateFeeRate());
             response.put("statementLateFeeFixed", account.getStatementLateFeeFixed());
             
             return ResponseEntity.ok(response);
@@ -164,7 +166,8 @@ public class LoanAccountController {
                     request.getPaymentDueDays(),
                     request.getMinimumPaymentRate(),
                     request.getMinimumPaymentFloor(),
-                    request.getStatementInterestRateMonthly(),
+                    request.getStatementInterestRateAnnual(),
+                    request.getStatementLateFeeRate(),
                     request.getStatementLateFeeFixed()
             );
 
@@ -174,7 +177,8 @@ public class LoanAccountController {
             response.put("paymentDueDays", account.getPaymentDueDays());
             response.put("minimumPaymentRate", account.getMinimumPaymentRate());
             response.put("minimumPaymentFloor", account.getMinimumPaymentFloor());
-            response.put("statementInterestRateMonthly", account.getStatementInterestRateMonthly());
+            response.put("statementInterestRateAnnual", account.getStatementInterestRateAnnual());
+            response.put("statementLateFeeRate", account.getStatementLateFeeRate());
             response.put("statementLateFeeFixed", account.getStatementLateFeeFixed());
             response.put("message", "Statement settings updated successfully");
             return ResponseEntity.ok(response);
@@ -466,3 +470,8 @@ public class LoanAccountController {
         }
     }
 }
+
+
+
+
+

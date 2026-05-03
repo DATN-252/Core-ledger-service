@@ -14,7 +14,7 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 function formatRate(value: number | null | undefined) {
-    return `${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}%/tháng`;
+    return `${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}%/năm`;
 }
 
 export default function LoansPage() {
@@ -158,7 +158,7 @@ export default function LoansPage() {
                                             <td style={{ fontWeight: 500 }}>{loan.clientName || '—'}</td>
                                             <td>{loan.branchName || '—'}</td>
                                             <td>{limit.toLocaleString('en-US')} {loan.currency?.code || 'USD'}</td>
-                                            <td>{formatRate(loan.statementInterestRateMonthly)}</td>
+                                            <td>{formatRate(loan.statementInterestRateAnnual)}</td>
                                             <td style={{ color: used > 0 ? 'var(--warning)' : 'var(--text-secondary)' }}>
                                                 {used.toLocaleString('en-US')} {loan.currency?.code || 'USD'}
                                             </td>

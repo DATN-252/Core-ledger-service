@@ -21,13 +21,13 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -54,155 +54,76 @@ class CreditCardStatementServiceTest {
     private LoanAccount account;
     private CreditCardStatement snapshot;
     private LocalDate billingDate;
+    private LocalDate periodStart;
+    private LocalDate dueDate;
 
     @BeforeEach
     void setUp() {
-        billingDate = LocalDate.now().minusDays(25);
+        billingDate = LocalDate.now().minusDays(20);
+        periodStart = billingDate.minusDays(4);
+        dueDate = billingDate.plusDays(5);
 
         account = new LoanAccount();
         account.setAccountNumber("C9001");
         account.setPrincipal(100000.0);
-        account.setPrincipalOutstanding(1300.0);
+        account.setPrincipalOutstanding(1000.0);
         account.setCurrency("USD");
         account.setBillingDayOfMonth(billingDate.getDayOfMonth());
-        account.setPaymentDueDays(10);
+        account.setPaymentDueDays(5);
         account.setMinimumPaymentRate(5.0);
         account.setMinimumPaymentFloor(10.0);
-        account.setStatementInterestRateMonthly(2.5);
+        account.setStatementInterestRateAnnual(36.0);
+        account.setStatementLateFeeRate(4.0);
         account.setStatementLateFeeFixed(15.0);
         account.setStatus(AccountStatus.ACTIVE);
 
         snapshot = new CreditCardStatement();
         snapshot.setId(66L);
         snapshot.setAccountNumber(account.getAccountNumber());
-        snapshot.setStatementPeriodStart(billingDate.minusMonths(1).plusDays(1));
+        snapshot.setStatementPeriodStart(periodStart);
         snapshot.setStatementPeriodEnd(billingDate);
         snapshot.setBillingDate(billingDate);
-        snapshot.setDueDate(billingDate.plusDays(10));
-        snapshot.setPreviousBalance(1000.0);
-        snapshot.setTotalCharges(500.0);
-        snapshot.setTotalPayments(200.0);
-        snapshot.setMinimumDue(65.0);
-        snapshot.setNewBalance(1300.0);
-        snapshot.setInterestRateMonthly(2.5);
+        snapshot.setDueDate(dueDate);
+        snapshot.setPreviousBalance(0.0);
+        snapshot.setTotalCharges(1000.0);
+        snapshot.setTotalPayments(0.0);
+        snapshot.setMinimumDue(50.0);
+        snapshot.setCurrentMinimumDue(50.0);
+        snapshot.setPastDueMinimum(0.0);
+        snapshot.setTotalMinimumDueNow(50.0);
+        snapshot.setNewBalance(1000.0);
+        snapshot.setGracePeriodEligible(false);
+        snapshot.setInterestRateAnnual(36.0);
         snapshot.setInterestCharged(0.0);
+        snapshot.setInterestAppliedAt(null);
+        snapshot.setLateFeeRate(4.0);
         snapshot.setLateFeeFixed(15.0);
         snapshot.setLateFeeCharged(0.0);
-        snapshot.setAvailableCreditAtBilling(98700.0);
-        snapshot.setTransactionCount(2);
+        snapshot.setLateFeeAppliedAt(null);
+        snapshot.setAvailableCreditAtBilling(99000.0);
+        snapshot.setTransactionCount(1);
         snapshot.setStatementStatus("OPEN");
         snapshot.setPaidAmountAfterStatement(0.0);
-        snapshot.setRemainingMinimumDue(65.0);
-        snapshot.setRemainingBalance(1300.0);
-        snapshot.setCreatedAt(LocalDateTime.now().minusDays(20));
-    }
-
-    @Test
-    void getStatementDetail_appliesInterestAndLateFeeOnceForOverdueUnpaidStatement() {
-        Transaction openingTx = transaction("OPENING", "CHARGE", 0.0, 1000.0, snapshot.getStatementPeriodStart().minusDays(1).atStartOfDay());
-        Transaction chargeTx = transaction("CHARGE-1", "CHARGE", 500.0, 1500.0, billingDate.minusDays(5).atTime(10, 0));
-        Transaction paymentTx = transaction("PAY-1", "PAYMENT", 200.0, 1300.0, billingDate.minusDays(3).atTime(11, 0));
-        Transaction interestTx = transaction("INT-1", "INTEREST", 32.5, 1332.5, snapshot.getDueDate().plusDays(1).atTime(9, 0));
-        interestTx.setChannel("STATEMENT_INTEREST");
-        interestTx.setExternalReference(billingDate.toString());
-        Transaction lateFeeTx = transaction("LATE-1", "LATE_FEE", 15.0, 1347.5, snapshot.getDueDate().plusDays(1).atTime(9, 5));
-        lateFeeTx.setChannel("STATEMENT_LATE_FEE");
-        lateFeeTx.setExternalReference(billingDate.toString());
+        snapshot.setRemainingMinimumDue(50.0);
+        snapshot.setRemainingBalance(1000.0);
+        snapshot.setLastPaymentDate(null);
+        snapshot.setCreatedAt(LocalDateTime.now().minusDays(15));
 
         when(loanAccountRepository.findByAccountNumber(account.getAccountNumber())).thenReturn(Optional.of(account));
         when(creditCardStatementRepository.findByAccountNumberAndBillingDate(account.getAccountNumber(), billingDate))
                 .thenReturn(Optional.of(snapshot));
         when(creditCardStatementRepository.save(any(CreditCardStatement.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(transactionRepository.findTopByAccountNumberAndAccountTypeAndTransactionDateBeforeOrderByTransactionDateDesc(
-                eq(account.getAccountNumber()), eq("LOAN"), any(LocalDateTime.class)))
-                .thenReturn(Optional.of(openingTx));
-        when(transactionRepository.findByAccountNumberAndAccountTypeAndTransactionDateBetweenOrderByTransactionDateAsc(
-                eq(account.getAccountNumber()), eq("LOAN"), any(LocalDateTime.class), any(LocalDateTime.class)))
-                .thenReturn(List.of(chargeTx, paymentTx));
-        when(transactionRepository.findByAccountNumberAndAccountTypeAndTransactionDateAfterOrderByTransactionDateAsc(
-                eq(account.getAccountNumber()), eq("LOAN"), any(LocalDateTime.class)))
-                .thenReturn(List.of(), List.of(interestTx), List.of(interestTx, lateFeeTx));
-
-        CreditCardMonthlyStatementResponse response =
-                creditCardStatementService.getStatementDetail(account.getAccountNumber(), billingDate);
-
-        assertNotNull(response);
-        assertEquals(1300.0, response.getNewBalance(), 0.001);
-        assertEquals(32.5, response.getInterestCharged(), 0.001);
-        assertEquals(15.0, response.getLateFeeCharged(), 0.001);
-        assertEquals(1347.5, response.getRemainingBalance(), 0.001);
-        assertEquals(65.0, response.getRemainingMinimumDue(), 0.001);
-        assertEquals("OVERDUE", response.getStatementStatus());
-        assertNotNull(response.getInterestAppliedAt());
-        assertNotNull(response.getLateFeeAppliedAt());
-
-        verify(loanAccountService).applyStatementInterest(account.getAccountNumber(), 32.5, billingDate.toString(), 2.5);
-        verify(loanAccountService).applyStatementLateFee(account.getAccountNumber(), 15.0, billingDate.toString());
+        when(creditCardStatementRepository.findByAccountNumberOrderByBillingDateDesc(account.getAccountNumber()))
+                .thenReturn(List.of(snapshot));
     }
 
     @Test
-    void getStatementDetail_doesNotApplyDuplicateChargesWhenAlreadyApplied() {
-        snapshot.setInterestCharged(32.5);
-        snapshot.setInterestAppliedAt(LocalDateTime.now().minusDays(1));
-        snapshot.setLateFeeCharged(15.0);
-        snapshot.setLateFeeAppliedAt(LocalDateTime.now().minusDays(1));
+    void getStatementDetail_doesNotApplyInterestOrLateFeeWhenFullyPaidBeforeDueDate() {
+        Transaction chargeTx = transaction("CHARGE-1", "CHARGE", 1000.0, 1000.0, periodStart.atTime(9, 0));
+        Transaction paymentTx = transaction("PAY-1", "PAYMENT", 1000.0, 0.0, billingDate.plusDays(1).atTime(10, 0));
+        paymentTx.setChannel("STATEMENT_PAYMENT");
+        paymentTx.setExternalReference(billingDate.toString());
 
-        Transaction openingTx = transaction("OPENING", "CHARGE", 0.0, 1000.0, snapshot.getStatementPeriodStart().minusDays(1).atStartOfDay());
-        Transaction chargeTx = transaction("CHARGE-1", "CHARGE", 500.0, 1500.0, billingDate.minusDays(5).atTime(10, 0));
-        Transaction paymentTx = transaction("PAY-1", "PAYMENT", 200.0, 1300.0, billingDate.minusDays(3).atTime(11, 0));
-        Transaction interestTx = transaction("INT-1", "INTEREST", 32.5, 1332.5, snapshot.getDueDate().plusDays(1).atTime(9, 0));
-        interestTx.setExternalReference(billingDate.toString());
-        Transaction lateFeeTx = transaction("LATE-1", "LATE_FEE", 15.0, 1347.5, snapshot.getDueDate().plusDays(1).atTime(9, 5));
-        lateFeeTx.setExternalReference(billingDate.toString());
-
-        when(loanAccountRepository.findByAccountNumber(account.getAccountNumber())).thenReturn(Optional.of(account));
-        when(creditCardStatementRepository.findByAccountNumberAndBillingDate(account.getAccountNumber(), billingDate))
-                .thenReturn(Optional.of(snapshot));
-        when(creditCardStatementRepository.save(any(CreditCardStatement.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(transactionRepository.findTopByAccountNumberAndAccountTypeAndTransactionDateBeforeOrderByTransactionDateDesc(
-                eq(account.getAccountNumber()), eq("LOAN"), any(LocalDateTime.class)))
-                .thenReturn(Optional.of(openingTx));
-        when(transactionRepository.findByAccountNumberAndAccountTypeAndTransactionDateBetweenOrderByTransactionDateAsc(
-                eq(account.getAccountNumber()), eq("LOAN"), any(LocalDateTime.class), any(LocalDateTime.class)))
-                .thenReturn(List.of(chargeTx, paymentTx));
-        when(transactionRepository.findByAccountNumberAndAccountTypeAndTransactionDateAfterOrderByTransactionDateAsc(
-                eq(account.getAccountNumber()), eq("LOAN"), any(LocalDateTime.class)))
-                .thenReturn(List.of(interestTx, lateFeeTx));
-
-        CreditCardMonthlyStatementResponse response =
-                creditCardStatementService.getStatementDetail(account.getAccountNumber(), billingDate);
-
-        assertEquals(32.5, response.getInterestCharged(), 0.001);
-        assertEquals(15.0, response.getLateFeeCharged(), 0.001);
-        assertEquals(1347.5, response.getRemainingBalance(), 0.001);
-        assertEquals("OVERDUE", response.getStatementStatus());
-
-        verifyNoMoreInteractions(loanAccountService);
-    }
-
-    @Test
-    void getStatementDetail_ignoresPostStatementChargesThatBelongToAnotherBillingCycle() {
-        snapshot.setInterestCharged(20.0);
-        snapshot.setInterestAppliedAt(LocalDateTime.now().minusDays(10));
-        snapshot.setLateFeeCharged(15.0);
-        snapshot.setLateFeeAppliedAt(LocalDateTime.now().minusDays(10));
-        snapshot.setNewBalance(800.0);
-        snapshot.setMinimumDue(40.0);
-
-        Transaction chargeTx = transaction("CHARGE-1", "CHARGE", 800.0, 800.0, billingDate.minusDays(5).atTime(10, 0));
-        Transaction statementInterestTx = transaction("INT-1", "INTEREST", 20.0, 820.0, snapshot.getDueDate().plusDays(1).atTime(9, 0));
-        statementInterestTx.setExternalReference(billingDate.toString());
-        Transaction statementLateFeeTx = transaction("LATE-1", "LATE_FEE", 15.0, 835.0, snapshot.getDueDate().plusDays(1).atTime(9, 5));
-        statementLateFeeTx.setExternalReference(billingDate.toString());
-        Transaction nextCycleInterestTx = transaction("INT-2", "INTEREST", 53.38, 2188.38, snapshot.getDueDate().plusDays(32).atTime(9, 0));
-        nextCycleInterestTx.setExternalReference(billingDate.plusMonths(1).toString());
-        Transaction nextCycleLateFeeTx = transaction("LATE-2", "LATE_FEE", 15.0, 2203.38, snapshot.getDueDate().plusDays(32).atTime(9, 5));
-        nextCycleLateFeeTx.setExternalReference(billingDate.plusMonths(1).toString());
-
-        when(loanAccountRepository.findByAccountNumber(account.getAccountNumber())).thenReturn(Optional.of(account));
-        when(creditCardStatementRepository.findByAccountNumberAndBillingDate(account.getAccountNumber(), billingDate))
-                .thenReturn(Optional.of(snapshot));
-        when(creditCardStatementRepository.save(any(CreditCardStatement.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(transactionRepository.findTopByAccountNumberAndAccountTypeAndTransactionDateBeforeOrderByTransactionDateDesc(
                 eq(account.getAccountNumber()), eq("LOAN"), any(LocalDateTime.class)))
                 .thenReturn(Optional.empty());
@@ -211,15 +132,140 @@ class CreditCardStatementServiceTest {
                 .thenReturn(List.of(chargeTx));
         when(transactionRepository.findByAccountNumberAndAccountTypeAndTransactionDateAfterOrderByTransactionDateAsc(
                 eq(account.getAccountNumber()), eq("LOAN"), any(LocalDateTime.class)))
-                .thenReturn(List.of(statementInterestTx, statementLateFeeTx, nextCycleInterestTx, nextCycleLateFeeTx));
+                .thenReturn(List.of(paymentTx));
 
-        CreditCardMonthlyStatementResponse response =
-                creditCardStatementService.getStatementDetail(account.getAccountNumber(), billingDate);
+        CreditCardMonthlyStatementResponse response = creditCardStatementService.getStatementDetail(account.getAccountNumber(), billingDate);
 
-        assertEquals(835.0, response.getRemainingBalance(), 0.001);
-        assertEquals(2, response.getPostStatementItems().size());
-        assertEquals("INT-1", response.getPostStatementItems().get(0).getPaymentId());
-        assertEquals("LATE-1", response.getPostStatementItems().get(1).getPaymentId());
+        assertNotNull(response);
+        assertEquals(1000.0, response.getNewBalance(), 0.001);
+        assertEquals(0.0, response.getInterestCharged(), 0.001);
+        assertEquals(0.0, response.getLateFeeCharged(), 0.001);
+        assertEquals(0.0, response.getRemainingBalance(), 0.001);
+        assertEquals(0.0, response.getRemainingMinimumDue(), 0.001);
+        assertTrue(Boolean.TRUE.equals(response.getGracePeriodEligible()));
+        assertEquals("PAID", response.getStatementStatus());
+
+        verify(loanAccountService, never()).applyStatementInterest(any(), any(), any(), any());
+        verify(loanAccountService, never()).applyStatementLateFee(any(), any(), any());
+    }
+
+    @Test
+    void getStatementDetail_appliesDailyInterestButNotLateFeeWhenPaidAboveMinimumBeforeDueDate() {
+        Transaction chargeTx = transaction("CHARGE-1", "CHARGE", 1000.0, 1000.0, periodStart.atTime(9, 0));
+        Transaction paymentTx = transaction("PAY-1", "PAYMENT", 100.0, 900.0, billingDate.plusDays(2).atTime(10, 0));
+        paymentTx.setChannel("STATEMENT_PAYMENT");
+        paymentTx.setExternalReference(billingDate.toString());
+        Transaction interestTx = transaction("INT-1", "INTEREST", 9.47, 909.47, dueDate.plusDays(1).atTime(9, 0));
+        interestTx.setChannel("STATEMENT_INTEREST");
+        interestTx.setExternalReference(billingDate.toString());
+
+        when(transactionRepository.findTopByAccountNumberAndAccountTypeAndTransactionDateBeforeOrderByTransactionDateDesc(
+                eq(account.getAccountNumber()), eq("LOAN"), any(LocalDateTime.class)))
+                .thenReturn(Optional.empty());
+        when(transactionRepository.findByAccountNumberAndAccountTypeAndTransactionDateBetweenOrderByTransactionDateAsc(
+                eq(account.getAccountNumber()), eq("LOAN"), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(List.of(chargeTx));
+        when(transactionRepository.findByAccountNumberAndAccountTypeAndTransactionDateAfterOrderByTransactionDateAsc(
+                eq(account.getAccountNumber()), eq("LOAN"), any(LocalDateTime.class)))
+                .thenReturn(
+                        List.of(paymentTx),
+                        List.of(paymentTx),
+                        List.of(paymentTx),
+                        List.of(paymentTx, interestTx),
+                        List.of(paymentTx, interestTx)
+                );
+
+        CreditCardMonthlyStatementResponse response = creditCardStatementService.getStatementDetail(account.getAccountNumber(), billingDate);
+
+        assertNotNull(response);
+        assertFalse(Boolean.TRUE.equals(response.getGracePeriodEligible()));
+        assertEquals(1000.0, response.getNewBalance(), 0.001);
+        assertEquals(9.47, response.getInterestCharged(), 0.001);
+        assertEquals(0.0, response.getLateFeeCharged(), 0.001);
+        assertEquals(0.0, response.getRemainingMinimumDue(), 0.001);
+        assertEquals(909.47, response.getRemainingBalance(), 0.001);
+        assertEquals("PARTIALLY_PAID", response.getStatementStatus());
+
+        verify(loanAccountService).applyStatementInterest(account.getAccountNumber(), 9.47, billingDate.toString(), 36.0);
+        verify(loanAccountService, never()).applyStatementLateFee(any(), any(), any());
+    }
+
+    @Test
+    void getStatementDetail_appliesInterestAndLateFeeWhenPaymentIsBelowMinimum() {
+        Transaction chargeTx = transaction("CHARGE-1", "CHARGE", 1000.0, 1000.0, periodStart.atTime(9, 0));
+        Transaction paymentTx = transaction("PAY-1", "PAYMENT", 20.0, 980.0, billingDate.plusDays(2).atTime(10, 0));
+        paymentTx.setChannel("STATEMENT_PAYMENT");
+        paymentTx.setExternalReference(billingDate.toString());
+        Transaction interestTx = transaction("INT-1", "INTEREST", 9.78, 989.78, dueDate.plusDays(1).atTime(9, 0));
+        interestTx.setChannel("STATEMENT_INTEREST");
+        interestTx.setExternalReference(billingDate.toString());
+        Transaction lateFeeTx = transaction("LATE-1", "LATE_FEE", 15.0, 1004.78, dueDate.plusDays(1).atTime(9, 5));
+        lateFeeTx.setChannel("STATEMENT_LATE_FEE");
+        lateFeeTx.setExternalReference(billingDate.toString());
+
+        when(transactionRepository.findTopByAccountNumberAndAccountTypeAndTransactionDateBeforeOrderByTransactionDateDesc(
+                eq(account.getAccountNumber()), eq("LOAN"), any(LocalDateTime.class)))
+                .thenReturn(Optional.empty());
+        when(transactionRepository.findByAccountNumberAndAccountTypeAndTransactionDateBetweenOrderByTransactionDateAsc(
+                eq(account.getAccountNumber()), eq("LOAN"), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(List.of(chargeTx));
+        when(transactionRepository.findByAccountNumberAndAccountTypeAndTransactionDateAfterOrderByTransactionDateAsc(
+                eq(account.getAccountNumber()), eq("LOAN"), any(LocalDateTime.class)))
+                .thenReturn(
+                        List.of(paymentTx),
+                        List.of(paymentTx),
+                        List.of(paymentTx),
+                        List.of(paymentTx, interestTx),
+                        List.of(paymentTx, interestTx, lateFeeTx),
+                        List.of(paymentTx, interestTx, lateFeeTx)
+                );
+
+        CreditCardMonthlyStatementResponse response = creditCardStatementService.getStatementDetail(account.getAccountNumber(), billingDate);
+
+        assertNotNull(response);
+        assertFalse(Boolean.TRUE.equals(response.getGracePeriodEligible()));
+        assertEquals(9.78, response.getInterestCharged(), 0.001);
+        assertEquals(15.0, response.getLateFeeCharged(), 0.001);
+        assertEquals(30.0, response.getRemainingMinimumDue(), 0.001);
+        assertEquals(1004.78, response.getRemainingBalance(), 0.001);
+        assertEquals("OVERDUE", response.getStatementStatus());
+
+        verify(loanAccountService).applyStatementInterest(account.getAccountNumber(), 9.78, billingDate.toString(), 36.0);
+        verify(loanAccountService).applyStatementLateFee(account.getAccountNumber(), 15.0, billingDate.toString());
+    }
+
+    @Test
+    void getStatementDetail_carriesPastDueMinimumFromPreviousStatementWithoutMergingIntoCurrentMinimum() {
+        CreditCardStatement previousStatement = new CreditCardStatement();
+        previousStatement.setId(65L);
+        previousStatement.setAccountNumber(account.getAccountNumber());
+        previousStatement.setBillingDate(billingDate.minusMonths(1));
+        previousStatement.setDueDate(billingDate.minusDays(10));
+        previousStatement.setMinimumDue(40.0);
+        previousStatement.setCurrentMinimumDue(40.0);
+        previousStatement.setPastDueMinimum(0.0);
+        previousStatement.setTotalMinimumDueNow(40.0);
+
+        Transaction chargeTx = transaction("CHARGE-1", "CHARGE", 1000.0, 1000.0, periodStart.atTime(9, 0));
+
+        when(creditCardStatementRepository.findByAccountNumberOrderByBillingDateDesc(account.getAccountNumber()))
+                .thenReturn(List.of(snapshot, previousStatement));
+        when(transactionRepository.findTopByAccountNumberAndAccountTypeAndTransactionDateBeforeOrderByTransactionDateDesc(
+                eq(account.getAccountNumber()), eq("LOAN"), any(LocalDateTime.class)))
+                .thenReturn(Optional.empty());
+        when(transactionRepository.findByAccountNumberAndAccountTypeAndTransactionDateBetweenOrderByTransactionDateAsc(
+                eq(account.getAccountNumber()), eq("LOAN"), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(List.of(chargeTx));
+        when(transactionRepository.findByAccountNumberAndAccountTypeAndTransactionDateAfterOrderByTransactionDateAsc(
+                eq(account.getAccountNumber()), eq("LOAN"), any(LocalDateTime.class)))
+                .thenReturn(List.of());
+
+        CreditCardMonthlyStatementResponse response = creditCardStatementService.getStatementDetail(account.getAccountNumber(), billingDate);
+
+        assertEquals(50.0, response.getCurrentMinimumDue(), 0.001);
+        assertEquals(40.0, response.getPastDueMinimum(), 0.001);
+        assertEquals(90.0, response.getTotalMinimumDueNow(), 0.001);
+        assertEquals(90.0, response.getRemainingMinimumDue(), 0.001);
     }
 
     private Transaction transaction(String paymentId,

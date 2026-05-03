@@ -18,8 +18,8 @@ export default function NewCardPage() {
         cvv: '',
         expirationDate: '',
         cardholderName: '',
-        accountId: '', // For debit
-        loanAccountId: '', // For credit
+        linkedSavingsAccountNumber: '',
+        linkedLoanAccountNumber: '',
         creditLimit: 0, // For credit
         network: 'VISA', // Card network
     });
@@ -55,7 +55,7 @@ export default function NewCardPage() {
                     pan: formData.pan,
                     cvv: formData.cvv,
                     expirationDate: formData.expirationDate,
-                    accountId: formData.accountId,
+                    linkedAccountNumber: formData.linkedSavingsAccountNumber,
                     cardholderName: formData.cardholderName,
                     network: formData.network,
                 });
@@ -64,7 +64,7 @@ export default function NewCardPage() {
                     pan: formData.pan,
                     cvv: formData.cvv,
                     expirationDate: formData.expirationDate,
-                    loanAccountId: formData.loanAccountId,
+                    linkedAccountNumber: formData.linkedLoanAccountNumber,
                     creditLimit: formData.creditLimit,
                     cardholderName: formData.cardholderName,
                     network: formData.network,
@@ -170,14 +170,14 @@ export default function NewCardPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
                     {formData.type === 'DEBIT' ? (
                         <div style={{ gridColumn: '1 / -1' }}>
-                            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Mã Tài khoản Ghi nợ (Savings Account ID) *</label>
-                            <input required name="accountId" value={formData.accountId} onChange={handleChange} className="input" placeholder="VD: SAV_00123" />
+                            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Số tài khoản nguồn liên kết (Savings Account Number) *</label>
+                            <input required name="linkedSavingsAccountNumber" value={formData.linkedSavingsAccountNumber} onChange={handleChange} className="input" placeholder="VD: 1000000011" />
                         </div>
                     ) : (
                         <>
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Mã KH Tín dụng (Loan Account ID) *</label>
-                                <input required name="loanAccountId" value={formData.loanAccountId} onChange={handleChange} className="input" placeholder="VD: LOAN_00456" />
+                                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Số tài khoản tín dụng liên kết (Loan Account Number) *</label>
+                                <input required name="linkedLoanAccountNumber" value={formData.linkedLoanAccountNumber} onChange={handleChange} className="input" placeholder="VD: 2000000013" />
                             </div>
                             <div>
                                 <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Hạn mức được cấp (USD) *</label>

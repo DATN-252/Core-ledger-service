@@ -52,17 +52,32 @@ public class CreditCardStatement {
     @Column(name = "minimum_due", nullable = false)
     private Double minimumDue;
 
+    @Column(name = "current_minimum_due", nullable = false)
+    private Double currentMinimumDue = 0.0;
+
+    @Column(name = "past_due_minimum", nullable = false)
+    private Double pastDueMinimum = 0.0;
+
+    @Column(name = "total_minimum_due_now", nullable = false)
+    private Double totalMinimumDueNow = 0.0;
+
     @Column(name = "new_balance", nullable = false)
     private Double newBalance;
 
-    @Column(name = "interest_rate_monthly", nullable = false)
-    private Double interestRateMonthly = 2.5;
+    @Column(name = "grace_period_eligible", nullable = false)
+    private Boolean gracePeriodEligible = false;
+
+    @Column(name = "interest_rate_annual", nullable = false)
+    private Double interestRateAnnual = 30.0;
 
     @Column(name = "interest_charged", nullable = false)
     private Double interestCharged = 0.0;
 
     @Column(name = "interest_applied_at")
     private LocalDateTime interestAppliedAt;
+
+    @Column(name = "late_fee_rate", nullable = false)
+    private Double lateFeeRate = 4.0;
 
     @Column(name = "late_fee_fixed", nullable = false)
     private Double lateFeeFixed = 15.0;

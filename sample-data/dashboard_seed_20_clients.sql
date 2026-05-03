@@ -264,7 +264,7 @@ BEGIN
         INSERT INTO loan_accounts (
             account_number, principal, principal_outstanding, currency,
             billing_day_of_month, payment_due_days, minimum_payment_rate,
-            minimum_payment_floor, statement_interest_rate_monthly, statement_late_fee_fixed,
+            minimum_payment_floor, statement_interest_rate_annual, statement_late_fee_fixed,
             status, client_id, created_at, updated_at
         )
         VALUES (
@@ -537,7 +537,7 @@ INSERT INTO
         total_payments,
         minimum_due,
         new_balance,
-        interest_rate_monthly,
+        interest_rate_annual,
         interest_charged,
         interest_applied_at,
         late_fee_fixed,
@@ -562,7 +562,7 @@ WITH
             payment_due_days,
             minimum_payment_rate,
             minimum_payment_floor,
-            statement_interest_rate_monthly,
+            statement_interest_rate_annual,
             statement_late_fee_fixed,
             RIGHT(account_number, 2)::INT AS account_idx
         FROM loan_accounts
@@ -577,7 +577,7 @@ WITH
             sl.payment_due_days,
             sl.minimum_payment_rate,
             sl.minimum_payment_floor,
-            sl.statement_interest_rate_monthly,
+            sl.statement_interest_rate_annual,
             sl.statement_late_fee_fixed,
             CASE
                 WHEN sl.billing_day_of_month <= 20 THEN MAKE_DATE(
@@ -627,7 +627,7 @@ WITH
             p.principal,
             p.minimum_payment_rate,
             p.minimum_payment_floor,
-            p.statement_interest_rate_monthly,
+            p.statement_interest_rate_annual,
             p.statement_late_fee_fixed,
             COALESCE(
                 after_payments.paid_after_statement,
@@ -745,7 +745,7 @@ WITH
                     WHEN sm.scenario_key = 0 THEN GREATEST(
                         sm.base_new_balance,
                         0
-                    ) * sm.statement_interest_rate_monthly / 100.0
+                    ) * sm.statement_interest_rate_annual / 100.0
                     ELSE 0
                 END::NUMERIC,
                 2
@@ -773,7 +773,7 @@ SELECT
     ROUND(sf.total_payments::NUMERIC, 2)::DOUBLE PRECISION,
     sf.base_minimum_due,
     sf.base_new_balance,
-    sf.statement_interest_rate_monthly,
+    sf.statement_interest_rate_annual,
     sf.scenario_interest_charged,
     CASE
         WHEN sf.scenario_key = 0 THEN (
@@ -854,7 +854,7 @@ SET
     total_payments = EXCLUDED.total_payments,
     minimum_due = EXCLUDED.minimum_due,
     new_balance = EXCLUDED.new_balance,
-    interest_rate_monthly = EXCLUDED.interest_rate_monthly,
+    interest_rate_annual = EXCLUDED.interest_rate_annual,
     interest_charged = EXCLUDED.interest_charged,
     interest_applied_at = EXCLUDED.interest_applied_at,
     late_fee_fixed = EXCLUDED.late_fee_fixed,

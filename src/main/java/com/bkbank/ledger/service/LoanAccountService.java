@@ -165,7 +165,7 @@ public class LoanAccountService {
     public Transaction applyStatementInterest(String accountNumber,
                                               Double amount,
                                               String billingDate,
-                                              Double interestRateMonthly) {
+                                              Double interestRateAnnual) {
         log.info("Applying statement interest of {} to loan account {} for billing date {}", amount, accountNumber, billingDate);
 
         LoanAccount account = getAccount(accountNumber);
@@ -178,7 +178,7 @@ public class LoanAccountService {
         tx.setTransactionType("INTEREST");
         tx.setDescription("Statement interest"
                 + (billingDate != null && !billingDate.isBlank() ? " for " + billingDate : "")
-                + (interestRateMonthly != null ? " at " + interestRateMonthly + "% monthly" : ""));
+                + (interestRateAnnual != null ? " at " + interestRateAnnual + "% annual" : ""));
         tx.setExternalReference(billingDate);
         tx.setResponseCode("00");
         tx.setResponseMessage("Approved");
@@ -273,7 +273,8 @@ public class LoanAccountService {
         account.setClient(client);
         account.setBranch(client.getHomeBranch());
         account.setCurrency("USD");
-        account.setStatementInterestRateMonthly(2.5);
+        account.setStatementInterestRateAnnual(30.0);
+        account.setStatementLateFeeRate(4.0);
         account.setStatementLateFeeFixed(15.0);
         account.setStatus(com.bkbank.ledger.entity.enums.AccountStatus.PENDING);
         
@@ -290,7 +291,8 @@ public class LoanAccountService {
                                                Integer paymentDueDays,
                                                Double minimumPaymentRate,
                                                Double minimumPaymentFloor,
-                                               Double statementInterestRateMonthly,
+                                               Double statementInterestRateAnnual,
+                                               Double statementLateFeeRate,
                                                Double statementLateFeeFixed) {
         LoanAccount account = getAccount(accountNumber);
 
@@ -299,7 +301,8 @@ public class LoanAccountService {
                 paymentDueDays,
                 minimumPaymentRate,
                 minimumPaymentFloor,
-                statementInterestRateMonthly,
+                statementInterestRateAnnual,
+                statementLateFeeRate,
                 statementLateFeeFixed
         );
 
@@ -307,7 +310,8 @@ public class LoanAccountService {
         account.setPaymentDueDays(paymentDueDays);
         account.setMinimumPaymentRate(minimumPaymentRate);
         account.setMinimumPaymentFloor(minimumPaymentFloor);
-        account.setStatementInterestRateMonthly(statementInterestRateMonthly);
+        account.setStatementInterestRateAnnual(statementInterestRateAnnual);
+        account.setStatementLateFeeRate(statementLateFeeRate);
         account.setStatementLateFeeFixed(statementLateFeeFixed);
 
         return loanAccountRepository.save(account);
@@ -324,7 +328,8 @@ public class LoanAccountService {
                                            Integer paymentDueDays,
                                            Double minimumPaymentRate,
                                            Double minimumPaymentFloor,
-                                           Double statementInterestRateMonthly,
+                                           Double statementInterestRateAnnual,
+                                           Double statementLateFeeRate,
                                            Double statementLateFeeFixed) {
         if (billingDayOfMonth == null || billingDayOfMonth < 1 || billingDayOfMonth > 28) {
             throw new IllegalArgumentException("billingDayOfMonth must be between 1 and 28");
@@ -338,8 +343,11 @@ public class LoanAccountService {
         if (minimumPaymentFloor == null || minimumPaymentFloor < 0) {
             throw new IllegalArgumentException("minimumPaymentFloor must be greater than or equal to 0");
         }
-        if (statementInterestRateMonthly == null || statementInterestRateMonthly < 0 || statementInterestRateMonthly > 100) {
-            throw new IllegalArgumentException("statementInterestRateMonthly must be between 0 and 100");
+        if (statementInterestRateAnnual == null || statementInterestRateAnnual < 0 || statementInterestRateAnnual > 100) {
+            throw new IllegalArgumentException("statementInterestRateAnnual must be between 0 and 100");
+        }
+        if (statementLateFeeRate == null || statementLateFeeRate < 0 || statementLateFeeRate > 100) {
+            throw new IllegalArgumentException("statementLateFeeRate must be between 0 and 100");
         }
         if (statementLateFeeFixed == null || statementLateFeeFixed < 0) {
             throw new IllegalArgumentException("statementLateFeeFixed must be greater than or equal to 0");
@@ -390,3 +398,8 @@ public class LoanAccountService {
         return loanAccountRepository.save(account);
     }
 }
+
+
+
+
+

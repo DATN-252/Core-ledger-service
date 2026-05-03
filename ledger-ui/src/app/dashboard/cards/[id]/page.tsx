@@ -201,7 +201,7 @@ export default function CardDetailPage() {
                 <tr><th>ID</th><td>{card.id}</td></tr>
                 <tr><th>Loại thẻ</th><td>{card.cardType || '—'}</td></tr>
                 <tr><th>Network</th><td><CardNetworkLogo network={card.network} width={64} height={24} /></td></tr>
-                <tr><th>Tài khoản liên kết</th><td>{card.accountId || '—'}</td></tr>
+                <tr><th>Số tài khoản liên kết</th><td>{card.linkedAccountNumber || card.accountId || '—'}</td></tr>
                 <tr><th>Ngày hết hạn</th><td>{card.expirationDate || '—'}</td></tr>
                 <tr><th>Hạn mức</th><td>{card.cardType === 'CREDIT' ? `${Number(card.creditLimit || 0).toLocaleString('en-US')} USD` : 'N/A'}</td></tr>
                 <tr><th>Dư nợ</th><td>{card.cardType === 'CREDIT' ? `${Number(card.outstandingBalance || 0).toLocaleString('en-US')} USD` : 'N/A'}</td></tr>

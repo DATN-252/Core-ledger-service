@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -16,10 +16,10 @@ const STATEMENT_STATUS_BADGE: Record<string, string> = {
 };
 
 const STATEMENT_STATUS_LABEL: Record<string, string> = {
-    OPEN: 'Chua thanh toan',
-    PARTIALLY_PAID: 'Da thanh toan mot phan',
-    PAID: 'Da thanh toan',
-    OVERDUE: 'Qua han',
+    OPEN: 'Chưa thanh toán',
+    PARTIALLY_PAID: 'Đã thanh toán một phần',
+    PAID: 'Đã thanh toán',
+    OVERDUE: 'Quá hạn',
 };
 
 function formatMoney(value: number | null | undefined, currency = 'USD') {
@@ -27,7 +27,7 @@ function formatMoney(value: number | null | undefined, currency = 'USD') {
 }
 
 function formatRate(value: number | null | undefined) {
-    return `${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}%/thang`;
+    return `${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}%/năm`;
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -48,7 +48,7 @@ function dayDiff(from: Date, to: Date) {
 function getDuePolicyText(statement: any) {
     const dueDays = Number(statement?.paymentDueDays ?? 0);
     if (dueDays > 0) {
-        return `${dueDays} ngay sau ngay sao ke`;
+        return `${dueDays} ngày sau ngày sao kê`;
     }
     return '—';
 }
@@ -65,45 +65,52 @@ function getOverdueText(statement: any) {
     }
 
     if (statement?.statementStatus === 'OVERDUE') {
-        return `Da qua han ${Math.max(dayDiff(dueDate, today), 1)} ngay`;
+        return `Đã quá hạn ${Math.max(dayDiff(dueDate, today), 1)} ngày`;
     }
 
     if (today.getTime() === dueDate.getTime()) {
-        return 'Den han hom nay';
+        return 'Đến hạn hôm nay';
     }
 
     if (today.getTime() < dueDate.getTime()) {
-        return `Con ${dayDiff(today, dueDate)} ngay den han`;
+        return `Còn ${dayDiff(today, dueDate)} ngày đến hạn`;
     }
 
-    return 'Qua han';
+    return 'Quá hạn';
 }
 
 function getStatementStatusText(statement: any) {
     const status = statement?.statementStatus;
-    const remainingMinimumDue = Number(statement?.remainingMinimumDue ?? statement?.minimumDue ?? 0);
+    const remainingMinimumDue = Number(statement?.remainingMinimumDue ?? statement?.totalMinimumDueNow ?? statement?.minimumDue ?? 0);
+    const remainingCurrentMinimumDue = Number(statement?.remainingCurrentMinimumDue ?? statement?.currentMinimumDue ?? statement?.minimumDue ?? 0);
+    const remainingPastDueMinimum = Number(statement?.remainingPastDueMinimum ?? statement?.pastDueMinimum ?? 0);
     const remainingBalance = Number(statement?.remainingBalance ?? statement?.newBalance ?? 0);
 
     if (status === 'OVERDUE' && remainingMinimumDue <= 0 && remainingBalance > 0) {
-        return 'Qua han - con phi/lai';
+        return 'Quá hạn - còn phí/lãi';
     }
 
-    return STATEMENT_STATUS_LABEL[status] || status || 'Chua thanh toan';
+    return STATEMENT_STATUS_LABEL[status] || status || 'Chưa thanh toán';
 }
 
 function getCurrentDueSummary(statement: any, currency: string) {
-    const remainingMinimumDue = Number(statement?.remainingMinimumDue ?? statement?.minimumDue ?? 0);
+    const remainingMinimumDue = Number(statement?.remainingMinimumDue ?? statement?.totalMinimumDueNow ?? statement?.minimumDue ?? 0);
+    const remainingCurrentMinimumDue = Number(statement?.remainingCurrentMinimumDue ?? statement?.currentMinimumDue ?? statement?.minimumDue ?? 0);
+    const remainingPastDueMinimum = Number(statement?.remainingPastDueMinimum ?? statement?.pastDueMinimum ?? 0);
     const remainingBalance = Number(statement?.remainingBalance ?? statement?.newBalance ?? 0);
     const interestCharged = Number(statement?.interestCharged ?? 0);
     const lateFeeCharged = Number(statement?.lateFeeCharged ?? 0);
 
     if (remainingBalance <= 0) {
-        return 'Ky sao ke nay da duoc thanh toan du.';
+        return 'Kỳ sao kê này đã được thanh toán đủ.';
     }
     if (remainingMinimumDue <= 0 && (interestCharged > 0 || lateFeeCharged > 0)) {
-        return `Sao ke goc da duoc thanh toan, hien con  phi/lai phat sinh sau han cua ky sao ke nay.`;
+        return 'Sao kê gốc đã được thanh toán, hiện còn phí/lãi phát sinh sau hạn của kỳ sao kê này.';
     }
-    return 'Tra toi thieu, toan bo con no cua ky sao ke nay hoac nhap so tien tuy chinh.';
+    if (remainingPastDueMinimum > 0) {
+        return `Cần xử lý ${formatMoney(remainingPastDueMinimum, currency)} tối thiểu quá hạn từ kỳ trước và ${formatMoney(remainingCurrentMinimumDue, currency)} tối thiểu của kỳ hiện tại.`;
+    }
+    return 'Trả tối thiểu hiện tại, toàn bộ còn nợ của kỳ sao kê này hoặc nhập số tiền tùy chỉnh.';
 }
 
 function detailBox(label: string, value: string) {
@@ -210,7 +217,7 @@ export default function LoanStatementDetailPage() {
                 setSourceAccountNumber('');
             }
         } catch (e: any) {
-            setError(e.message || 'Khong the tai chi tiet sao ke');
+            setError(e.message || 'Không thể tải chi tiết sao kê');
             setStatement(null);
             setLoan(null);
             setSavingsAccounts([]);
@@ -257,7 +264,9 @@ export default function LoanStatementDetailPage() {
     const currency = statement?.currency || 'USD';
     const items = statement?.items || [];
     const postStatementItems = statement?.postStatementItems || [];
-    const remainingMinimumDue = Number(statement?.remainingMinimumDue ?? statement?.minimumDue ?? 0);
+    const remainingMinimumDue = Number(statement?.remainingMinimumDue ?? statement?.totalMinimumDueNow ?? statement?.minimumDue ?? 0);
+    const remainingCurrentMinimumDue = Number(statement?.remainingCurrentMinimumDue ?? statement?.currentMinimumDue ?? statement?.minimumDue ?? 0);
+    const remainingPastDueMinimum = Number(statement?.remainingPastDueMinimum ?? statement?.pastDueMinimum ?? 0);
     const remainingBalance = Number(statement?.remainingBalance ?? statement?.newBalance ?? 0);
     const isPaid = remainingBalance <= 0;
     const canUseInternalSavings = savingsAccounts.length > 0;
@@ -276,15 +285,15 @@ export default function LoanStatementDetailPage() {
                 <div>
                     <div style={{ marginBottom: '0.75rem' }}>
                         <Link href={`/dashboard/loans/${loanId}/statements`} className="btn-secondary" style={{ textDecoration: 'none' }}>
-                            <FontAwesomeIcon icon={faArrowLeft} /> Quay lai lich su
+                            <FontAwesomeIcon icon={faArrowLeft} /> Quay lại lịch sử
                         </Link>
                     </div>
                     <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
                         <FontAwesomeIcon icon={faFileInvoiceDollar} style={{ marginRight: '0.5rem' }} />
-                        Chi tiet sao ke
+                        Chi tiết sao kê
                     </h1>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                        Tai khoan {loanId} • Billing date {billingDate}
+                        Tài khoản {loanId} • Billing date {billingDate}
                     </p>
                 </div>
             </div>
@@ -295,34 +304,34 @@ export default function LoanStatementDetailPage() {
 
             {loading ? (
                 <div className="card">
-                    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Dang tai chi tiet sao ke...</div>
+                    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Đang tải chi tiết sao kê...</div>
                 </div>
             ) : !statement ? (
                 <div className="card">
-                    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Khong co du lieu sao ke.</div>
+                    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Không có dữ liệu sao kê.</div>
                 </div>
             ) : (
                 <>
                     <div className="card" style={{ marginBottom: '1rem' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                             <div>
-                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Du no khi chot sao ke</div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Dư nợ khi chốt sao kê</div>
                                 <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{formatMoney(statement.newBalance, currency)}</div>
                             </div>
                             <div>
-                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Toi thieu con lai</div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Tổng tối thiểu cần trả hiện tại</div>
                                 <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{formatMoney(remainingMinimumDue, currency)}</div>
                             </div>
                             <div>
-                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Con no cua ky sao ke nay</div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Còn nợ của kỳ sao kê này</div>
                                 <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{formatMoney(remainingBalance, currency)}</div>
                             </div>
                             <div>
-                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Du no toan tai khoan hien tai</div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Dư nợ toàn tài khoản hiện tại</div>
                                 <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{formatMoney(accountOutstanding, currency)}</div>
                             </div>
                             <div>
-                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Trang thai</div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.35rem' }}>Trạng thái</div>
                                 <div>
                                     <span className={`badge ${STATEMENT_STATUS_BADGE[statement.statementStatus] || 'badge-pending'}`}>
                                         {getStatementStatusText(statement)}
@@ -334,44 +343,44 @@ export default function LoanStatementDetailPage() {
                         <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--border)', marginTop: '1rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: '1rem' }}>
                                 <div>
-                                    <div style={{ fontSize: '1rem', fontWeight: 600 }}>Thanh toan sao ke</div>
+                                    <div style={{ fontSize: '1rem', fontWeight: 600 }}>Thanh toán sao kê</div>
                                     <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
                                         {getCurrentDueSummary(statement, currency)}
                                     </div>
                                 </div>
                                 {loan?.clientId && (
                                     <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
-                                        Khach hang: {loan.clientName || loan.clientId}
+                                        Khách hàng: {loan.clientName || loan.clientId}
                                     </div>
                                 )}
                             </div>
 
                             {isPaid ? (
                                 <div style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-                                    Ky sao ke nay da duoc thanh toan du.
+                                    Kỳ sao kê này đã được thanh toán đủ.
                                 </div>
                             ) : (
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.9rem' }}>
                                     <div>
-                                        <label className="label">Tuy chon thanh toan</label>
+                                        <label className="label">Tùy chọn thanh toán</label>
                                         <select className="input" value={paymentOption} onChange={(e) => setPaymentOption(e.target.value)}>
-                                            <option value="MINIMUM_DUE" disabled={remainingMinimumDue <= 0}>Thanh toan toi thieu</option>
-                                            <option value="STATEMENT_BALANCE">{hasOnlyOverdueChargesLeft ? 'Thanh toan Con no cua ky sao ke nay' : 'Thanh toan toan bo sao ke'}</option>
-                                            <option value="CUSTOM">Thanh toan so khac</option>
+                                            <option value="MINIMUM_DUE" disabled={remainingMinimumDue <= 0}>Thanh toán tối thiểu</option>
+                                            <option value="STATEMENT_BALANCE">{hasOnlyOverdueChargesLeft ? 'Thanh toán Còn nợ của kỳ sao kê này' : 'Thanh toán toàn bộ sao kê'}</option>
+                                            <option value="CUSTOM">Thanh toán số khác</option>
                                         </select>
                                     </div>
 
                                     <div>
-                                        <label className="label">Nguon thanh toan</label>
+                                        <label className="label">Nguồn thanh toán</label>
                                         <select className="input" value={paymentSource} onChange={(e) => setPaymentSource(e.target.value)}>
-                                            <option value="INTERNAL_SAVINGS">Tai khoan debit noi bo</option>
-                                            <option value="CASH_COUNTER">Thu tien tai quay</option>
+                                            <option value="INTERNAL_SAVINGS">Tài khoản nội bộ</option>
+                                            <option value="CASH_COUNTER">Thu tiền tại quầy</option>
                                         </select>
                                     </div>
 
                                     {paymentOption === 'CUSTOM' && (
                                         <div>
-                                            <label className="label">So tien</label>
+                                            <label className="label">Số tiền</label>
                                             <input
                                                 className="input"
                                                 type="number"
@@ -379,14 +388,14 @@ export default function LoanStatementDetailPage() {
                                                 step="0.01"
                                                 value={customAmount}
                                                 onChange={(e) => setCustomAmount(e.target.value)}
-                                                placeholder="Nhap so tien can tra"
+                                                placeholder="Nhập số tiền cần trả"
                                             />
                                         </div>
                                     )}
 
                                     {paymentSource === 'INTERNAL_SAVINGS' && (
                                         <div>
-                                            <label className="label">Tai khoan debit</label>
+                                            <label className="label">Tài khoản</label>
                                             <select
                                                 className="input"
                                                 value={sourceAccountNumber}
@@ -394,7 +403,7 @@ export default function LoanStatementDetailPage() {
                                                 disabled={!canUseInternalSavings}
                                             >
                                                 {!canUseInternalSavings ? (
-                                                    <option value="">Khong co tai khoan ACTIVE</option>
+                                                    <option value="">Không có tài khoản nào</option>
                                                 ) : (
                                                     savingsAccounts.map((account: any) => (
                                                         <option key={account.accountNumber} value={account.accountNumber}>
@@ -407,12 +416,12 @@ export default function LoanStatementDetailPage() {
                                     )}
 
                                     <div style={{ gridColumn: '1 / -1' }}>
-                                        <label className="label">Ghi chu</label>
+                                        <label className="label">Ghi chú</label>
                                         <input
                                             className="input"
                                             value={paymentNote}
                                             onChange={(e) => setPaymentNote(e.target.value)}
-                                            placeholder="Ghi chu thanh toan"
+                                            placeholder="Ghi chú thanh toán"
                                         />
                                     </div>
 
@@ -427,14 +436,14 @@ export default function LoanStatementDetailPage() {
                                                 || (paymentOption === 'CUSTOM' && !(Number(customAmount || 0) > 0))
                                             }
                                         >
-                                            {paymentLoading ? 'Dang thanh toan...' : 'Xac nhan thanh toan'}
+                                            {paymentLoading ? 'Đang thanh toán...' : 'Xác nhận thanh toán'}
                                         </button>
                                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
                                             {paymentOption === 'MINIMUM_DUE'
-                                                ? `Se tra ${formatMoney(remainingMinimumDue, currency)}`
+                                                ? `Sẽ trả ${formatMoney(remainingMinimumDue, currency)}`
                                                 : paymentOption === 'STATEMENT_BALANCE'
-                                                    ? `Se tra ${formatMoney(remainingBalance, currency)}`
-                                                    : 'Nhap so tien tuy chinh'}
+                                                    ? `Sẽ trả ${formatMoney(remainingBalance, currency)}`
+                                                    : 'Nhập số tiền tùy chỉnh'}
                                         </div>
                                     </div>
                                 </div>
@@ -443,40 +452,47 @@ export default function LoanStatementDetailPage() {
 
                         <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
                             <div style={{ marginBottom: '1rem' }}>
-                                <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>Thong tin ky sao ke</div>
+                                <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>Thông tin kỳ sao kê</div>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
-                                    {detailBox('Ky sao ke', statement.statementPeriod)}
-                                    {detailBox('Ngay sao ke', statement.billingDate)}
-                                    {detailBox('Ngay den han', statement.dueDate)}
-                                    {detailBox('Lan thanh toan gan nhat', formatDateTime(statement.lastPaymentDate))}
+                                    {detailBox('Kỳ sao kê', statement.statementPeriod)}
+                                    {detailBox('Ngày sao kê', statement.billingDate)}
+                                    {detailBox('Ngày đến hạn', statement.dueDate)}
+                                    {detailBox('Lần thanh toán gần nhất', formatDateTime(statement.lastPaymentDate))}
                                 </div>
                             </div>
 
                             <div style={{ marginBottom: '1rem' }}>
-                                <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>Bien dong tai chinh</div>
+                                <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}> Biến động tài chính</div>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
-                                    {detailBox('Du no dau ky', formatMoney(statement.previousBalance, currency))}
-                                    {detailBox('Tong phat sinh trong ky', formatMoney(statement.totalCharges, currency))}
-                                    {detailBox('Tong thanh toan', formatMoney(statement.totalPayments, currency))}
-                                    {detailBox('Da thanh toan sau sao ke', formatMoney(statement.paidAmountAfterStatement, currency))}
-                                    {detailBox('Lai da ap', formatMoney(statement.interestCharged, currency))}
-                                    {detailBox('Phi tre han da ap', formatMoney(statement.lateFeeCharged, currency))}
-                                    {detailBox('Toi thieu con lai', formatMoney(remainingMinimumDue, currency))}
-                                    {detailBox('Con no cua ky sao ke nay', formatMoney(remainingBalance, currency))}
+                                    {detailBox('Dư nợ đầu kỳ', formatMoney(statement.previousBalance, currency))}
+                                    {detailBox('Tổng phát sinh trong kỳ', formatMoney(statement.totalCharges, currency))}
+                                    {detailBox('Tổng thanh toán', formatMoney(statement.totalPayments, currency))}
+                                    {detailBox('Đã thanh toán sau sao kê', formatMoney(statement.paidAmountAfterStatement, currency))}
+                                    {detailBox('Lãi đã áp dụng', formatMoney(statement.interestCharged, currency))}
+                                    {detailBox('Phí trễ hạn đã áp dụng', formatMoney(statement.lateFeeCharged, currency))}
+                                    {detailBox('Tối thiểu kỳ hiện tại', formatMoney(statement.currentMinimumDue, currency))}
+                                    {detailBox('Tối thiểu quá hạn kỳ trước', formatMoney(statement.pastDueMinimum, currency))}
+                                    {detailBox('Tổng tối thiểu cần trả', formatMoney(statement.totalMinimumDueNow, currency))}
+                                    {detailBox('Còn tối thiểu kỳ hiện tại', formatMoney(remainingCurrentMinimumDue, currency))}
+                                    {detailBox('Còn tối thiểu quá hạn', formatMoney(remainingPastDueMinimum, currency))}
+                                    {detailBox('Tổng tối thiểu còn lại', formatMoney(remainingMinimumDue, currency))}
+                                    {detailBox('Còn nợ của kỳ sao kê này', formatMoney(remainingBalance, currency))}
                                 </div>
                             </div>
 
                             <div>
-                                <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>Cau hinh thanh toan</div>
+                                <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>Cấu hình thanh toán</div>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
                                     {detailBox('Billing day', String(statement.billingDayOfMonth ?? '—'))}
-                                    {detailBox('So ngay den han', String(statement.paymentDueDays ?? '—'))}
-                                    {detailBox('Chinh sach den han', getDuePolicyText(statement))}
-                                    {detailBox('Tinh trang qua han', getOverdueText(statement))}
-                                    {detailBox('Lai suat sao ke', formatRate(statement.interestRateMonthly))}
-                                    {detailBox('Thoi diem ap lai', formatDateTime(statement.interestAppliedAt))}
-                                    {detailBox('Phi tre han co dinh', formatMoney(statement.lateFeeFixed, currency))}
-                                    {detailBox('Thoi diem ap phi tre han', formatDateTime(statement.lateFeeAppliedAt))}
+                                    {detailBox('Số ngày đến hạn', String(statement.paymentDueDays ?? '—'))}
+                                    {detailBox('Chính sách đến hạn', getDuePolicyText(statement))}
+                                    {detailBox('Tình trạng quá hạn', getOverdueText(statement))}
+                                    {detailBox('Còn đủ điều kiện miễn lãi', statement.gracePeriodEligible ? 'Có' : 'Không')}
+                                    {detailBox('Lãi suất sao kê', formatRate(statement.interestRateAnnual))}
+                                    {detailBox('Thời điểm áp lãi', formatDateTime(statement.interestAppliedAt))}
+                                    {detailBox('Tỷ lệ phí trễ hạn', `${Number(statement.lateFeeRate || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`)}
+                                    {detailBox('Phí trễ hạn cố định', formatMoney(statement.lateFeeFixed, currency))}
+                                    {detailBox('Thời điểm áp phí trễ hạn', formatDateTime(statement.lateFeeAppliedAt))}
                                 </div>
                             </div>
                         </div>
@@ -484,22 +500,22 @@ export default function LoanStatementDetailPage() {
 
                     <div className="card" style={{ marginBottom: '1rem' }}>
                         <div style={{ marginBottom: '1rem' }}>
-                            <div style={{ fontSize: '1rem', fontWeight: 600 }}>Giao dich trong ky</div>
+                            <div style={{ fontSize: '1rem', fontWeight: 600 }}>Giao dịch trong kỳ</div>
                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                                Bao gom toan bo giao dich nam trong khoang sao ke
+                                Bao gồm toàn bộ giao dịch nằm trong khoảng sao kê
                             </div>
                         </div>
-                        {renderTransactionTable(items, currency, 'Khong co giao dich nao trong ky nay')}
+                        {renderTransactionTable(items, currency, 'Không có giao dịch nào trong kỳ này')}
                     </div>
 
                     <div className="card">
                         <div style={{ marginBottom: '1rem' }}>
-                            <div style={{ fontSize: '1rem', fontWeight: 600 }}>Phat sinh sau sao ke</div>
+                            <div style={{ fontSize: '1rem', fontWeight: 600 }}> Phát sinh sau sao kê</div>
                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                                Bao gom thanh toan sau sao ke, lai, phi tre han va cac dieu chinh phat sinh sau ngay chot sao ke
+                                Bao gồm thanh toán sau sao kê, lãi, phí trễ hạn và các điều chỉnh phát sinh sau ngày chốt sao kê
                             </div>
                         </div>
-                        {renderTransactionTable(postStatementItems, currency, 'Khong co phat sinh nao sau sao ke')}
+                        {renderTransactionTable(postStatementItems, currency, 'Không có phát sinh nào sau sao kê')}
                     </div>
                 </>
             )}

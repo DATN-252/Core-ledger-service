@@ -553,7 +553,10 @@ public class PaymentController {
     }
 
     private String resolvePaymentCurrency(Map<String, Object> cmsResponse) {
-        String accountId = stringValue(cmsResponse.get("accountId"));
+        String accountId = stringValue(cmsResponse.get("linkedAccountNumber"));
+        if (accountId == null) {
+            accountId = stringValue(cmsResponse.get("accountId"));
+        }
         String accountType = stringValue(cmsResponse.get("accountType"));
 
         if (accountId == null || accountType == null) {
