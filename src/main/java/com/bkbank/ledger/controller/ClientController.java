@@ -1,7 +1,7 @@
 package com.bkbank.ledger.controller;
 
-import com.bkbank.ledger.dto.ClientCreateRequest;
-import com.bkbank.ledger.dto.ClientUpdateRequest;
+import com.bkbank.ledger.dto.request.ClientCreateRequest;
+import com.bkbank.ledger.dto.request.ClientUpdateRequest;
 import com.bkbank.ledger.entity.Client;
 import com.bkbank.ledger.entity.LoanAccount;
 import com.bkbank.ledger.entity.SavingsAccount;
@@ -37,17 +37,16 @@ public class ClientController {
             Map.entry("branchid", "homeBranch.branchId"),
             Map.entry("branchname", "homeBranch.branchName"),
             Map.entry("createdat", "createdAt"),
-            Map.entry("updatedat", "updatedAt")
-    );
-    
+            Map.entry("updatedat", "updatedAt"));
+
     private static final Logger log = LoggerFactory.getLogger(ClientController.class);
-    
+
     private final ClientService clientService;
-    
+
     public ClientController(ClientService clientService) {
         this.clientService = clientService;
     }
-    
+
     /**
      * Create a new client
      * POST /clients
@@ -55,23 +54,23 @@ public class ClientController {
     @PostMapping
     public ResponseEntity<Map<String, Object>> createClient(@RequestBody ClientCreateRequest request) {
         log.info("POST /clients - Creating client: {}", request.getClientId());
-        
+
         try {
             Client client = clientService.createClient(request);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("clientId", client.getClientId());
             response.put("fullName", client.getFullName());
             response.put("status", client.getStatus());
             response.put("message", "Client created successfully");
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error creating client: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
-    
+
     /**
      * Get client details
      * GET /clients/{clientId}
@@ -79,19 +78,19 @@ public class ClientController {
     @GetMapping("/{clientId}")
     public ResponseEntity<Map<String, Object>> getClient(@PathVariable String clientId) {
         log.info("GET /clients/{}", clientId);
-        
+
         try {
             Client client = clientService.getClient(clientId);
-            
+
             Map<String, Object> response = buildClientResponse(client);
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error getting client: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
-    
+
     /**
      * Update client information
      * PUT /clients/{clientId}
@@ -101,21 +100,21 @@ public class ClientController {
             @PathVariable String clientId,
             @RequestBody ClientUpdateRequest request) {
         log.info("PUT /clients/{}", clientId);
-        
+
         try {
             Client client = clientService.updateClient(clientId, request);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("clientId", client.getClientId());
             response.put("message", "Client updated successfully");
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error updating client: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
-    
+
     /**
      * Delete client (soft delete)
      * DELETE /clients/{clientId}
@@ -123,21 +122,21 @@ public class ClientController {
     @DeleteMapping("/{clientId}")
     public ResponseEntity<Map<String, Object>> deleteClient(@PathVariable String clientId) {
         log.info("DELETE /clients/{}", clientId);
-        
+
         try {
             clientService.deleteClient(clientId);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("clientId", clientId);
             response.put("message", "Client deactivated successfully");
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error deleting client: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
-    
+
     /**
      * Get all active clients
      * GET /clients
@@ -150,17 +149,16 @@ public class ClientController {
             @RequestParam(defaultValue = "ACTIVE") String status,
             @RequestParam(required = false) String branchId,
             @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "desc") String sortDir
-    ) {
+            @RequestParam(defaultValue = "desc") String sortDir) {
         log.info("GET /clients");
-        
+
         try {
-            Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "createdAt", CLIENT_SORT_MAPPINGS);
+            Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "createdAt",
+                    CLIENT_SORT_MAPPINGS);
             Page<Client> clients = clientService.findClients(
                     LedgerListSpecifications.clientList(q, status, branchId),
-                    pageable
-            );
-            
+                    pageable);
+
             Page<Map<String, Object>> response = clients.map(this::buildClientSummary);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -168,7 +166,7 @@ public class ClientController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
-    
+
     /**
      * Search clients by name
      * GET /clients/search?name={name}
@@ -177,14 +175,13 @@ public class ClientController {
     public ResponseEntity<?> searchClients(
             @RequestParam String name,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
+            @RequestParam(defaultValue = "10") int size) {
         log.info("GET /clients/search?name={}", name);
-        
+
         try {
             Pageable pageable = PageRequest.of(page, size);
             Page<Client> clients = clientService.searchClientsByName(name, pageable);
-            
+
             Page<Map<String, Object>> response = clients.map(this::buildClientSummary);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -192,7 +189,7 @@ public class ClientController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
-    
+
     /**
      * Get client's all accounts
      * GET /clients/{clientId}/accounts
@@ -200,29 +197,30 @@ public class ClientController {
     @GetMapping("/{clientId}/accounts")
     public ResponseEntity<Map<String, Object>> getClientAccounts(@PathVariable String clientId) {
         log.info("GET /clients/{}/accounts", clientId);
-        
+
         try {
             Client client = clientService.getClient(clientId);
             List<SavingsAccount> savingsAccounts = clientService.getClientSavingsAccounts(clientId);
             List<LoanAccount> loanAccounts = clientService.getClientLoanAccounts(clientId);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("clientId", client.getClientId());
             response.put("clientName", client.getFullName());
             response.put("homeBranchId", client.getHomeBranch() != null ? client.getHomeBranch().getBranchId() : null);
-            response.put("homeBranchName", client.getHomeBranch() != null ? client.getHomeBranch().getBranchName() : null);
+            response.put("homeBranchName",
+                    client.getHomeBranch() != null ? client.getHomeBranch().getBranchName() : null);
             response.put("savingsAccounts", buildSavingsAccountList(savingsAccounts));
             response.put("loanAccounts", buildLoanAccountList(loanAccounts));
             response.put("totalSavingsAccounts", savingsAccounts.size());
             response.put("totalLoanAccounts", loanAccounts.size());
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error getting client accounts: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
-    
+
     /**
      * Get client's savings accounts only
      * GET /clients/{clientId}/savings
@@ -230,22 +228,22 @@ public class ClientController {
     @GetMapping("/{clientId}/savings")
     public ResponseEntity<Map<String, Object>> getClientSavingsAccounts(@PathVariable String clientId) {
         log.info("GET /clients/{}/savings", clientId);
-        
+
         try {
             List<SavingsAccount> accounts = clientService.getClientSavingsAccounts(clientId);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("clientId", clientId);
             response.put("accounts", buildSavingsAccountList(accounts));
             response.put("total", accounts.size());
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error getting savings accounts: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
-    
+
     /**
      * Get client's loan accounts only
      * GET /clients/{clientId}/loans
@@ -253,29 +251,29 @@ public class ClientController {
     @GetMapping("/{clientId}/loans")
     public ResponseEntity<Map<String, Object>> getClientLoanAccounts(@PathVariable String clientId) {
         log.info("GET /clients/{}/loans", clientId);
-        
+
         try {
             List<LoanAccount> accounts = clientService.getClientLoanAccounts(clientId);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("clientId", clientId);
             response.put("accounts", buildLoanAccountList(accounts));
             response.put("total", accounts.size());
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error getting loan accounts: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
-    
+
     // ============================================
     // Helper Methods
     // ============================================
-    
+
     private Map<String, Object> buildClientResponse(Client client) {
         Map<String, Object> response = new HashMap<>();
-        
+
         // Core info
         response.put("clientId", client.getClientId());
         response.put("fullName", client.getFullName());
@@ -288,7 +286,7 @@ public class ClientController {
         response.put("country", client.getCountry());
         response.put("homeBranchId", client.getHomeBranch() != null ? client.getHomeBranch().getBranchId() : null);
         response.put("homeBranchName", client.getHomeBranch() != null ? client.getHomeBranch().getBranchName() : null);
-        
+
         // ID info
         response.put("idNumber", client.getIdNumber());
         response.put("idType", client.getIdType());
@@ -296,7 +294,7 @@ public class ClientController {
         response.put("idExpiryDate", client.getIdExpiryDate());
         response.put("idExpired", client.isIdExpired());
         response.put("idExpiringSoon", client.isIdExpiringSoon());
-        
+
         // Employment info
         response.put("occupation", client.getOccupation());
         response.put("employerName", client.getEmployerName());
@@ -305,17 +303,17 @@ public class ClientController {
         response.put("monthlyIncome", client.getMonthlyIncome());
         response.put("yearsAtCurrentJob", client.getYearsAtCurrentJob());
         response.put("suggestedCreditLimit", client.calculateSuggestedCreditLimit());
-        
+
         // Status & audit
         response.put("status", client.getStatus());
         response.put("totalSavingsAccounts", client.getSavingsAccounts().size());
         response.put("totalLoanAccounts", client.getLoanAccounts().size());
         response.put("createdAt", client.getCreatedAt());
         response.put("updatedAt", client.getUpdatedAt());
-        
+
         return response;
     }
-    
+
     private Map<String, Object> buildClientSummary(Client client) {
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("clientId", client.getClientId());
@@ -330,7 +328,7 @@ public class ClientController {
         summary.put("createdAt", client.getCreatedAt());
         return summary;
     }
-    
+
     private List<Map<String, Object>> buildSavingsAccountList(List<SavingsAccount> accounts) {
         return accounts.stream().map(acc -> {
             Map<String, Object> map = new HashMap<>();
@@ -342,7 +340,7 @@ public class ClientController {
             return map;
         }).toList();
     }
-    
+
     private List<Map<String, Object>> buildLoanAccountList(List<LoanAccount> accounts) {
         return accounts.stream().map(acc -> {
             Map<String, Object> map = new HashMap<>();

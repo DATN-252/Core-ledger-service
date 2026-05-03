@@ -1,4 +1,4 @@
-package com.bkbank.ledger.dto;
+package com.bkbank.ledger.dto.request;
 
 import com.bkbank.ledger.entity.enums.EmploymentType;
 import com.bkbank.ledger.entity.enums.Gender;
@@ -11,11 +11,11 @@ import java.time.LocalDate;
  * Only required fields are mandatory
  */
 public class ClientCreateRequest {
-    
+
     // ============================================
     // REQUIRED FIELDS
     // ============================================
-    
+
     private String clientId;
     private String fullName;
     private LocalDate dateOfBirth;
@@ -25,20 +25,20 @@ public class ClientCreateRequest {
     private String address;
     private String idNumber;
     private IdType idType;
-    
+
     // ============================================
     // OPTIONAL FIELDS
     // ============================================
-    
+
     // Extended Contact
     private String city;
     private String country;
     private String homeBranchId;
-    
+
     // ID Details
     private LocalDate idIssueDate;
     private LocalDate idExpiryDate;
-    
+
     // Employment
     private String occupation;
     private String employerName;
@@ -46,9 +46,9 @@ public class ClientCreateRequest {
     private EmploymentType employmentType;
     private Double monthlyIncome;
     private Integer yearsAtCurrentJob;
-    
+
     // Getters and Setters
-    
+
     public String getClientId() {
         return clientId;
     }

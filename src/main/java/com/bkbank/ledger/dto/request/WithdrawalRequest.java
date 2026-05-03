@@ -1,4 +1,4 @@
-package com.bkbank.ledger.dto;
+package com.bkbank.ledger.dto.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -12,11 +12,11 @@ public class WithdrawalRequest {
     private String dateFormat = "dd MMMM yyyy";
     private String transactionDate;
     private Double transactionAmount;
-    
+
     // Merchant Information
     private String merchantId;
     private String merchantName;
-    
+
     // Location Information
     private String location;
     private Double latitude;

@@ -1,6 +1,6 @@
 package com.bkbank.ledger.service;
 
-import com.bkbank.ledger.dto.MerchantCreateRequest;
+import com.bkbank.ledger.dto.request.MerchantCreateRequest;
 import com.bkbank.ledger.entity.CityReference;
 import com.bkbank.ledger.entity.Branch;
 import com.bkbank.ledger.entity.Merchant;
@@ -42,12 +42,14 @@ public class MerchantService {
     public Merchant getActiveMerchant(String merchantId) {
         Merchant merchant = merchantRepository.findDetailedByMerchantId(merchantId)
                 .or(() -> merchantRepository.findByMerchantId(merchantId))
-                .orElseThrow(() -> new RuntimeException("Đơn vị chấp nhận thanh toán không hợp lệ hoặc chưa liên kết (Merchant ID: " + merchantId + ")"));
-                
+                .orElseThrow(() -> new RuntimeException(
+                        "Đơn vị chấp nhận thanh toán không hợp lệ hoặc chưa liên kết (Merchant ID: " + merchantId
+                                + ")"));
+
         if (merchant.getStatus() != Merchant.MerchantStatus.ACTIVE) {
             throw new RuntimeException("Giao dịch bị từ chối do Đơn vị chấp nhận thanh toán đã ngừng hoạt động.");
         }
-        
+
         return merchant;
     }
 
@@ -96,7 +98,7 @@ public class MerchantService {
         merchant.setSettlementAccount(ensureSettlementAccount(merchant));
         return merchantRepository.save(merchant);
     }
-    
+
     /**
      * Dành cho việc khởi tạo dữ liệu mẫu lúc boot hệ thống
      */
@@ -140,11 +142,11 @@ public class MerchantService {
     }
 
     private CityReference upsertCity(String cityCode,
-                                     String cityName,
-                                     String country,
-                                     Integer population,
-                                     Double latitude,
-                                     Double longitude) {
+            String cityName,
+            String country,
+            Integer population,
+            Double latitude,
+            Double longitude) {
         CityReference city = cityReferenceRepository.findByCityCode(cityCode).orElseGet(CityReference::new);
         city.setCityCode(cityCode);
         city.setCityName(cityName);
@@ -156,16 +158,16 @@ public class MerchantService {
     }
 
     private void upsertMerchant(String merchantId,
-                                String name,
-                                String category,
-                                String addressLine,
-                                String ward,
-                                String district,
-                                String postalCode,
-                                Double latitude,
-                                Double longitude,
-                                CityReference cityReference,
-                                String settlementAccountNumber) {
+            String name,
+            String category,
+            String addressLine,
+            String ward,
+            String district,
+            String postalCode,
+            Double latitude,
+            Double longitude,
+            CityReference cityReference,
+            String settlementAccountNumber) {
         Merchant merchant = merchantRepository.findByMerchantId(merchantId).orElseGet(Merchant::new);
         merchant.setMerchantId(merchantId);
         merchant.setName(name);
@@ -218,7 +220,8 @@ public class MerchantService {
                 .findByCityNameIgnoreCaseAndCountryIgnoreCase(request.getCityName().trim(), request.getCountry().trim())
                 .orElseGet(() -> {
                     CityReference city = new CityReference();
-                    city.setCityCode(buildCityCode(request.getMerchantId(), request.getCityName(), request.getCountry()));
+                    city.setCityCode(
+                            buildCityCode(request.getMerchantId(), request.getCityName(), request.getCountry()));
                     city.setCityName(request.getCityName().trim());
                     city.setCountry(request.getCountry().trim());
                     city.setPopulation(request.getCityPopulation());
@@ -233,9 +236,10 @@ public class MerchantService {
         return clientRepository.findByClientId(merchantClientId).orElseGet(() -> {
             Client client = new Client();
             client.setClientId(merchantClientId);
-            client.setFullName(merchant.getSettlementAccountName() != null && !merchant.getSettlementAccountName().isBlank()
-                    ? merchant.getSettlementAccountName()
-                    : merchant.getName());
+            client.setFullName(
+                    merchant.getSettlementAccountName() != null && !merchant.getSettlementAccountName().isBlank()
+                            ? merchant.getSettlementAccountName()
+                            : merchant.getName());
             client.setDateOfBirth(LocalDate.of(2000, 1, 1));
             client.setGender(Gender.OTHER);
             client.setEmail("merchant+" + merchant.getMerchantId().toLowerCase() + "@bkbank.local");
@@ -245,8 +249,10 @@ public class MerchantService {
             client.setIdType(IdType.NATIONAL_ID);
             client.setStatus(ClientStatus.ACTIVE);
             client.setHomeBranch(resolveMerchantBranch());
-            client.setCity(merchant.getCityReference() != null ? merchant.getCityReference().getCityName() : "Merchant City");
-            client.setCountry(merchant.getCityReference() != null ? merchant.getCityReference().getCountry() : "Vietnam");
+            client.setCity(
+                    merchant.getCityReference() != null ? merchant.getCityReference().getCityName() : "Merchant City");
+            client.setCountry(
+                    merchant.getCityReference() != null ? merchant.getCityReference().getCountry() : "Vietnam");
             return clientRepository.save(client);
         });
     }
@@ -272,7 +278,8 @@ public class MerchantService {
     }
 
     private String buildCityCode(String merchantId, String cityName, String country) {
-        String base = ((country != null ? country : "") + "_" + (cityName != null ? cityName : "") + "_" + (merchantId != null ? merchantId : ""))
+        String base = ((country != null ? country : "") + "_" + (cityName != null ? cityName : "") + "_"
+                + (merchantId != null ? merchantId : ""))
                 .toUpperCase(Locale.ROOT)
                 .replaceAll("[^A-Z0-9]+", "_")
                 .replaceAll("^_+|_+$", "");

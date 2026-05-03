@@ -6,12 +6,26 @@ spring:
     import: optional:file:.env[.properties]
   application:
     name: core-ledger-service
+  mail:
+    host: ${SPRING_MAIL_HOST:}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      "[mail.smtp.auth]": ${SPRING_MAIL_SMTP_AUTH:true}
+      "[mail.smtp.starttls.enable]": ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:true}
+      "[mail.smtp.starttls.required]": ${SPRING_MAIL_SMTP_STARTTLS_REQUIRED:true}
   
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5434/ledgerdb}
     username: ${DB_USERNAME:ledgeruser}
     password: ${DB_PASSWORD:ledgerpassword}
     driver-class-name: org.postgresql.Driver
+
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-version: ${FLYWAY_BASELINE_VERSION:1}
   
   jpa:
     hibernate:
@@ -23,6 +37,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
 app:
+  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8083}
   seed:
     demo-data: ${APP_SEED_DEMO_DATA:false}
 
@@ -45,3 +60,26 @@ system:
 cms:
   url: ${CMS_URL:http://localhost:8082}
   internal-api-key: ${CMS_INTERNAL_API_KEY:jpos-to-cms-secret-key-2025}
+
+settlement:
+  auto:
+    enabled: ${SETTLEMENT_AUTO_ENABLED:false}
+    cron: ${SETTLEMENT_AUTO_CRON:0 0 1 * * *}
+    days-offset: ${SETTLEMENT_AUTO_DAYS_OFFSET:1}
+    fee-rate: ${SETTLEMENT_AUTO_FEE_RATE:1.5}
+    execute: ${SETTLEMENT_AUTO_EXECUTE:true}
+
+push:
+  expo:
+    enabled: ${PUSH_EXPO_ENABLED:true}
+    url: ${PUSH_EXPO_URL:https://exp.host/--/api/v2/push/send}
+    access-token: ${PUSH_EXPO_ACCESS_TOKEN:}
+
+mail:
+  enabled: ${MAIL_ENABLED:false}
+  from: ${MAIL_FROM:}
+  reply-to: ${MAIL_REPLY_TO:}
+
+fraud:
+  email-action:
+    expiration-minutes: ${FRAUD_EMAIL_ACTION_EXPIRATION_MINUTES:15}

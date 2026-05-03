@@ -1,6 +1,6 @@
 package com.bkbank.ledger.controller;
 
-import com.bkbank.ledger.dto.MerchantCreateRequest;
+import com.bkbank.ledger.dto.request.MerchantCreateRequest;
 import com.bkbank.ledger.dto.response.AutoSettlementRunResponse;
 import com.bkbank.ledger.dto.response.MerchantSettlementAdjustmentResponse;
 import com.bkbank.ledger.dto.response.MerchantSettlementBatchResponse;
@@ -43,8 +43,7 @@ public class MerchantController {
             Map.entry("status", "status"),
             Map.entry("cityname", "cityReference.cityName"),
             Map.entry("createdat", "createdAt"),
-            Map.entry("updatedat", "updatedAt")
-    );
+            Map.entry("updatedat", "updatedAt"));
 
     private final MerchantRepository merchantRepository;
     private final MerchantService merchantService;
@@ -78,13 +77,12 @@ public class MerchantController {
             @RequestParam(defaultValue = "ACTIVE") String status,
             @RequestParam(required = false) String category,
             @RequestParam(defaultValue = "merchantId") String sortBy,
-            @RequestParam(defaultValue = "asc") String sortDir
-    ) {
-        Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "merchantId", MERCHANT_SORT_MAPPINGS);
+            @RequestParam(defaultValue = "asc") String sortDir) {
+        Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "merchantId",
+                MERCHANT_SORT_MAPPINGS);
         Page<Merchant> merchants = merchantRepository.findAll(
                 LedgerListSpecifications.merchantList(q, status, category),
-                pageable
-        );
+                pageable);
         Page<Map<String, Object>> result = merchants.map(merchant -> {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("merchantId", merchant.getMerchantId());
@@ -120,9 +118,12 @@ public class MerchantController {
             detail.put("address", merchant.getDisplayAddress());
             detail.put("latitude", merchant.getLatitude());
             detail.put("longitude", merchant.getLongitude());
-            detail.put("cityName", merchant.getCityReference() != null ? merchant.getCityReference().getCityName() : null);
-            detail.put("country", merchant.getCityReference() != null ? merchant.getCityReference().getCountry() : null);
-            detail.put("cityPopulation", merchant.getCityReference() != null ? merchant.getCityReference().getPopulation() : null);
+            detail.put("cityName",
+                    merchant.getCityReference() != null ? merchant.getCityReference().getCityName() : null);
+            detail.put("country",
+                    merchant.getCityReference() != null ? merchant.getCityReference().getCountry() : null);
+            detail.put("cityPopulation",
+                    merchant.getCityReference() != null ? merchant.getCityReference().getPopulation() : null);
             detail.put("settlementAccountNumber", merchant.getResolvedSettlementAccountNumber());
             detail.put("settlementAccountName", merchant.getResolvedSettlementAccountName());
             detail.put("settlementBankName", merchant.getResolvedSettlementBankName());
@@ -142,8 +143,7 @@ public class MerchantController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "transactionDate") String sortBy,
-            @RequestParam(defaultValue = "desc") String sortDir
-    ) {
+            @RequestParam(defaultValue = "desc") String sortDir) {
         try {
             merchantService.getActiveMerchant(merchantId);
             Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "transactionDate", Map.of(
@@ -151,9 +151,9 @@ public class MerchantController {
                     "transactiondate", "transactionDate",
                     "amount", "amount",
                     "type", "transactionType",
-                    "status", "status"
-            ));
-            Page<Transaction> transactions = transactionRepository.findByMerchantIdOrderByTransactionDateDesc(merchantId, pageable);
+                    "status", "status"));
+            Page<Transaction> transactions = transactionRepository
+                    .findByMerchantIdOrderByTransactionDateDesc(merchantId, pageable);
             return ResponseEntity.ok(transactions);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -166,15 +166,13 @@ public class MerchantController {
             @PathVariable String merchantId,
             @RequestParam LocalDate fromDate,
             @RequestParam LocalDate toDate,
-            @RequestParam(defaultValue = "0") Double feeRate
-    ) {
+            @RequestParam(defaultValue = "0") Double feeRate) {
         try {
             MerchantSettlementPreviewResponse preview = settlementService.previewSettlement(
                     merchantId,
                     fromDate,
                     toDate,
-                    feeRate
-            );
+                    feeRate);
             return ResponseEntity.ok(preview);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -188,8 +186,7 @@ public class MerchantController {
             @RequestParam LocalDate fromDate,
             @RequestParam LocalDate toDate,
             @RequestParam(defaultValue = "0") Double feeRate,
-            @RequestBody(required = false) Map<String, Object> body
-    ) {
+            @RequestBody(required = false) Map<String, Object> body) {
         try {
             String note = body != null ? (String) body.get("note") : null;
             MerchantSettlementBatchResponse batch = settlementService.generateSettlementBatch(
@@ -197,8 +194,7 @@ public class MerchantController {
                     fromDate,
                     toDate,
                     feeRate,
-                    note
-            );
+                    note);
             return ResponseEntity.ok(batch);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -210,8 +206,7 @@ public class MerchantController {
     public ResponseEntity<?> executeSettlementBatch(
             @PathVariable String merchantId,
             @PathVariable Long batchId,
-            @RequestBody(required = false) Map<String, Object> body
-    ) {
+            @RequestBody(required = false) Map<String, Object> body) {
         try {
             String note = body != null ? (String) body.get("note") : null;
             MerchantSettlementBatchResponse batch = settlementService.executeSettlementBatch(merchantId, batchId, note);
@@ -226,10 +221,10 @@ public class MerchantController {
     public ResponseEntity<?> getSettlementBatches(
             @PathVariable String merchantId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
+            @RequestParam(defaultValue = "10") int size) {
         try {
-            Pageable pageable = PageableSortUtils.createPageable(page, size, "createdAt", "desc", "createdAt", Map.of("createdat", "createdAt"));
+            Pageable pageable = PageableSortUtils.createPageable(page, size, "createdAt", "desc", "createdAt",
+                    Map.of("createdat", "createdAt"));
             return ResponseEntity.ok(settlementService.getSettlementBatches(merchantId, pageable));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -240,8 +235,7 @@ public class MerchantController {
     @PreAuthorize("hasAnyRole('ADMIN', 'TELLER', 'SYSTEM')")
     public ResponseEntity<?> getSettlementBatch(
             @PathVariable String merchantId,
-            @PathVariable Long batchId
-    ) {
+            @PathVariable Long batchId) {
         try {
             return ResponseEntity.ok(settlementService.getSettlementBatch(merchantId, batchId));
         } catch (Exception e) {
@@ -254,11 +248,11 @@ public class MerchantController {
     public ResponseEntity<?> getSettlementAdjustments(
             @PathVariable String merchantId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
+            @RequestParam(defaultValue = "10") int size) {
         try {
             merchantService.getActiveMerchant(merchantId);
-            Pageable pageable = PageableSortUtils.createPageable(page, size, "createdAt", "desc", "createdAt", Map.of("createdat", "createdAt"));
+            Pageable pageable = PageableSortUtils.createPageable(page, size, "createdAt", "desc", "createdAt",
+                    Map.of("createdat", "createdAt"));
             return ResponseEntity.ok(settlementAdjustmentService.getAdjustments(merchantId, pageable));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -269,10 +263,10 @@ public class MerchantController {
     @PreAuthorize("hasAnyRole('ADMIN', 'TELLER', 'SYSTEM')")
     public ResponseEntity<?> getSettlementAdjustment(
             @PathVariable String merchantId,
-            @PathVariable Long adjustmentId
-    ) {
+            @PathVariable Long adjustmentId) {
         try {
-            MerchantSettlementAdjustmentResponse adjustment = settlementAdjustmentService.getAdjustment(merchantId, adjustmentId);
+            MerchantSettlementAdjustmentResponse adjustment = settlementAdjustmentService.getAdjustment(merchantId,
+                    adjustmentId);
             return ResponseEntity.ok(adjustment);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -284,10 +278,10 @@ public class MerchantController {
     public ResponseEntity<?> runAutoSettlement(
             @RequestParam(required = false) LocalDate settlementDate,
             @RequestParam(defaultValue = "1.5") Double feeRate,
-            @RequestParam(defaultValue = "true") boolean execute
-    ) {
+            @RequestParam(defaultValue = "true") boolean execute) {
         try {
-            AutoSettlementRunResponse response = settlementService.runAutomaticSettlement(settlementDate, feeRate, execute);
+            AutoSettlementRunResponse response = settlementService.runAutomaticSettlement(settlementDate, feeRate,
+                    execute);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

@@ -1,6 +1,6 @@
 package com.bkbank.ledger.controller;
 
-import com.bkbank.ledger.dto.WithdrawalRequest;
+import com.bkbank.ledger.dto.request.WithdrawalRequest;
 import com.bkbank.ledger.entity.SavingsAccount;
 import com.bkbank.ledger.repository.SavingsAccountRepository;
 import com.bkbank.ledger.repository.spec.LedgerListSpecifications;
@@ -37,8 +37,7 @@ public class SavingsAccountController {
             Map.entry("branchid", "branch.branchId"),
             Map.entry("branchname", "branch.branchName"),
             Map.entry("createdat", "createdAt"),
-            Map.entry("updatedat", "updatedAt")
-    );
+            Map.entry("updatedat", "updatedAt"));
 
     private final SavingsAccountService savingsAccountService;
     private final SavingsAccountRepository savingsAccountRepository;
@@ -56,13 +55,12 @@ public class SavingsAccountController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String branchId,
             @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "desc") String sortDir
-    ) {
-        Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "createdAt", SAVINGS_SORT_MAPPINGS);
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "createdAt",
+                SAVINGS_SORT_MAPPINGS);
         Page<SavingsAccount> accounts = savingsAccountRepository.findAll(
                 LedgerListSpecifications.savingsList(q, status, branchId),
-                pageable
-        );
+                pageable);
         Page<Map<String, Object>> result = accounts.map(account -> {
             Map<String, Object> m = new HashMap<>();
             m.put("id", account.getAccountNumber());
@@ -86,10 +84,10 @@ public class SavingsAccountController {
     @GetMapping("/savingsaccounts/{accountId}")
     public ResponseEntity<Map<String, Object>> getAccount(@PathVariable String accountId) {
         log.info("GET /savingsaccounts/{}", accountId);
-        
+
         try {
             SavingsAccount account = savingsAccountService.getAccount(accountId);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("id", account.getId());
             response.put("accountNo", account.getAccountNumber());
@@ -101,7 +99,7 @@ public class SavingsAccountController {
             response.put("clientName", account.getClientName());
             response.put("branchId", account.getBranchId());
             response.put("branchName", account.getBranchName());
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error getting account: {}", e.getMessage());
@@ -119,13 +117,13 @@ public class SavingsAccountController {
             @PathVariable String accountId,
             @RequestParam String command,
             @RequestBody WithdrawalRequest request) {
-        
+
         log.info("POST /savingsaccounts/{}/transactions?command={}", accountId, command);
         log.info("Request: {}", request);
-        
+
         try {
             SavingsAccount account;
-            
+
             if ("withdrawal".equalsIgnoreCase(command)) {
                 String merchantId = request.getMerchantId();
                 String merchantName = request.getMerchantName();
@@ -150,21 +148,19 @@ public class SavingsAccountController {
                         request.getExternalReference(),
                         request.getResponseCode(),
                         request.getResponseMessage(),
-                        request.getPaymentNote()
-                );
+                        request.getPaymentNote());
             } else if ("deposit".equalsIgnoreCase(command)) {
                 account = savingsAccountService.deposit(accountId, request.getTransactionAmount());
             } else {
                 return ResponseEntity.badRequest().body(Map.of("error", "Invalid command: " + command));
             }
-            
+
             // Fineract-style response
             Map<String, Object> response = new HashMap<>();
             response.put("resourceId", account.getId());
             response.put("changes", Map.of(
-                "accountBalance", account.getBalance()
-            ));
-            
+                    "accountBalance", account.getBalance()));
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Transaction failed: {}", e.getMessage());
@@ -181,44 +177,44 @@ public class SavingsAccountController {
             @PathVariable String accountId,
             @RequestParam String command,
             @RequestBody(required = false) Map<String, Object> request) {
-        
+
         log.info("POST /savingsaccounts/{}?command={}", accountId, command);
-        
+
         try {
             SavingsAccount account;
-            
+
             switch (command.toLowerCase()) {
                 case "activate":
                     account = savingsAccountService.activateAccount(accountId);
                     break;
-                    
+
                 case "lock":
                     String reason = request != null ? (String) request.get("reason") : "No reason provided";
                     account = savingsAccountService.lockAccount(accountId, reason);
                     break;
-                    
+
                 case "unlock":
                     account = savingsAccountService.unlockAccount(accountId);
                     break;
-                    
+
                 case "close":
                     account = savingsAccountService.closeAccount(accountId);
                     break;
-                    
+
                 default:
                     return ResponseEntity.badRequest().body(
-                        Map.of("error", "Invalid command: " + command + ". Valid commands: activate, lock, unlock, close")
-                    );
+                            Map.of("error",
+                                    "Invalid command: " + command + ". Valid commands: activate, lock, unlock, close"));
             }
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("resourceId", account.getId());
             response.put("accountNumber", account.getAccountNumber());
             response.put("status", account.getStatus());
             response.put("message", "Account " + command + "d successfully");
-            
+
             return ResponseEntity.ok(response);
-            
+
         } catch (IllegalStateException e) {
             log.error("Status management failed: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -231,29 +227,30 @@ public class SavingsAccountController {
     /**
      * Create savings account (Admin endpoint)
      * POST /savingsaccounts
-     * Request body: { "accountNumber": "...", "balance": 0.0, "clientId": "CLI_001" }
+     * Request body: { "accountNumber": "...", "balance": 0.0, "clientId": "CLI_001"
+     * }
      */
     @PostMapping("/savingsaccounts")
     public ResponseEntity<Map<String, Object>> createAccount(@RequestBody Map<String, Object> request) {
         log.info("POST /savingsaccounts - Create account");
-        
+
         try {
             String accountNumber = (String) request.get("accountNumber");
-            Double balance = request.get("balance") != null 
-                ? ((Number) request.get("balance")).doubleValue() 
-                : 0.0;
-            String clientId = (String) request.get("clientId");  // Changed from clientName
-            
+            Double balance = request.get("balance") != null
+                    ? ((Number) request.get("balance")).doubleValue()
+                    : 0.0;
+            String clientId = (String) request.get("clientId"); // Changed from clientName
+
             SavingsAccount account = savingsAccountService.createAccount(accountNumber, balance, clientId);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("resourceId", account.getId());
             response.put("accountNumber", account.getAccountNumber());
             response.put("clientId", clientId);
-            response.put("clientName", account.getClientName());  // For backward compatibility
+            response.put("clientName", account.getClientName()); // For backward compatibility
             response.put("branchId", account.getBranchId());
             response.put("branchName", account.getBranchName());
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error creating account: {}", e.getMessage());

@@ -1,4 +1,4 @@
-package com.bkbank.ledger.dto;
+package com.bkbank.ledger.dto.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -14,11 +14,11 @@ public class ChargeRequest {
     private String locale = "en";
     private String dateFormat = "dd MMMM yyyy";
     private String cardNetwork;
-    
+
     // Merchant Information
     private String merchantId;
     private String merchantName;
-    
+
     // Location Information
     private String location;
     private Double latitude;
