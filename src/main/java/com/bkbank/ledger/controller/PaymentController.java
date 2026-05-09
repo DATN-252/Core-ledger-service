@@ -48,10 +48,10 @@ public class PaymentController {
         String merchantId = request.getMerchantId();
         if (merchantId == null || merchantId.trim().isEmpty()) {
             return errorResponse(HttpStatus.BAD_REQUEST,
-                    "merchantId or recipientAccount is required",
+                    "merchantId hoặc recipientAccount bắt buộc phải nhập",
                     "INVALID_REQUEST",
                     null,
-                    "merchantId or recipientAccount is required",
+                    "merchantId hoặc recipientAccount bắt buộc phải nhập",
                     false,
                     null,
                     null,
@@ -63,7 +63,20 @@ public class PaymentController {
             LocalDateTime now = LocalDateTime.now();
             Double amount = request.getAmount();
             double fee = 0.0;
+            if (request.getCardholderName() == null || request.getCardholderName().trim().isEmpty()) {
+                throw new IllegalArgumentException("cardholderName bắt buộc phải nhập");
+            }
+            if (request.getBillingAddress() == null || request.getBillingAddress().trim().isEmpty()) {
+                throw new IllegalArgumentException("billingAddress bắt buộc phải nhập");
+            }
+            if (request.getZipCode() == null || request.getZipCode().trim().isEmpty()) {
+                throw new IllegalArgumentException("zipCode bắt buộc phải nhập");
+            }
+
             String inferredNetwork = firstNonBlank(request.getCardNetwork(), inferCardNetwork(request.getCardNumber()));
+            if (!"VISA".equalsIgnoreCase(inferredNetwork) && !"MASTERCARD".equalsIgnoreCase(inferredNetwork)) {
+                throw new IllegalArgumentException("Chỉ hỗ trợ mạng VISA và MASTERCARD");
+            }
             String resolvedCardType = firstNonBlank(request.getCardType(), resolveCardTypeFromNetwork(inferredNetwork));
 
             Map<String, Object> previewData = new HashMap<>();

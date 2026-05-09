@@ -59,7 +59,7 @@ public class SettlementService {
         MerchantSettlementPreviewResponse preview = buildPreview(merchantId, fromDate, toDate, feeRate);
         if (preview.getTransactionCount() == null || preview.getTransactionCount() <= 0) {
             if (preview.getAdjustmentCount() == null || preview.getAdjustmentCount() <= 0) {
-                throw new IllegalArgumentException("No eligible transactions found for settlement");
+                throw new IllegalArgumentException("Không có giao dịch đủ điều kiện để quyết toán");
             }
         }
 
@@ -76,7 +76,7 @@ public class SettlementService {
                 )
         );
         if (duplicateExists) {
-            throw new IllegalArgumentException("Settlement batch already exists for this merchant and date range");
+            throw new IllegalArgumentException("Đã có batch settlement cho merchant và khoảng thời gian này");
         }
 
         MerchantSettlementBatch batch = new MerchantSettlementBatch();
@@ -111,10 +111,10 @@ public class SettlementService {
                                                                   Long batchId,
                                                                   String note) {
         MerchantSettlementBatch batch = merchantSettlementBatchRepository.findByIdAndMerchantId(batchId, merchantId)
-                .orElseThrow(() -> new RuntimeException("Settlement batch not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy batch settlement"));
 
         if (batch.getStatus() != MerchantSettlementBatch.SettlementStatus.PENDING) {
-            throw new IllegalArgumentException("Only PENDING settlement batches can be executed");
+            throw new IllegalArgumentException("Chỉ có thể thực hiện batch PENDING");
         }
 
         if (batch.getNetAmount() == null || batch.getNetAmount() <= 0) {
@@ -124,7 +124,7 @@ public class SettlementService {
         Merchant merchant = merchantService.getActiveMerchant(merchantId);
         String settlementAccountNumber = merchant.getResolvedSettlementAccountNumber();
         if (settlementAccountNumber == null || settlementAccountNumber.isBlank()) {
-            throw new IllegalArgumentException("Merchant settlement account is not configured");
+            throw new IllegalArgumentException("Tài khoản settlement của merchant chưa được cấu hình"); 
         }
 
         SavingsAccount settlementAccount = savingsAccountService.depositSettlement(
@@ -155,7 +155,7 @@ public class SettlementService {
 
     public MerchantSettlementBatchResponse getSettlementBatch(String merchantId, Long batchId) {
         MerchantSettlementBatch batch = merchantSettlementBatchRepository.findByIdAndMerchantId(batchId, merchantId)
-                .orElseThrow(() -> new RuntimeException("Settlement batch not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy batch settlement"));    
         return toBatchResponse(batch, resolveCurrentSettlementBalance(merchantId, batch.getSettlementAccountNumber()), true);
     }
 
@@ -186,7 +186,7 @@ public class SettlementService {
                             merchant.getMerchantId(),
                             merchant.getName(),
                             "SKIPPED",
-                            "No eligible transactions found",
+                            "Không có giao dịch đủ điều kiện",
                             null,
                             null
                     ));
@@ -208,7 +208,7 @@ public class SettlementService {
                             merchant.getMerchantId(),
                             merchant.getName(),
                             "SKIPPED",
-                            "Settlement batch already exists for this merchant and date",
+                            "Đã có settlement batch cho merchant và ngày này",
                             null,
                             null
                     ));
@@ -220,13 +220,13 @@ public class SettlementService {
                         effectiveDate,
                         effectiveDate,
                         appliedFeeRate,
-                        "AUTO T+1 settlement for " + effectiveDate
+                        "T+1 settlement tự động cho " + effectiveDate
                 );
                 generatedCount++;
 
                 MerchantSettlementBatchResponse finalBatch = generatedBatch;
                 String status = "GENERATED";
-                String message = "Batch generated";
+                String message = "Đã tạo batch";
 
                 if (executeBatches) {
                     finalBatch = executeSettlementBatch(
@@ -236,7 +236,7 @@ public class SettlementService {
                     );
                     executedCount++;
                     status = "EXECUTED";
-                    message = "Batch executed successfully";
+                    message = "Đã thực hiện batch";
                 }
 
                 results.add(new AutoSettlementMerchantResultResponse(
@@ -282,7 +282,7 @@ public class SettlementService {
         Merchant merchant = merchantService.getActiveMerchant(merchantId);
         double appliedFeeRate = feeRate != null ? feeRate : 0.0;
         if (appliedFeeRate < 0) {
-            throw new IllegalArgumentException("feeRate must be greater than or equal to 0");
+            throw new IllegalArgumentException("feeRate phải lớn hơn hoặc bằng 0");
         }
 
         List<Transaction> transactions = findEligibleTransactions(merchantId, fromDate, toDate);
@@ -340,10 +340,10 @@ public class SettlementService {
 
     private void validateSettlementRange(LocalDate fromDate, LocalDate toDate) {
         if (fromDate == null || toDate == null) {
-            throw new IllegalArgumentException("fromDate and toDate are required");
+            throw new IllegalArgumentException("fromDate và toDate là bắt buộc");
         }
         if (fromDate.isAfter(toDate)) {
-            throw new IllegalArgumentException("fromDate must be before or equal to toDate");
+            throw new IllegalArgumentException("fromDate phải trước hoặc bằng toDate");
         }
     }
 

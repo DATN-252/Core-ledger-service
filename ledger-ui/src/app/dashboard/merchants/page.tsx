@@ -46,12 +46,12 @@ export default function MerchantsPage() {
             Merchants
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Quan ly merchant, dia chi va tai khoan settlement ({totalElements} merchant)
+            Quản lý merchant, địa chỉ và tài khoản settlement ({totalElements} merchant)
           </p>
         </div>
         <Link href="/dashboard/merchants/new" className="btn-primary" style={{ textDecoration: 'none' }}>
           <FontAwesomeIcon icon={faPlus} />
-          Dang ky merchant
+          Đăng ký merchant
         </Link>
       </div>
 

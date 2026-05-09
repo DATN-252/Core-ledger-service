@@ -41,13 +41,13 @@ public class CreditCardStatementService {
     @Transactional
     public CreditCardMonthlyStatementResponse generateMonthlyStatement(String accountNumber, LocalDate billingDate) {
         LoanAccount account = loanAccountRepository.findByAccountNumber(accountNumber)
-                .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản: " + accountNumber));
 
         // validateBillingDateNotInFuture(billingDate);
 
         LocalDate normalizedBillingDate = normalizeBillingDate(billingDate, account.getBillingDayOfMonth());
         if (!normalizedBillingDate.equals(billingDate)) {
-            throw new IllegalArgumentException("billingDate does not match account billing day");
+            throw new IllegalArgumentException("Ngày lập sao kê không hợp lệ");
         }
 
         LocalDate previousBillingDate = normalizeBillingDate(billingDate.minusMonths(1), account.getBillingDayOfMonth());
@@ -158,7 +158,7 @@ public class CreditCardStatementService {
     @Transactional
     public List<CreditCardStatementSummaryResponse> getStatementHistory(String accountNumber) {
         LoanAccount account = loanAccountRepository.findByAccountNumber(accountNumber)
-                .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản: " + accountNumber));
 
         return creditCardStatementRepository.findByAccountNumberOrderByBillingDateDesc(accountNumber).stream()
                 .map(statement -> syncSnapshotFromTransactions(account, statement))
@@ -170,12 +170,12 @@ public class CreditCardStatementService {
     @Transactional
     public CreditCardMonthlyStatementResponse getStatementDetail(String accountNumber, LocalDate billingDate) {
         LoanAccount account = loanAccountRepository.findByAccountNumber(accountNumber)
-                .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản: " + accountNumber));
 
         // validateBillingDateNotInFuture(billingDate);
 
         CreditCardStatement snapshot = creditCardStatementRepository.findByAccountNumberAndBillingDate(accountNumber, billingDate)
-                .orElseThrow(() -> new RuntimeException("Statement not found for billingDate: " + billingDate));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sao kê: " + billingDate));
 
         snapshot = syncSnapshotFromTransactions(account, snapshot);
         snapshot = refreshStatementPaymentStatus(account, snapshot);
@@ -185,13 +185,13 @@ public class CreditCardStatementService {
     @Transactional
     public CreditCardMonthlyStatementResponse getOrGenerateStatement(String accountNumber, LocalDate billingDate) {
         LoanAccount account = loanAccountRepository.findByAccountNumber(accountNumber)
-                .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản: " + accountNumber));
 
         validateBillingDateNotInFuture(billingDate);
 
         LocalDate normalizedBillingDate = normalizeBillingDate(billingDate, account.getBillingDayOfMonth());
         if (!normalizedBillingDate.equals(billingDate)) {
-            throw new IllegalArgumentException("billingDate does not match account billing day");
+            throw new IllegalArgumentException("Ngày lập sao kê không hợp lệ");
         }
 
         if (creditCardStatementRepository.findByAccountNumberAndBillingDate(accountNumber, billingDate).isPresent()) {
@@ -204,7 +204,7 @@ public class CreditCardStatementService {
     @Transactional
     public CreditCardMonthlyStatementResponse getCurrentStatement(String accountNumber) {
         LoanAccount account = loanAccountRepository.findByAccountNumber(accountNumber)
-                .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản: " + accountNumber));
 
         LocalDate latestBillingDate = resolveLatestBillingDate(account, LocalDate.now());
         return getOrGenerateStatement(accountNumber, latestBillingDate);
@@ -213,10 +213,10 @@ public class CreditCardStatementService {
     @Transactional
     public StatementPaymentResponse payStatement(String accountNumber, LocalDate billingDate, StatementPaymentRequest request) {
         LoanAccount account = loanAccountRepository.findByAccountNumber(accountNumber)
-                .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản: " + accountNumber));
 
         CreditCardStatement snapshot = creditCardStatementRepository.findByAccountNumberAndBillingDate(accountNumber, billingDate)
-                .orElseThrow(() -> new RuntimeException("Statement not found for billingDate: " + billingDate));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sao kê: " + billingDate));
 
         snapshot = syncSnapshotFromTransactions(account, snapshot);
         snapshot = refreshStatementPaymentStatus(account, snapshot);
@@ -226,7 +226,7 @@ public class CreditCardStatementService {
         String statementStatusBefore = snapshot.getStatementStatus();
 
         if (remainingBalanceBefore <= 0) {
-            throw new IllegalArgumentException("Statement is already fully paid");
+            throw new IllegalArgumentException("Sao kê đã được thanh toán đầy đủ");
         }
 
         String paymentOption = normalizeUpper(request.getPaymentOption(), "CUSTOM");
@@ -244,7 +244,7 @@ public class CreditCardStatementService {
             if (sourceAccount.getClient() == null
                     || account.getClient() == null
                     || !sourceAccount.getClient().getClientId().equals(account.getClient().getClientId())) {
-                throw new IllegalArgumentException("Source account does not belong to the same client");
+                throw new IllegalArgumentException("Tài khoản nguồn không thuộc cùng một khách hàng");
             }
 
             sourceAccountBalanceAfter = savingsAccountService.withdrawStatementPayment(
@@ -255,7 +255,7 @@ public class CreditCardStatementService {
                     request.getNote()
             ).getBalance();
         } else if (!"CASH_COUNTER".equals(paymentSource)) {
-            throw new IllegalArgumentException("Unsupported paymentSource: " + paymentSource);
+            throw new IllegalArgumentException("Loại thanh toán không hợp lệ: " + paymentSource);
         }
 
         Transaction paymentTx = loanAccountService.makeStatementPayment(
@@ -268,7 +268,7 @@ public class CreditCardStatementService {
         );
 
         snapshot = creditCardStatementRepository.findByAccountNumberAndBillingDate(accountNumber, billingDate)
-                .orElseThrow(() -> new RuntimeException("Statement not found for billingDate: " + billingDate));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sao kê: " + billingDate));
         snapshot = syncSnapshotFromTransactions(account, snapshot);
         snapshot = refreshStatementPaymentStatus(account, snapshot);
 
@@ -320,7 +320,7 @@ public class CreditCardStatementService {
 
     private void validateBillingDateNotInFuture(LocalDate billingDate) {
         if (billingDate != null && billingDate.isAfter(LocalDate.now())) {
-            throw new IllegalArgumentException("billingDate cannot be in the future");
+            throw new IllegalArgumentException("Ngày lập sao kê không được ở trong tương lai");
         }
     }
 
@@ -580,7 +580,7 @@ public class CreditCardStatementService {
 
         String accountNumber = account.getAccountNumber();
         LoanAccount reloadedAccount = loanAccountRepository.findByAccountNumber(accountNumber)
-                .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản: " + accountNumber));
         return syncSnapshotFromTransactions(reloadedAccount, snapshot);
     }
 
@@ -625,7 +625,7 @@ public class CreditCardStatementService {
 
         String accountNumber = account.getAccountNumber();
         LoanAccount reloadedAccount = loanAccountRepository.findByAccountNumber(accountNumber)
-                .orElseThrow(() -> new RuntimeException("Loan account not found: " + accountNumber));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản: " + accountNumber));
         return syncSnapshotFromTransactions(reloadedAccount, snapshot);
     }
 
@@ -709,7 +709,7 @@ public class CreditCardStatementService {
         return switch (paymentOption) {
             case "MINIMUM_DUE" -> {
                 if (remainingMinimumDue <= 0) {
-                    throw new IllegalArgumentException("Minimum due is already fully paid");
+                    throw new IllegalArgumentException("Số tiền thanh toán tối thiểu đã được thanh toán đầy đủ");
                 }
                 yield remainingMinimumDue;
             }
@@ -717,14 +717,14 @@ public class CreditCardStatementService {
             case "CUSTOM" -> {
                 double amount = safe(requestedAmount);
                 if (amount <= 0) {
-                    throw new IllegalArgumentException("Custom payment amount must be greater than 0");
+                    throw new IllegalArgumentException("Số tiền thanh toán tùy chỉnh phải lớn hơn 0");
                 }
                 if (amount > remainingBalance) {
-                    throw new IllegalArgumentException("Payment exceeds remaining statement balance");
+                    throw new IllegalArgumentException("Số tiền thanh toán vượt quá số dư sao kê còn lại");
                 }
                 yield roundMoney(amount);
             }
-            default -> throw new IllegalArgumentException("Unsupported paymentOption: " + paymentOption);
+            default -> throw new IllegalArgumentException("Loại thanh toán không hợp lệ: " + paymentOption);
         };
     }
 
@@ -1011,8 +1011,7 @@ public class CreditCardStatementService {
             }
             
         } catch (Exception e) {
-            // Log lỗi nhưng không fail payment - allocation logging không critical
-            System.err.println("Warning: Failed to log payment allocation: " + e.getMessage());
+            System.err.println("Warning: Lỗi ghi nhật ký phân bổ thanh toán: " + e.getMessage());
         }
     }
 
