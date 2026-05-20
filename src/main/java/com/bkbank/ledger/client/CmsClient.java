@@ -89,6 +89,38 @@ public class CmsClient {
         }
     }
 
+    /**
+     * Get card details by card number (for payment validation)
+     * @param cardNumber the card number
+     * @return card details map or null if not found
+     */
+    public Map<String, Object> getCardDetails(String cardNumber) {
+        try {
+            String url = UriComponentsBuilder.fromHttpUrl(cmsUrl + "/api/internal/cards/by-number")
+                    .queryParam("cardNumber", cardNumber)
+                    .toUriString();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Internal-Api-Key", cmsApiKey);
+            HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
+
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    requestEntity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+
+            return response.getBody();
+        } catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
+            log.debug("Card not found in CMS: {}", cardNumber);
+            return null;
+        } catch (Exception e) {
+            log.error("Failed to fetch card details from CMS for card number: {}", cardNumber);
+            return null;
+        }
+    }
+
     public Map<String, Object> blockCard(Long cardId) {
         return postCardLifecycleAction(cardId, "block");
     }

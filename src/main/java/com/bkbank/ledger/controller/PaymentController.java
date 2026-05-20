@@ -7,15 +7,18 @@ import com.bkbank.ledger.dto.request.PaymentAdjustmentRequest;
 import com.bkbank.ledger.dto.request.PaymentRequest;
 import com.bkbank.ledger.entity.Merchant;
 import com.bkbank.ledger.entity.Transaction;
+import com.bkbank.ledger.service.CardService;
 import com.bkbank.ledger.service.LoanAccountService;
 import com.bkbank.ledger.service.MerchantService;
 import com.bkbank.ledger.service.PaymentAdjustmentService;
 import com.bkbank.ledger.service.SavingsAccountService;
+import com.bkbank.ledger.util.PaymentValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -40,11 +43,14 @@ public class PaymentController {
     private final PaymentAdjustmentService paymentAdjustmentService;
     private final SavingsAccountService savingsAccountService;
     private final LoanAccountService loanAccountService;
+    private final CardService cardService;
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @PostMapping("/preview")
     @PreAuthorize("hasRole('CUSTOMER')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> previewPayment(@RequestBody PaymentRequest request) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> previewPayment(
+            @RequestBody PaymentRequest request,
+            Authentication authentication) {
         String merchantId = request.getMerchantId();
         if (merchantId == null || merchantId.trim().isEmpty()) {
             return errorResponse(HttpStatus.BAD_REQUEST,
@@ -59,10 +65,19 @@ public class PaymentController {
         }
 
         try {
-            Merchant merchant = resolveMerchant(merchantId, null, null);
-            LocalDateTime now = LocalDateTime.now();
-            Double amount = request.getAmount();
-            double fee = 0.0;
+            // Get current user ID from JWT token
+            String currentUserId = authentication.getName();
+            
+            // ✅ NEW: Validate card ownership
+            cardService.validateCardOwnership(request.getCardNumber(), currentUserId);
+            
+            // Log for security audit
+            log.info("Payment preview attempt - User: {}, Card: {}, Merchant: {}", 
+                    currentUserId, 
+                    maskCardNumber(request.getCardNumber()), 
+                    merchantId);
+            
+            // Validate required fields
             if (request.getCardholderName() == null || request.getCardholderName().trim().isEmpty()) {
                 throw new IllegalArgumentException("cardholderName bắt buộc phải nhập");
             }
@@ -72,6 +87,19 @@ public class PaymentController {
             if (request.getZipCode() == null || request.getZipCode().trim().isEmpty()) {
                 throw new IllegalArgumentException("zipCode bắt buộc phải nhập");
             }
+
+            // Validate card details
+            PaymentValidator.validateCardNumber(request.getCardNumber());
+            PaymentValidator.validateCvc(request.getCvc());
+            PaymentValidator.validateExpirationDate(request.getDateCard());
+            PaymentValidator.validateAmount(request.getAmount());
+            PaymentValidator.validateCurrency(request.getCurrency());
+            PaymentValidator.validateCoordinates(request.getLatitude(), request.getLongitude());
+
+            Merchant merchant = resolveMerchant(merchantId, null, null);
+            LocalDateTime now = LocalDateTime.now();
+            Double amount = request.getAmount();
+            double fee = 0.0;
 
             String inferredNetwork = firstNonBlank(request.getCardNetwork(), inferCardNetwork(request.getCardNumber()));
             if (!"VISA".equalsIgnoreCase(inferredNetwork) && !"MASTERCARD".equalsIgnoreCase(inferredNetwork)) {
@@ -132,10 +160,26 @@ public class PaymentController {
 
     @PostMapping("/credit-card")
     @PreAuthorize("hasRole('CUSTOMER')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> processCreditCardPayment(@RequestBody PaymentRequest request) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> processCreditCardPayment(
+            @RequestBody PaymentRequest request,
+            Authentication authentication) {
         log.info("Receiving credit card payment request for merchant: {}", request.getMerchantId());
 
         try {
+            // Get current user ID from JWT token
+            String currentUserId = authentication.getName();
+            
+            // ✅ NEW: Validate card ownership before processing
+            cardService.validateCardOwnership(request.getCardNumber(), currentUserId);
+            
+            // Validate card details before processing
+            PaymentValidator.validateCardNumber(request.getCardNumber());
+            PaymentValidator.validateCvc(request.getCvc());
+            PaymentValidator.validateExpirationDate(request.getDateCard());
+            PaymentValidator.validateAmount(request.getAmount());
+            PaymentValidator.validateCurrency(request.getCurrency());
+            PaymentValidator.validateCoordinates(request.getLatitude(), request.getLongitude());
+
             ensureIdempotencyKey(request);
             ensurePaymentId(request);
             ensureChannel(request);
