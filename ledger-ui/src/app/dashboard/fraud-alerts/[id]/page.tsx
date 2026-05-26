@@ -291,6 +291,18 @@ export default function FraudAlertDetailPage() {
         </div>
       </div>
 
+      {alertDetail.explanationText && (
+        <div className="card" style={{ borderLeft: '4px solid var(--warning)' }}>
+          <h3 style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--warning)' }}>
+            <FontAwesomeIcon icon={faShieldHalved} />
+            Giải thích rủi ro từ Trí tuệ Nhân tạo (Explainable AI - XAI)
+          </h3>
+          <div style={{ lineHeight: 1.7, whiteSpace: 'pre-wrap', color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+            {alertDetail.explanationText}
+          </div>
+        </div>
+      )}
+
       <div className="card">
         <h3 style={{ marginBottom: '1rem' }}>Timeline</h3>
         {!Array.isArray(alertDetail.events) || alertDetail.events.length === 0 ? (
