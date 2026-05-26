@@ -17,6 +17,9 @@ import java.util.Map;
 public class CardService {
 
     private final CmsClient cmsClient;
+    private final com.bkbank.ledger.repository.UserRepository userRepository;
+    private final com.bkbank.ledger.repository.LoanAccountRepository loanAccountRepository;
+    private final com.bkbank.ledger.repository.SavingsAccountRepository savingsAccountRepository;
 
     /**
      * Validates that a card belongs to the specified user/account
@@ -44,8 +47,42 @@ public class CardService {
             }
             
             // Verify account belongs to user
-            // TODO: Implement account ownership check
-            // For now, we assume CMS validates this
+            com.bkbank.ledger.entity.User user = userRepository.findByUsername(userId).orElse(null);
+            if (user == null) {
+                log.warn("User not found - User: {}", userId);
+                throw new IllegalArgumentException("Người dùng không hợp lệ");
+            }
+            
+            com.bkbank.ledger.entity.Client client = user.getClient();
+            if (client == null) {
+                log.warn("User has no associated client - User: {}", userId);
+                throw new IllegalArgumentException("Người dùng không có thông tin khách hàng");
+            }
+
+            String accountClientId = null;
+            
+            // Try loan account first (credit cards are linked to loan accounts)
+            java.util.Optional<String> loanClientIdOpt = loanAccountRepository.findClientIdByAccountNumber(accountId);
+            if (loanClientIdOpt.isPresent()) {
+                accountClientId = loanClientIdOpt.get();
+            } else {
+                // Try savings account
+                java.util.Optional<String> savingsClientIdOpt = savingsAccountRepository.findClientIdByAccountNumber(accountId);
+                if (savingsClientIdOpt.isPresent()) {
+                    accountClientId = savingsClientIdOpt.get();
+                }
+            }
+            
+            if (accountClientId == null) {
+                log.warn("Card's account {} does not exist in Ledger - Card: {}, User: {}", accountId, maskCardNumber(cardNumber), userId);
+                throw new IllegalArgumentException("Tài khoản liên kết thẻ không tồn tại");
+            }
+            
+            if (!accountClientId.equalsIgnoreCase(client.getClientId())) {
+                log.warn("Card ownership mismatch - Card account owner: {}, Authenticated client: {} (Card: {}, User: {})", 
+                        accountClientId, client.getClientId(), maskCardNumber(cardNumber), userId);
+                throw new IllegalArgumentException("Thẻ không thuộc sở hữu của bạn");
+            }
             
             // Check card status
             String status = (String) cardDetails.get("status");
@@ -63,7 +100,7 @@ public class CardService {
         } catch (Exception e) {
             log.error("Error validating card ownership - Card: {}, User: {}, Error: {}", 
                     maskCardNumber(cardNumber), userId, e.getMessage());
-            throw new IllegalArgumentException("Không thể xác minh thẻ");
+            throw new IllegalArgumentException("Không thể xác minh thẻ: " + e.getMessage());
         }
     }
 

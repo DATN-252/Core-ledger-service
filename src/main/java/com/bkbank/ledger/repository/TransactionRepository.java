@@ -77,4 +77,25 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
             """)
     void updateTransactionDateByPaymentId(@Param("paymentId") String paymentId,
                                           @Param("transactionDate") LocalDateTime transactionDate);
+
+    @Query("""
+            select coalesce(avg(t.amount), 0.0)
+            from Transaction t
+            where t.accountNumber = :accountNumber
+              and t.status = 'SUCCESS'
+              and t.transactionDate >= :since
+            """)
+    Double getAverageAmountSince(@Param("accountNumber") String accountNumber,
+                                 @Param("since") LocalDateTime since);
+
+    @Query("""
+            select count(t)
+            from Transaction t
+            where t.accountNumber = :accountNumber
+              and t.status = 'SUCCESS'
+              and t.transactionDate >= :since
+            """)
+    long countTransactionsSince(@Param("accountNumber") String accountNumber,
+                                @Param("since") LocalDateTime since);
 }
+

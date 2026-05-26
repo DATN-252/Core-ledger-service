@@ -16,6 +16,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -198,6 +200,96 @@ public class TransactionController {
         transactionLoggingService.logTransaction(tx);
         log.info("Logged failed transaction for account {} - reason: {}", accountNumber, failureReason);
         return ResponseEntity.ok(Map.of("status", "logged"));
+    }
+
+    public record BehavioralFeaturesRequest(
+            String accountId,
+            Double amount,
+            Double latitude,
+            Double longitude,
+            Long unixTime
+    ) {}
+
+    @PostMapping("/system/behavioral-features")
+    public ResponseEntity<?> getBehavioralFeatures(
+            @RequestHeader("X-System-Api-Key") String apiKey,
+            @RequestBody BehavioralFeaturesRequest requestBody
+    ) {
+        if (!systemApiKey.equals(apiKey)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Forbidden"));
+        }
+
+        String accountId = requestBody.accountId();
+        Double amount = requestBody.amount();
+        Double latitude = requestBody.latitude();
+        Double longitude = requestBody.longitude();
+        Long unixTime = requestBody.unixTime();
+
+        LocalDateTime currentDateTime = LocalDateTime.ofEpochSecond(unixTime, 0, ZoneOffset.UTC);
+        LocalDateTime thirtyDaysAgo = currentDateTime.minusDays(30);
+        LocalDateTime twentyFourHoursAgo = currentDateTime.minusHours(24);
+
+        // 1. amt_diff_avg_30d
+        Double avg30d = transactionRepository.getAverageAmountSince(accountId, thirtyDaysAgo);
+        if (avg30d == null) {
+            avg30d = 0.0;
+        }
+        Double amtDiffAvg30d = amount - avg30d;
+
+        // 2. trans_count_24h
+        long count24h = transactionRepository.countTransactionsSince(accountId, twentyFourHoursAgo);
+        double transCount24h = (double) (count24h + 1);
+
+        // 3. distance_velocity
+        double distanceVelocity = 0.0;
+        java.util.Optional<Transaction> prevTxOpt = transactionRepository
+                .findTopByAccountNumberAndAccountTypeAndTransactionDateBeforeOrderByTransactionDateDesc(
+                        accountId,
+                        determineAccountType(accountId),
+                        currentDateTime
+                );
+
+        if (prevTxOpt.isPresent()) {
+            Transaction prevTx = prevTxOpt.get();
+            if (prevTx.getLatitude() != null && prevTx.getLongitude() != null && latitude != null && longitude != null) {
+                double distance = haversine(
+                        latitude, longitude,
+                        prevTx.getLatitude(), prevTx.getLongitude()
+                );
+                
+                long prevUnix = prevTx.getTransactionDate().toEpochSecond(ZoneOffset.UTC);
+                double timeDiffH = (double) (unixTime - prevUnix) / 3600.0;
+                
+                if (timeDiffH > 0) {
+                    distanceVelocity = distance / timeDiffH;
+                }
+            }
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("amt_diff_avg_30d", amtDiffAvg30d);
+        result.put("trans_count_24h", transCount24h);
+        result.put("distance_velocity", distanceVelocity);
+
+        return ResponseEntity.ok(result);
+    }
+
+    private String determineAccountType(String accountId) {
+        if (accountId.startsWith("SAVINGS") || savingsAccountRepository.existsByAccountNumber(accountId)) {
+            return "SAVINGS";
+        }
+        return "LOAN";
+    }
+
+    private double haversine(double lat1, double lon1, double lat2, double lon2) {
+        double R = 6371; // km
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                   Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                   Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
     }
 
     private String resolveAccountCurrency(String accountNumber, String accountType) {

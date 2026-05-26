@@ -53,6 +53,7 @@ public class SecurityConfig {
                 .requestMatchers("/public/fraud-alert-actions/**").permitAll()
                 // System internal endpoint — authenticated via X-System-Api-Key header
                 .requestMatchers(HttpMethod.POST, "/transactions/log-failed").permitAll()
+                .requestMatchers(HttpMethod.POST, "/transactions/system/behavioral-features").permitAll()
                 // Public — List of active merchants for POS/Apps
                 .requestMatchers(HttpMethod.GET, "/merchants").permitAll()
                 // All other requests must be authenticated
