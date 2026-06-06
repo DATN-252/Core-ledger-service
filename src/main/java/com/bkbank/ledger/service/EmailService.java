@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @RequiredArgsConstructor
@@ -58,8 +59,14 @@ public class EmailService {
             helper.setReplyTo(mailReplyTo.trim());
         }
 
-        mailSender.send(message);
-        log.info("Sent fraud alert email to {} via SMTP", recipient);
+        CompletableFuture.runAsync(() -> {
+            try {
+                mailSender.send(message);
+                log.info("Sent fraud alert email to {} via SMTP", recipient);
+            } catch (Exception ex) {
+                log.error("Failed to send fraud alert email to {} via SMTP asynchronously: {}", recipient, ex.getMessage());
+            }
+        });
         return new EmailSendResult(recipient, "SMTP");
     }
 

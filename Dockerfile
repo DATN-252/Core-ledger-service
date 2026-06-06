@@ -1,5 +1,5 @@
 # Stage 1: Build the application
-FROM gradle:8-jdk21 AS build
+FROM gradle:8-jdk17 AS build
 WORKDIR /app
 
 # Copy gradle configuration files first to leverage Docker cache
@@ -16,7 +16,7 @@ COPY src ./src
 RUN gradle clean build -x test --no-daemon
 
 # Stage 2: Run the application
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
 # Copy the built JAR from the build stage
