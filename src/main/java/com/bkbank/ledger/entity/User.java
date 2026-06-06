@@ -42,6 +42,11 @@ public class User implements UserDetails {
     @Builder.Default
     private boolean enabled = true;
 
+    // Link to Customer (null for ADMIN users)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "client_id", nullable = true)
+    private Client client;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));

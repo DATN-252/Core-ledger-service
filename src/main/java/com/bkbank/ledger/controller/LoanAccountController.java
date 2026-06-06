@@ -1,14 +1,29 @@
 package com.bkbank.ledger.controller;
 
-import com.bkbank.ledger.dto.ChargeRequest;
+import com.bkbank.ledger.dto.request.ChargeRequest;
+import com.bkbank.ledger.dto.request.LoanStatementSettingsUpdateRequest;
+import com.bkbank.ledger.dto.request.StatementPaymentRequest;
+import com.bkbank.ledger.dto.response.CreditCardMonthlyStatementResponse;
+import com.bkbank.ledger.dto.response.CreditCardStatementSummaryResponse;
+import com.bkbank.ledger.dto.response.LoanStatementResponse;
+import com.bkbank.ledger.dto.response.StatementPaymentResponse;
 import com.bkbank.ledger.entity.LoanAccount;
+import com.bkbank.ledger.repository.spec.LedgerListSpecifications;
+import com.bkbank.ledger.repository.LoanAccountRepository;
+import com.bkbank.ledger.service.CreditCardStatementService;
 import com.bkbank.ledger.service.LoanAccountService;
+import com.bkbank.ledger.service.StatementService;
+import com.bkbank.ledger.util.PageableSortUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,8 +35,60 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 public class LoanAccountController {
+    private static final Map<String, String> LOAN_SORT_MAPPINGS = Map.ofEntries(
+            Map.entry("accountnumber", "accountNumber"),
+            Map.entry("clientname", "client.fullName"),
+            Map.entry("principal", "principal"),
+            Map.entry("outstanding", "principalOutstanding"),
+            Map.entry("status", "status"),
+            Map.entry("branchid", "branch.branchId"),
+            Map.entry("branchname", "branch.branchName"),
+            Map.entry("createdat", "createdAt"),
+            Map.entry("updatedat", "updatedAt"));
 
     private final LoanAccountService loanAccountService;
+    private final LoanAccountRepository loanAccountRepository;
+    private final StatementService statementService;
+    private final CreditCardStatementService creditCardStatementService;
+
+    /**
+     * List all loan accounts
+     * GET /loans
+     */
+    @GetMapping("/loans")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<Page<Map<String, Object>>> listAccounts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String branchId,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        Pageable pageable = PageableSortUtils.createPageable(page, size, sortBy, sortDir, "createdAt",
+                LOAN_SORT_MAPPINGS);
+        Page<LoanAccount> accounts = loanAccountRepository.findAll(
+                LedgerListSpecifications.loanList(q, status, branchId),
+                pageable);
+        Page<Map<String, Object>> result = accounts.map(account -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", account.getAccountNumber());
+            m.put("accountNo", account.getAccountNumber());
+            m.put("principal", account.getPrincipal());
+            m.put("principalOutstanding", account.getPrincipalOutstanding());
+            m.put("currency", Map.of("code", account.getCurrency()));
+            m.put("status", Map.of("value", account.getStatus().name()));
+            m.put("clientName", account.getClientName());
+            m.put("branchId", account.getBranchId());
+            m.put("branchName", account.getBranchName());
+            m.put("statementInterestRateAnnual", account.getStatementInterestRateAnnual());
+            m.put("statementLateFeeRate", account.getStatementLateFeeRate());
+            m.put("statementLateFeeFixed", account.getStatementLateFeeFixed());
+            m.put("createdAt", account.getCreatedAt());
+            return m;
+        });
+        return ResponseEntity.ok(result);
+    }
 
     /**
      * Get loan account details
@@ -32,10 +99,10 @@ public class LoanAccountController {
     @PreAuthorize("hasAnyRole('ADMIN', 'TELLER', 'SYSTEM')")
     public ResponseEntity<Map<String, Object>> getAccount(@PathVariable String loanId) {
         log.info("GET /loans/{}", loanId);
-        
+
         try {
             LoanAccount account = loanAccountService.getAccount(loanId);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("id", account.getId());
             response.put("accountNo", account.getAccountNumber());
@@ -44,11 +111,143 @@ public class LoanAccountController {
             response.put("principalOutstanding", account.getPrincipalOutstanding());
             response.put("currency", Map.of("code", account.getCurrency()));
             response.put("status", Map.of("value", account.getStatus().name()));
+            response.put("clientId", account.getClient() != null ? account.getClient().getClientId() : null);
             response.put("clientName", account.getClientName());
-            
+            response.put("branchId", account.getBranchId());
+            response.put("branchName", account.getBranchName());
+            response.put("billingDayOfMonth", account.getBillingDayOfMonth());
+            response.put("paymentDueDays", account.getPaymentDueDays());
+            response.put("minimumPaymentRate", account.getMinimumPaymentRate());
+            response.put("minimumPaymentFloor", account.getMinimumPaymentFloor());
+            response.put("statementInterestRateAnnual", account.getStatementInterestRateAnnual());
+            response.put("statementLateFeeRate", account.getStatementLateFeeRate());
+            response.put("statementLateFeeFixed", account.getStatementLateFeeFixed());
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error getting loan: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Generate loan statement by date range
+     * GET /loans/{loanId}/statement?fromDate=2026-03-01&toDate=2026-03-31
+     */
+    @GetMapping("/loans/{loanId}/statement")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> getStatement(
+            @PathVariable String loanId,
+            @RequestParam LocalDate fromDate,
+            @RequestParam LocalDate toDate) {
+        try {
+            LoanStatementResponse statement = statementService.getLoanStatement(loanId, fromDate, toDate);
+            return ResponseEntity.ok(statement);
+        } catch (Exception e) {
+            log.error("Get statement failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/loans/{loanId}/statement-settings")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> updateStatementSettings(
+            @PathVariable String loanId,
+            @RequestBody LoanStatementSettingsUpdateRequest request) {
+        try {
+            LoanAccount account = loanAccountService.updateStatementSettings(
+                    loanId,
+                    request.getBillingDayOfMonth(),
+                    request.getPaymentDueDays(),
+                    request.getMinimumPaymentRate(),
+                    request.getMinimumPaymentFloor(),
+                    request.getStatementInterestRateAnnual(),
+                    request.getStatementLateFeeRate(),
+                    request.getStatementLateFeeFixed());
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("accountNumber", account.getAccountNumber());
+            response.put("billingDayOfMonth", account.getBillingDayOfMonth());
+            response.put("paymentDueDays", account.getPaymentDueDays());
+            response.put("minimumPaymentRate", account.getMinimumPaymentRate());
+            response.put("minimumPaymentFloor", account.getMinimumPaymentFloor());
+            response.put("statementInterestRateAnnual", account.getStatementInterestRateAnnual());
+            response.put("statementLateFeeRate", account.getStatementLateFeeRate());
+            response.put("statementLateFeeFixed", account.getStatementLateFeeFixed());
+            response.put("message", "Statement settings updated successfully");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Update statement settings failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Generate monthly credit-card style statement
+     * POST /loans/{loanId}/monthly-statements/generate?billingDate=2026-03-25
+     */
+    @PostMapping("/loans/{loanId}/monthly-statements/generate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> generateMonthlyStatement(
+            @PathVariable String loanId,
+            @RequestParam LocalDate billingDate) {
+        try {
+            CreditCardMonthlyStatementResponse statement = creditCardStatementService.generateMonthlyStatement(loanId,
+                    billingDate);
+            return ResponseEntity.ok(statement);
+        } catch (Exception e) {
+            log.error("Generate monthly statement failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * List persisted monthly statement snapshots for a loan account
+     * GET /loans/{loanId}/monthly-statements
+     */
+    @GetMapping("/loans/{loanId}/monthly-statements")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> getMonthlyStatementHistory(@PathVariable String loanId) {
+        try {
+            List<CreditCardStatementSummaryResponse> statements = creditCardStatementService
+                    .getStatementHistory(loanId);
+            return ResponseEntity.ok(statements);
+        } catch (Exception e) {
+            log.error("Get monthly statement history failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Get persisted monthly statement detail by billing date
+     * GET /loans/{loanId}/monthly-statements/{billingDate}
+     */
+    @GetMapping("/loans/{loanId}/monthly-statements/{billingDate}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> getMonthlyStatementDetail(
+            @PathVariable String loanId,
+            @PathVariable LocalDate billingDate) {
+        try {
+            CreditCardMonthlyStatementResponse statement = creditCardStatementService.getStatementDetail(loanId,
+                    billingDate);
+            return ResponseEntity.ok(statement);
+        } catch (Exception e) {
+            log.error("Get monthly statement detail failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/loans/{loanId}/monthly-statements/{billingDate}/payments")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
+    public ResponseEntity<?> payMonthlyStatement(
+            @PathVariable String loanId,
+            @PathVariable LocalDate billingDate,
+            @RequestBody StatementPaymentRequest request) {
+        try {
+            StatementPaymentResponse response = creditCardStatementService.payStatement(loanId, billingDate, request);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Pay monthly statement failed: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
@@ -63,22 +262,44 @@ public class LoanAccountController {
     public ResponseEntity<Map<String, Object>> addCharge(
             @PathVariable String loanId,
             @RequestBody ChargeRequest request) {
-        
+
         log.info("POST /loans/{}/charges - Amount: {}", loanId, request.getAmount());
-        
+
         try {
             String merchantId = request.getMerchantId();
             String merchantName = request.getMerchantName();
-            LoanAccount account = loanAccountService.addCharge(loanId, request.getAmount(), merchantId, merchantName);
-            
+            String cardNetwork = request.getCardNetwork();
+            String location = request.getLocation();
+            Double latitude = request.getLatitude();
+            Double longitude = request.getLongitude();
+            LoanAccount account = loanAccountService.addCharge(
+                    loanId,
+                    request.getAmount(),
+                    merchantId,
+                    merchantName,
+                    cardNetwork,
+                    location,
+                    latitude,
+                    longitude,
+                    request.getPaymentId(),
+                    request.getIdempotencyKey(),
+                    request.getOriginalTransactionId(),
+                    request.getChannel(),
+                    request.getAuthCode(),
+                    request.getStan(),
+                    request.getRrn(),
+                    request.getExternalReference(),
+                    request.getResponseCode(),
+                    request.getResponseMessage(),
+                    request.getPaymentNote());
+
             // Fineract-style response
             Map<String, Object> response = new HashMap<>();
             response.put("resourceId", account.getId());
             response.put("loanId", account.getId());
             response.put("changes", Map.of(
-                "principalOutstanding", account.getPrincipalOutstanding()
-            ));
-            
+                    "principalOutstanding", account.getPrincipalOutstanding()));
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Add charge failed: {}", e.getMessage());
@@ -94,19 +315,18 @@ public class LoanAccountController {
     public ResponseEntity<Map<String, Object>> makePayment(
             @PathVariable String loanId,
             @RequestBody Map<String, Object> request) {
-        
+
         log.info("POST /loans/{}/payments", loanId);
-        
+
         try {
             Double amount = ((Number) request.get("amount")).doubleValue();
             LoanAccount account = loanAccountService.makePayment(loanId, amount);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("resourceId", account.getId());
             response.put("changes", Map.of(
-                "principalOutstanding", account.getPrincipalOutstanding()
-            ));
-            
+                    "principalOutstanding", account.getPrincipalOutstanding()));
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Payment failed: {}", e.getMessage());
@@ -123,23 +343,22 @@ public class LoanAccountController {
             @PathVariable String loanId,
             @RequestParam String command,
             @RequestBody Map<String, Object> request) {
-        
+
         log.info("POST /loans/{}/transactions?command={}", loanId, command);
-        
+
         try {
             if (!"repayment".equalsIgnoreCase(command)) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Invalid command: " + command));
             }
-            
+
             Double amount = ((Number) request.get("transactionAmount")).doubleValue();
             LoanAccount account = loanAccountService.makePayment(loanId, amount);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("resourceId", account.getId());
             response.put("changes", Map.of(
-                "principalOutstanding", account.getPrincipalOutstanding()
-            ));
-            
+                    "principalOutstanding", account.getPrincipalOutstanding()));
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Payment failed: {}", e.getMessage());
@@ -156,44 +375,44 @@ public class LoanAccountController {
             @PathVariable String loanId,
             @RequestParam String command,
             @RequestBody(required = false) Map<String, Object> request) {
-        
+
         log.info("POST /loans/{}?command={}", loanId, command);
-        
+
         try {
             LoanAccount account;
-            
+
             switch (command.toLowerCase()) {
                 case "activate":
                     account = loanAccountService.activateAccount(loanId);
                     break;
-                    
+
                 case "lock":
                     String reason = request != null ? (String) request.get("reason") : "No reason provided";
                     account = loanAccountService.lockAccount(loanId, reason);
                     break;
-                    
+
                 case "unlock":
                     account = loanAccountService.unlockAccount(loanId);
                     break;
-                    
+
                 case "close":
                     account = loanAccountService.closeAccount(loanId);
                     break;
-                    
+
                 default:
                     return ResponseEntity.badRequest().body(
-                        Map.of("error", "Invalid command: " + command + ". Valid commands: activate, lock, unlock, close")
-                    );
+                            Map.of("error",
+                                    "Invalid command: " + command + ". Valid commands: activate, lock, unlock, close"));
             }
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("resourceId", account.getId());
             response.put("accountNumber", account.getAccountNumber());
             response.put("status", account.getStatus());
             response.put("message", "Account " + command + "d successfully");
-            
+
             return ResponseEntity.ok(response);
-            
+
         } catch (IllegalStateException e) {
             log.error("Status management failed: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -206,28 +425,32 @@ public class LoanAccountController {
     /**
      * Create loan account (Admin endpoint)
      * POST /loans
-     * Request body: { "accountNumber": "...", "principal": 10000.0, "clientId": "CLI_001" }
+     * Request body: { "accountNumber": "...", "principal": 10000.0, "clientId":
+     * "CLI_001" }
      */
     @PostMapping("/loans")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TELLER')")
     public ResponseEntity<Map<String, Object>> createLoan(@RequestBody Map<String, Object> request) {
         log.info("POST /loans - Create loan account");
-        
+
         try {
             String accountNumber = (String) request.get("accountNumber");
-            Double principal = request.get("principal") != null 
-                ? ((Number) request.get("principal")).doubleValue() 
-                : 10000.0;
-            String clientId = (String) request.get("clientId");  // Changed from clientName
-            
+            Double principal = request.get("principal") != null
+                    ? ((Number) request.get("principal")).doubleValue()
+                    : 10000.0;
+            String clientId = (String) request.get("clientId"); // Changed from clientName
+
             LoanAccount account = loanAccountService.createAccount(accountNumber, principal, clientId);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("resourceId", account.getId());
             response.put("accountNumber", account.getAccountNumber());
             response.put("principal", account.getPrincipal());
             response.put("clientId", clientId);
-            response.put("clientName", account.getClientName());  // For backward compatibility
-            
+            response.put("clientName", account.getClientName()); // For backward compatibility
+            response.put("branchId", account.getBranchId());
+            response.put("branchName", account.getBranchName());
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error creating loan: {}", e.getMessage());

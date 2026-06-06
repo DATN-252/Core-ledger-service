@@ -1,4 +1,4 @@
-package com.bkbank.ledger.dto;
+package com.bkbank.ledger.dto.request;
 
 import com.bkbank.ledger.entity.enums.ClientStatus;
 import com.bkbank.ledger.entity.enums.EmploymentType;
@@ -11,7 +11,7 @@ import java.time.LocalDate;
  * All fields are optional - only send what needs to be updated
  */
 public class ClientUpdateRequest {
-    
+
     private String fullName;
     private LocalDate dateOfBirth;
     private Gender gender;
@@ -20,23 +20,24 @@ public class ClientUpdateRequest {
     private String address;
     private String city;
     private String country;
-    
+    private String homeBranchId;
+
     // Can't update ID number (immutable)
-    
+
     private LocalDate idIssueDate;
     private LocalDate idExpiryDate;
-    
+
     private String occupation;
     private String employerName;
     private String employerAddress;
     private EmploymentType employmentType;
     private Double monthlyIncome;
     private Integer yearsAtCurrentJob;
-    
-    private ClientStatus status;  // Admin can change status
-    
+
+    private ClientStatus status; // Admin can change status
+
     // Getters and Setters
-    
+
     public String getFullName() {
         return fullName;
     }
@@ -99,6 +100,14 @@ public class ClientUpdateRequest {
 
     public void setCountry(String country) {
         this.country = country;
+    }
+
+    public String getHomeBranchId() {
+        return homeBranchId;
+    }
+
+    public void setHomeBranchId(String homeBranchId) {
+        this.homeBranchId = homeBranchId;
     }
 
     public LocalDate getIdIssueDate() {

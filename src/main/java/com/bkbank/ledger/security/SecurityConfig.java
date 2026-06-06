@@ -44,10 +44,23 @@ public class SecurityConfig {
             // Disable anonymous auth so unauthenticated requests → 401 via authenticationEntryPoint
             .anonymous(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
-                // Public — Auth endpoints
-                .requestMatchers("/auth/**").permitAll()
+                // Public — chỉ login endpoint
+                .requestMatchers("/auth/login").permitAll()
+                // Teller/Admin only — tạo tài khoản mobile cho KH
+                .requestMatchers("/auth/register-customer").hasAnyRole("ADMIN", "TELLER")
+                // Allow /error so validation exceptions don't trigger 401 Unauthorized
+                .requestMatchers("/error").permitAll()
+                .requestMatchers("/public/fraud-alert-actions/**").permitAll()
+                // System internal endpoint — authenticated via X-System-Api-Key header
+                .requestMatchers(HttpMethod.POST, "/transactions/log-failed").permitAll()
+                .requestMatchers(HttpMethod.POST, "/transactions/system/behavioral-features").permitAll()
+                // Public — List of active merchants for POS/Apps
+                .requestMatchers(HttpMethod.GET, "/merchants").permitAll()
                 // All other requests must be authenticated
                 // Role-based checks are done via @PreAuthorize on controller methods
+
+                // thông báo không cần auth
+                .requestMatchers(HttpMethod.POST, "/customer/push-token").permitAll()
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())

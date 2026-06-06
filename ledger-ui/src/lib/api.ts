@@ -1,0 +1,462 @@
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8083';
+const CMS_API_URL = process.env.NEXT_PUBLIC_CMS_API_URL || 'http://localhost:8082/api';
+
+function getToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('ledger_token');
+}
+
+export function getRole(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('ledger_role');
+}
+
+export function isLoggedIn(): boolean {
+  return !!getToken();
+}
+
+export function logout() {
+  localStorage.removeItem('ledger_token');
+  localStorage.removeItem('ledger_role');
+  localStorage.removeItem('ledger_user');
+  window.location.href = '/login';
+}
+
+function getApiErrorMessage(err: any, fallbackStatus: string) {
+  if (!err) return fallbackStatus;
+  if (typeof err === 'string') return err;
+  return err.message || err.error || err.detail || fallbackStatus;
+}
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = getToken();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
+
+  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+
+  if (res.status === 401) {
+    logout();
+    throw new Error('Session expired');
+  }
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(getApiErrorMessage(err, `HTTP ${res.status}`));
+  }
+
+  const json = await res.json();
+  // Auto-unwrap the new standard ApiResponse format (code 1000)
+  if (json && json.code === 1000 && 'result' in json) {
+    return json.result;
+  }
+  return json;
+}
+
+async function cmsRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = getToken();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
+
+  const res = await fetch(`${CMS_API_URL}${path}`, { ...options, headers });
+
+  if (res.status === 401) {
+    logout();
+    throw new Error('Session expired');
+  }
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(getApiErrorMessage(err, `HTTP ${res.status}`));
+  }
+
+  return res.json();
+}
+
+type ListQueryValue = string | number | boolean | null | undefined;
+
+function withQuery(path: string, query: Record<string, ListQueryValue>) {
+  const params = new URLSearchParams();
+  Object.entries(query).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return;
+    params.set(key, String(value));
+  });
+  const queryString = params.toString();
+  return queryString ? `${path}?${queryString}` : path;
+}
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+export async function login(username: string, password: string) {
+  const data = await request<{
+    token: string;
+    username: string;
+    fullName: string;
+    role: string;
+    expiresIn: number;
+  }>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  });
+  localStorage.setItem('ledger_token', data.token);
+  localStorage.setItem('ledger_role', data.role);
+  localStorage.setItem('ledger_user', JSON.stringify(data));
+  return data;
+}
+
+export function getUser() {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem('ledger_user');
+  return raw ? JSON.parse(raw) : null;
+}
+
+export async function registerCustomer(clientId: string, password: string) {
+  return request<any>('/auth/register-customer', {
+    method: 'POST',
+    body: JSON.stringify({ clientId, password })
+  });
+}
+
+// ─── Loans ───────────────────────────────────────────────────────────────────
+export async function getLoan(loanId: string) {
+  return request<any>(`/loans/${loanId}`);
+}
+
+export async function getAllLoans(
+  page = 0,
+  size = 10,
+  filters: Record<string, ListQueryValue> = {},
+) {
+  return request<any>(withQuery('/loans', { page, size, ...filters }));
+}
+
+export async function createLoan(data: any) {
+  return request<any>('/loans', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function loanCommand(loanId: string, command: 'activate' | 'lock' | 'unlock') {
+  return request<any>(`/loans/${loanId}?command=${command}`, { method: 'POST', body: '{}' });
+}
+
+export async function getLoanMonthlyStatements(loanId: string) {
+  return request<any[]>(`/loans/${loanId}/monthly-statements`);
+}
+
+export async function getLoanMonthlyStatementDetail(loanId: string, billingDate: string) {
+  return request<any>(`/loans/${loanId}/monthly-statements/${billingDate}`);
+}
+
+export async function generateLoanMonthlyStatement(loanId: string, billingDate: string) {
+  return request<any>(`/loans/${loanId}/monthly-statements/generate?billingDate=${encodeURIComponent(billingDate)}`, {
+    method: 'POST',
+    body: '{}',
+  });
+}
+
+export async function updateLoanStatementSettings(
+  loanId: string,
+  data: {
+    billingDayOfMonth: number;
+    paymentDueDays: number;
+    minimumPaymentRate: number;
+    minimumPaymentFloor: number;
+    statementInterestRateAnnual: number;
+    statementLateFeeRate: number;
+    statementLateFeeFixed: number;
+  },
+) {
+  return request<any>(`/loans/${loanId}/statement-settings`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function payLoanMonthlyStatement(
+  loanId: string,
+  billingDate: string,
+  data: {
+    paymentOption: string;
+    amount?: number | null;
+    paymentSource: string;
+    sourceAccountNumber?: string | null;
+    note?: string;
+  },
+) {
+  return request<any>(`/loans/${loanId}/monthly-statements/${encodeURIComponent(billingDate)}/payments`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// ─── Savings Accounts ────────────────────────────────────────────────────────
+export async function getSavingsAccount(id: string) {
+  return request<any>(`/savingsaccounts/${id}`);
+}
+
+export async function getAllSavingsAccounts(
+  page = 0,
+  size = 10,
+  filters: Record<string, ListQueryValue> = {},
+) {
+  return request<any>(withQuery('/savingsaccounts', { page, size, ...filters }));
+}
+
+export async function createSavingsAccount(data: any) {
+  return request<any>('/savingsaccounts', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function savingsCommand(id: string, command: 'activate' | 'lock') {
+  return request<any>(`/savingsaccounts/${id}?command=${command}`, { method: 'POST', body: '{}' });
+}
+
+export async function depositToSavingsAccount(id: string, amount: number) {
+  return request<any>(`/savingsaccounts/${id}/transactions?command=deposit`, {
+    method: 'POST',
+    body: JSON.stringify({
+      transactionAmount: amount,
+    }),
+  });
+}
+
+// ─── Transactions ─────────────────────────────────────────────────────────────
+export async function getTransactions(
+  accountId?: string,
+  page = 0,
+  size = 50,
+  filters: Record<string, ListQueryValue> = {},
+) {
+  return request<any>(withQuery('/transactions', { accountId, page, size, ...filters }));
+}
+
+export async function getTransactionDetail(id: string | number) {
+  return request<any>(`/transactions/${id}`);
+}
+
+export async function getDashboardSummary(days = 14) {
+  return request<any>(`/dashboard/summary?days=${days}`);
+}
+
+// ─── Merchants / Settlements ─────────────────────────────────────────────────
+export async function getMerchants(
+  page = 0,
+  size = 100,
+  filters: Record<string, ListQueryValue> = {},
+) {
+  return request<any>(withQuery('/merchants', { page, size, ...filters }));
+}
+
+export async function getMerchantDetail(merchantId: string) {
+  return request<any>(`/merchants/${merchantId}`);
+}
+
+export async function createMerchant(data: any) {
+  return request<any>('/merchants', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getMerchantTransactions(merchantId: string, page = 0, size = 20) {
+  return request<any>(`/merchants/${merchantId}/transactions?page=${page}&size=${size}`);
+}
+
+export async function getSettlementPreview(merchantId: string, fromDate: string, toDate: string, feeRate = 0) {
+  return request<any>(
+    `/merchants/${merchantId}/settlement/preview?fromDate=${encodeURIComponent(fromDate)}&toDate=${encodeURIComponent(toDate)}&feeRate=${feeRate}`
+  );
+}
+
+export async function generateSettlementBatch(
+  merchantId: string,
+  fromDate: string,
+  toDate: string,
+  feeRate = 0,
+  note?: string,
+) {
+  return request<any>(
+    `/merchants/${merchantId}/settlements/generate?fromDate=${encodeURIComponent(fromDate)}&toDate=${encodeURIComponent(toDate)}&feeRate=${feeRate}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ note: note || '' }),
+    },
+  );
+}
+
+export async function executeSettlementBatch(merchantId: string, batchId: number, note?: string) {
+  return request<any>(`/merchants/${merchantId}/settlements/${batchId}/execute`, {
+    method: 'POST',
+    body: JSON.stringify({ note: note || '' }),
+  });
+}
+
+export async function getSettlementBatches(merchantId: string, page = 0, size = 20) {
+  return request<any>(`/merchants/${merchantId}/settlements?page=${page}&size=${size}`);
+}
+
+export async function getSettlementBatchDetail(merchantId: string, batchId: number) {
+  return request<any>(`/merchants/${merchantId}/settlements/${batchId}`);
+}
+
+export async function getSettlementAdjustments(merchantId: string, page = 0, size = 10) {
+  return request<any>(`/merchants/${merchantId}/settlement-adjustments?page=${page}&size=${size}`);
+}
+
+export async function runAutoSettlement(settlementDate: string, feeRate = 1.5, execute = true) {
+  return request<any>(
+    `/merchants/settlements/auto-run?settlementDate=${encodeURIComponent(settlementDate)}&feeRate=${feeRate}&execute=${execute}`,
+    {
+      method: 'POST',
+      body: '{}',
+    },
+  );
+}
+
+// ─── Clients ──────────────────────────────────────────────────────────────────
+export async function getAllClients(
+  page = 0,
+  size = 10,
+  filters: Record<string, ListQueryValue> = {},
+) {
+  return request<any>(withQuery('/clients', { page, size, ...filters }));
+}
+
+export async function getClient(clientId: string) {
+  return request<any>(`/clients/${clientId}`);
+}
+
+export async function getBranches() {
+  return request<any[]>('/branches');
+}
+
+export async function getClientAccounts(clientId: string) {
+  return request<any>(`/clients/${clientId}/accounts`);
+}
+
+export async function getClientSavingsAccounts(clientId: string) {
+  return request<any>(`/clients/${clientId}/savings`);
+}
+
+export async function createClient(data: any) {
+  return request<any>('/clients', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateClient(clientId: string, data: any) {
+  return request<any>(`/clients/${clientId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+// ─── Cards (CMS) ──────────────────────────────────────────────────────────────
+export async function getCreditCards(clientId?: string) {
+  const path = clientId ? `/cards/client/${clientId}` : `/cards`;
+  return cmsRequest<any[]>(path);
+}
+
+export async function getCardDetail(cardId: string | number) {
+  return cmsRequest<any>(`/cards/${cardId}`);
+}
+
+export async function getFraudAlerts(filters: Record<string, ListQueryValue> = {}) {
+  return cmsRequest<any[]>(withQuery('/fraud-alerts', filters));
+}
+
+export async function getFraudAlertSummary() {
+  return cmsRequest<any>('/fraud-alerts/summary');
+}
+
+export async function getFraudAlertDetail(alertId: string | number) {
+  return cmsRequest<any>(`/fraud-alerts/${alertId}`);
+}
+
+export async function getFraudSettings() {
+  return cmsRequest<any>('/fraud-alerts/settings');
+}
+
+export async function updateFraudSettings(data: {
+  highRiskEmailActionExpirationMinutes: number;
+  mediumRiskEmailActionExpirationMinutes: number;
+  highRiskNoResponseTimeoutMinutes: number;
+  highRiskNoResponseAction: string;
+  mediumRiskNoResponseTimeoutMinutes: number;
+  mediumRiskNoResponseAction: string;
+}) {
+  return cmsRequest<any>('/fraud-alerts/settings', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function lockFraudAlertCard(alertId: string | number, note?: string) {
+  return cmsRequest<any>(`/fraud-alerts/${alertId}/lock-card`, {
+    method: 'POST',
+    body: JSON.stringify({ note: note || '' }),
+  });
+}
+
+export async function resolveFraudAlert(alertId: string | number, note?: string) {
+  return cmsRequest<any>(`/fraud-alerts/${alertId}/resolve`, {
+    method: 'POST',
+    body: JSON.stringify({ note: note || '' }),
+  });
+}
+
+export async function markFraudAlertFalsePositive(alertId: string | number, note?: string) {
+  return cmsRequest<any>(`/fraud-alerts/${alertId}/false-positive`, {
+    method: 'POST',
+    body: JSON.stringify({ note: note || '' }),
+  });
+}
+
+export async function issueDebitCard(data: { pan: string, cvv: string, expirationDate: string, linkedAccountNumber: string, cardholderName: string, network?: string }) {
+  return cmsRequest<any>('/cards/issue', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function issueCreditCard(data: { pan: string, cvv: string, expirationDate: string, creditLimit: number, linkedAccountNumber: string, cardholderName: string, network?: string }) {
+  return cmsRequest<any>('/cards/issue/credit', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function changeCardStatus(cardId: string | number, status: string) {
+  return cmsRequest<any>(`/cards/${cardId}/status?status=${status}`, { method: 'PUT' });
+}
+
+export async function blockCard(cardId: string | number) {
+  return cmsRequest<any>(`/cards/${cardId}/block`, { method: 'POST' });
+}
+
+export async function unblockCard(cardId: string | number) {
+  return cmsRequest<any>(`/cards/${cardId}/unblock`, { method: 'POST' });
+}
+
+export async function cancelCard(cardId: string | number) {
+  return cmsRequest<any>(`/cards/${cardId}/cancel`, { method: 'POST' });
+}
+
+export async function renewCard(cardId: string | number, expirationDate: string) {
+  return cmsRequest<any>(`/cards/${cardId}/renew`, {
+    method: 'POST',
+    body: JSON.stringify({ expirationDate }),
+  });
+}
+
+export async function replaceCard(
+  cardId: string | number,
+  data: { pan: string; cvv: string; expirationDate: string; cardholderName?: string; network?: string },
+) {
+  return cmsRequest<any>(`/cards/${cardId}/replace`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+

@@ -47,6 +47,10 @@ public class SavingsAccount {
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "branch_fk")
+    private Branch branch;
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -84,6 +88,17 @@ public class SavingsAccount {
         if (!canTransact()) {
             throw new IllegalStateException("Account cannot transact. Status: " + status +
                 (lockReason != null ? ". Reason: " + lockReason : ""));
+        }
+        this.balance += amount;
+    }
+
+    /**
+     * Apply a refund/reversal credit to the account.
+     * Locked accounts can still receive credits, but closed/pending accounts cannot.
+     */
+    public void applyCardAdjustment(Double amount) {
+        if (status == AccountStatus.CLOSED || status == AccountStatus.PENDING) {
+            throw new IllegalStateException("Account cannot receive card adjustments. Status: " + status);
         }
         this.balance += amount;
     }
@@ -178,5 +193,13 @@ public class SavingsAccount {
      */
     public String getClientName() {
         return client != null ? client.getFullName() : null;
+    }
+
+    public String getBranchId() {
+        return branch != null ? branch.getBranchId() : null;
+    }
+
+    public String getBranchName() {
+        return branch != null ? branch.getBranchName() : null;
     }
 }

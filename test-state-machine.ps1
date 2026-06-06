@@ -7,17 +7,24 @@ Write-Host ""
 
 $baseUrl = "http://localhost:8083"
 
+$randText = Get-Random -Minimum 1000 -Maximum 9999
+$clientId = "CLI_STATE_$randText"
+$savId = "SAV_STATE_$randText"
+$loanId = "LOAN_STATE_$randText"
+$email = "statetest${randText}@example.com"
+$idNum = "09999" + $randText + "999"
+
 # Test 1: Create Client
-Write-Host "Test 1: Creating test client..." -ForegroundColor Yellow
+Write-Host "Test 1: Creating test client ($clientId)..." -ForegroundColor Yellow
 $client = @{
-    clientId = "CLI_STATE_001"
+    clientId = $clientId
     fullName = "State Machine Test User"
     dateOfBirth = "1990-01-01"
     gender = "MALE"
-    email = "statetest@example.com"
+    email = $email
     phoneNumber = "+84900000001"
     address = "Test Address"
-    idNumber = "099999999999"
+    idNumber = $idNum
     idType = "NATIONAL_ID"
 } | ConvertTo-Json
 
@@ -33,9 +40,9 @@ Write-Host ""
 # Test 2: Create Savings Account
 Write-Host "Test 2: Creating savings account..." -ForegroundColor Yellow
 $savingsReq = @{
-    accountNumber = "SAV_STATE_001"
+    accountNumber = $savId
     balance = 10000.0
-    clientId = "CLI_STATE_001"
+    clientId = $clientId
 } | ConvertTo-Json
 
 try {
@@ -43,7 +50,7 @@ try {
     Write-Host "✓ Savings account created: $($savingsRes.accountNumber)" -ForegroundColor Green
     Write-Host "  Status: $($savingsRes.status) (PENDING - needs activation)" -ForegroundColor Gray
 } catch {
-    Write-Host "✗ Account creation failed:" $_.Exception.Message -ForegroundColor Red
+    Write-Host "✗" $_.ErrorDetails.Message -ForegroundColor Red
 }
 
 Write-Host ""
@@ -51,11 +58,11 @@ Write-Host ""
 # Test 2.5: Activate the account (PENDING → ACTIVE)
 Write-Host "Test 2.5: Activating account (PENDING → ACTIVE)..." -ForegroundColor Yellow
 try {
-    $activateRes = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/SAV_STATE_001?command=activate" -Method Post -ContentType "application/json"
+    $activateRes = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/$savId?command=activate" -Method Post -Body "{}" -ContentType "application/json"
     Write-Host "✓ Account activated successfully" -ForegroundColor Green
     Write-Host "  Status: $($activateRes.status)" -ForegroundColor Gray
 } catch {
-    Write-Host "✗ Activation failed:" $_.Exception.Message -ForegroundColor Red
+    Write-Host "✗ $_.ErrorDetails.Message" -ForegroundColor Red
 }
 
 Write-Host ""
@@ -70,10 +77,10 @@ $withdrawReq = @{
 } | ConvertTo-Json
 
 try {
-    $withdrawRes = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/SAV_STATE_001/transactions?command=withdrawal" -Method Post -Body $withdrawReq -ContentType "application/json"
+    $withdrawRes = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/$savId/transactions?command=withdrawal" -Method Post -Body $withdrawReq -ContentType "application/json"
     Write-Host "✓ Withdrawal successful. New balance:" $withdrawRes.changes.accountBalance -ForegroundColor Green
 } catch {
-    Write-Host "✗ Withdrawal failed:" $_.Exception.Message -ForegroundColor Red
+    Write-Host "✗" $_.ErrorDetails.Message -ForegroundColor Red
 }
 
 Write-Host ""
@@ -85,12 +92,12 @@ $lockReq = @{
 } | ConvertTo-Json
 
 try {
-    $lockRes = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/SAV_STATE_001?command=lock" -Method Post -Body $lockReq -ContentType "application/json"
+    $lockRes = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/$savId?command=lock" -Method Post -Body $lockReq -ContentType "application/json"
     Write-Host "✓ Account locked successfully" -ForegroundColor Green
     Write-Host "  Status: $($lockRes.status)" -ForegroundColor Gray
     Write-Host "  Message: $($lockRes.message)" -ForegroundColor Gray
 } catch {
-    Write-Host "✗ Lock failed:" $_.Exception.Message -ForegroundColor Red
+    Write-Host "✗" $_.ErrorDetails.Message -ForegroundColor Red
 }
 
 Write-Host ""
@@ -98,7 +105,7 @@ Write-Host ""
 # Test 5: Try withdrawal on LOCKED account (should fail)
 Write-Host "Test 5: Attempting withdrawal on LOCKED account (should fail)..." -ForegroundColor Yellow
 try {
-    $withdrawRes2 = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/SAV_STATE_001/transactions?command=withdrawal" -Method Post -Body $withdrawReq -ContentType "application/json"
+    $withdrawRes2 = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/$savId/transactions?command=withdrawal" -Method Post -Body $withdrawReq -ContentType "application/json"
     Write-Host "✗ UNEXPECTED: Withdrawal succeeded on locked account!" -ForegroundColor Red
 } catch {
     Write-Host "✓ Withdrawal correctly blocked: Account is locked" -ForegroundColor Green
@@ -109,11 +116,11 @@ Write-Host ""
 # Test 6: Unlock account
 Write-Host "Test 6: Unlocking account..." -ForegroundColor Yellow
 try {
-    $unlockRes = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/SAV_STATE_001?command=unlock" -Method Post -ContentType "application/json"
+    $unlockRes = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/$savId?command=unlock" -Method Post -Body "{}" -ContentType "application/json"
     Write-Host "✓ Account unlocked successfully" -ForegroundColor Green
     Write-Host "  Status: $($unlockRes.status)" -ForegroundColor Gray
 } catch {
-    Write-Host "✗ Unlock failed:" $_.Exception.Message -ForegroundColor Red
+    Write-Host "✗" $_.ErrorDetails.Message -ForegroundColor Red
 }
 
 Write-Host ""
@@ -121,7 +128,7 @@ Write-Host ""
 # Test 7: Try close with balance (should fail)
 Write-Host "Test 7: Attempting to close account with balance (should fail)..." -ForegroundColor Yellow
 try {
-    $closeRes = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/SAV_STATE_001?command=close" -Method Post -ContentType "application/json"
+    $closeRes = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/$savId?command=close" -Method Post -Body "{}" -ContentType "application/json"
     Write-Host "✗ UNEXPECTED: Close succeeded with remaining balance!" -ForegroundColor Red
 } catch {
     Write-Host "✓ Close correctly blocked: Account has balance" -ForegroundColor Green
@@ -139,10 +146,10 @@ $withdrawAllReq = @{
 } | ConvertTo-Json
 
 try {
-    $withdrawAllRes = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/SAV_STATE_001/transactions?command=withdrawal" -Method Post -Body $withdrawAllReq -ContentType "application/json"
+    $withdrawAllRes = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/$savId/transactions?command=withdrawal" -Method Post -Body $withdrawAllReq -ContentType "application/json"
     Write-Host "✓ All funds withdrawn. Balance: $($withdrawAllRes.changes.accountBalance)" -ForegroundColor Green
 } catch {
-    Write-Host "✗ Withdrawal failed:" $_.Exception.Message -ForegroundColor Red
+    Write-Host "✗" $_.ErrorDetails.Message -ForegroundColor Red
 }
 
 Write-Host ""
@@ -150,11 +157,11 @@ Write-Host ""
 # Test 9: Close account with zero balance
 Write-Host "Test 9: Closing account with zero balance..." -ForegroundColor Yellow
 try {
-    $closeRes2 = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/SAV_STATE_001?command=close" -Method Post -ContentType "application/json"
+    $closeRes2 = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/$savId?command=close" -Method Post -Body "{}" -ContentType "application/json"
     Write-Host "✓ Account closed successfully" -ForegroundColor Green
     Write-Host "  Status: $($closeRes2.status)" -ForegroundColor Gray
 } catch {
-    Write-Host "✗ Close failed:" $_.Exception.Message -ForegroundColor Red
+    Write-Host "✗" $_.ErrorDetails.Message -ForegroundColor Red
 }
 
 Write-Host ""
@@ -162,7 +169,7 @@ Write-Host ""
 # Test 10: Try to reopen closed account (should fail)
 Write-Host "Test 10: Attempting to reopen CLOSED account (should fail)..." -ForegroundColor Yellow
 try {
-    $activateRes = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/SAV_STATE_001?command=activate" -Method Post -ContentType "application/json"
+    $activateRes = Invoke-RestMethod -Uri "$baseUrl/savingsaccounts/$savId?command=activate" -Method Post -Body "{}" -ContentType "application/json"
     Write-Host "✗ UNEXPECTED: Reopened closed account!" -ForegroundColor Red
 } catch {
     Write-Host "✓ Reopen correctly blocked: Cannot activate closed accounts" -ForegroundColor Green
@@ -177,9 +184,9 @@ Write-Host ""
 # Test 11: Create Loan Account
 Write-Host "Test 11: Creating loan account..." -ForegroundColor Yellow
 $loanReq = @{
-    accountNumber = "LOAN_STATE_001"
+    accountNumber = $loanId
     principal = 50000.0
-    clientId = "CLI_STATE_001"
+    clientId = $clientId
 } | ConvertTo-Json
 
 try {
@@ -188,7 +195,7 @@ try {
     Write-Host "  Credit Limit: $($loanRes.principal)" -ForegroundColor Gray
     Write-Host "  Status: PENDING (needs activation)" -ForegroundColor Gray
 } catch {
-    Write-Host "✗ Loan creation failed:" $_.Exception.Message -ForegroundColor Red
+    Write-Host "✗" $_.ErrorDetails.Message -ForegroundColor Red
 }
 
 Write-Host ""
@@ -196,11 +203,11 @@ Write-Host ""
 # Test 11.5: Activate loan account
 Write-Host "Test 11.5: Activating loan account..." -ForegroundColor Yellow
 try {
-    $activateLoanRes = Invoke-RestMethod -Uri "$baseUrl/loans/LOAN_STATE_001?command=activate" -Method Post -ContentType "application/json"
+    $activateLoanRes = Invoke-RestMethod -Uri "$baseUrl/loans/$loanId?command=activate" -Method Post -Body "{}" -ContentType "application/json"
     Write-Host "✓ Loan account activated" -ForegroundColor Green
     Write-Host "  Status: $($activateLoanRes.status)" -ForegroundColor Gray
 } catch {
-    Write-Host "✗ Activation failed:" $_.Exception.Message -ForegroundColor Red
+    Write-Host "✗ $_.ErrorDetails.Message" -ForegroundColor Red
 }
 
 Write-Host ""
@@ -215,10 +222,10 @@ $chargeReq = @{
 } | ConvertTo-Json
 
 try {
-    $chargeRes = Invoke-RestMethod -Uri "$baseUrl/loans/LOAN_STATE_001/charges" -Method Post -Body $chargeReq -ContentType "application/json"
+    $chargeRes = Invoke-RestMethod -Uri "$baseUrl/loans/$loanId/charges" -Method Post -Body $chargeReq -ContentType "application/json"
     Write-Host "✓ Charge added. Outstanding:" $chargeRes.changes.principalOutstanding -ForegroundColor Green
 } catch {
-    Write-Host "✗ Charge failed:" $_.Exception.Message -ForegroundColor Red
+    Write-Host "✗" $_.ErrorDetails.Message -ForegroundColor Red
 }
 
 Write-Host ""
@@ -230,11 +237,11 @@ $lockLoanReq = @{
 } | ConvertTo-Json
 
 try {
-    $lockLoanRes = Invoke-RestMethod -Uri "$baseUrl/loans/LOAN_STATE_001?command=lock" -Method Post -Body $lockLoanReq -ContentType "application/json"
+    $lockLoanRes = Invoke-RestMethod -Uri "$baseUrl/loans/$loanId?command=lock" -Method Post -Body $lockLoanReq -ContentType "application/json"
     Write-Host "✓ Loan account locked" -ForegroundColor Green
     Write-Host "  Status: $($lockLoanRes.status)" -ForegroundColor Gray
 } catch {
-    Write-Host "✗ Lock failed:" $_.Exception.Message -ForegroundColor Red
+    Write-Host "✗" $_.ErrorDetails.Message -ForegroundColor Red
 }
 
 Write-Host ""
@@ -242,7 +249,7 @@ Write-Host ""
 # Test 14: Try to add charge on LOCKED loan (should fail)
 Write-Host "Test 14: Attempting charge on LOCKED loan (should fail)..." -ForegroundColor Yellow
 try {
-    $chargeRes2 = Invoke-RestMethod -Uri "$baseUrl/loans/LOAN_STATE_001/charges" -Method Post -Body $chargeReq -ContentType "application/json"
+    $chargeRes2 = Invoke-RestMethod -Uri "$baseUrl/loans/$loanId/charges" -Method Post -Body $chargeReq -ContentType "application/json"
     Write-Host "✗ UNEXPECTED: Charge succeeded on locked account!" -ForegroundColor Red
 } catch {
     Write-Host "✓ Charge correctly blocked on LOCKED account" -ForegroundColor Green
@@ -257,10 +264,10 @@ $paymentReq = @{
 } | ConvertTo-Json
 
 try {
-    $paymentRes = Invoke-RestMethod -Uri "$baseUrl/loans/LOAN_STATE_001/payments" -Method Post -Body $paymentReq -ContentType "application/json"
+    $paymentRes = Invoke-RestMethod -Uri "$baseUrl/loans/$loanId/payments" -Method Post -Body $paymentReq -ContentType "application/json"
     Write-Host "✓ Payment accepted on LOCKED account. Outstanding:" $paymentRes.changes.principalOutstanding -ForegroundColor Green
 } catch {
-    Write-Host "✗ Payment failed:" $_.Exception.Message -ForegroundColor Red
+    Write-Host "✗" $_.ErrorDetails.Message -ForegroundColor Red
 }
 
 Write-Host ""
