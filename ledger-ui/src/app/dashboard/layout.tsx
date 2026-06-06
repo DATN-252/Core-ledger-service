@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { isLoggedIn, getUser, logout } from '@/lib/api';
+import ThemeToggle from '@/components/ThemeToggle';
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChartLine, faCreditCard, faPiggyBank, faListUl, faUsers, faSignOutAlt, faIdCard, faMoneyCheckDollar, faStore, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
@@ -87,8 +88,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     })}
                 </nav>
 
+                {/* Theme toggle */}
+                <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Giao diện</span>
+                    <ThemeToggle />
+                </div>
+
                 {/* User info */}
-                <div style={{ padding: '1rem 0.75rem', borderTop: '1px solid var(--border)' }}>
+                <div style={{ padding: '0.75rem 0.75rem 1rem', borderTop: '1px solid var(--border)' }}>
                     <div style={{
                         display: 'flex', alignItems: 'center', gap: '0.75rem',
                         padding: '0.75rem', background: 'var(--bg-card)', borderRadius: '8px',

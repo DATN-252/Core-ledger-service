@@ -251,7 +251,7 @@ export default function DashboardPage() {
                 </div>
                 {/* Utilization bar */}
                 <div style={{ marginTop: '1.25rem' }}>
-                    <div style={{ height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                    <div style={{ height: '6px', background: 'var(--border)', borderRadius: '3px', overflow: 'hidden' }}>
                         <div style={{
                             height: '100%',
                             width: `${totalCreditLimit > 0 ? Math.min((totalOutstanding / totalCreditLimit) * 100, 100) : 0}%`,
@@ -311,7 +311,7 @@ export default function DashboardPage() {
                                         <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                                 <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                                 <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                                 <Tooltip content={<CustomTooltip />} />
@@ -352,7 +352,7 @@ export default function DashboardPage() {
                         ) : (
                             <ResponsiveContainer width="100%" height={140}>
                                 <BarChart data={txnTypeData} margin={{ left: -30, right: 5, top: 5, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                                     <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                                     <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                                     <Tooltip content={<CustomTooltip />} />

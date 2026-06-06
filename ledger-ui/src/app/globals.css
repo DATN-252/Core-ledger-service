@@ -15,6 +15,46 @@
   --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
   --border: rgba(255, 255, 255, 0.08);
+
+  /* Adaptive components (default dark) */
+  --badge-danger-bg: rgba(239, 68, 68, 0.15);
+  --badge-danger-text: #fda4af;
+  --bg-hover-overlay: rgba(255, 255, 255, 0.1);
+  --bg-stat-card: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+  --banner-error-bg: rgba(239, 68, 68, 0.12);
+  --banner-error-border: rgba(239, 68, 68, 0.3);
+  --banner-error-text: #fecaca;
+  --banner-success-bg: rgba(16, 185, 129, 0.12);
+  --banner-success-border: rgba(16, 185, 129, 0.3);
+  --banner-success-text: #bbf7d0;
+}
+
+[data-theme='light'] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-dim: rgba(79, 70, 229, 0.08);
+  --success: #10b981;
+  --warning: #d97706;
+  --danger: #ef4444;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --border: #e2e8f0;
+
+  /* Adaptive components (light mode) */
+  --badge-danger-bg: #fee2e2;
+  --badge-danger-text: #ef4444;
+  --bg-hover-overlay: rgba(0, 0, 0, 0.06);
+  --bg-stat-card: linear-gradient(180deg, rgba(0, 0, 0, 0.01), rgba(0, 0, 0, 0.02));
+  --banner-error-bg: #fee2e2;
+  --banner-error-border: #fca5a5;
+  --banner-error-text: #991b1b;
+  --banner-success-bg: #d1fae5;
+  --banner-success-border: #6ee7b7;
+  --banner-success-text: #065f46;
 }
 
 * {
@@ -235,8 +275,8 @@ select.input::-ms-expand {
 }
 
 .badge-danger {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fda4af;
+  background: var(--badge-danger-bg);
+  color: var(--badge-danger-text);
 }
 
 /* Table */
@@ -511,7 +551,7 @@ tbody tr:last-child {
 }
 
 .icon-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--bg-hover-overlay);
   color: var(--text-primary);
 }
 
@@ -541,7 +581,7 @@ tbody tr:last-child {
 }
 
 .stat-card {
-  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  background: var(--bg-stat-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1rem 1.1rem;
@@ -617,9 +657,9 @@ tbody tr:last-child {
   margin-bottom: 1rem;
   padding: 0.85rem 1rem;
   border-radius: 10px;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  background: rgba(239, 68, 68, 0.12);
-  color: #fecaca;
+  border: 1px solid var(--banner-error-border);
+  background: var(--banner-error-bg);
+  color: var(--banner-error-text);
   font-size: 0.875rem;
 }
 
@@ -627,9 +667,9 @@ tbody tr:last-child {
   margin-bottom: 1rem;
   padding: 0.85rem 1rem;
   border-radius: 10px;
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  background: rgba(16, 185, 129, 0.12);
-  color: #bbf7d0;
+  border: 1px solid var(--banner-success-border);
+  background: var(--banner-success-bg);
+  color: var(--banner-success-text);
   font-size: 0.875rem;
 }
 

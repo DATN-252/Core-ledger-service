@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { login } from '@/lib/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBuildingColumns, faExclamationTriangle, faSpinner, faLock, faCrown, faBriefcase } from '@fortawesome/free-solid-svg-icons';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -32,9 +33,14 @@ export default function LoginPage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'linear-gradient(135deg, #0f1117 0%, #1a1d27 50%, #0f1117 100%)',
+            background: 'linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%)',
             padding: '1rem',
+            position: 'relative',
         }}>
+            {/* Theme Toggle Top Right */}
+            <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', zIndex: 10 }}>
+                <ThemeToggle />
+            </div>
             {/* Glow effects */}
             <div style={{
                 position: 'fixed', top: '20%', left: '30%',
