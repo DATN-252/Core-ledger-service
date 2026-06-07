@@ -5,12 +5,31 @@ import { faSun, faMoon } from '@fortawesome/free-solid-svg-icons';
 
 export default function ThemeToggle({ className }: { className?: string }) {
     const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
         // Read theme from document attributes (set by SSR/preloader inline script) or localStorage
         const activeTheme = (document.documentElement.getAttribute('data-theme') || 'dark') as 'dark' | 'light';
         setTheme(activeTheme);
+        setMounted(true);
     }, []);
+
+    if (!mounted) {
+        return (
+            <button
+                className={`icon-btn ${className || ''}`}
+                aria-label="Toggle theme"
+                style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: 'var(--bg-card-hover)',
+                    border: '1px solid var(--border)',
+                    cursor: 'pointer',
+                }}
+            />
+        );
+    }
 
     const toggleTheme = () => {
         const nextTheme = theme === 'dark' ? 'light' : 'dark';
